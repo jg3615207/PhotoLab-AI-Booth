@@ -435,6 +435,127 @@ def seed_transitions():
   30% { transform: perspective(1000px) scale(0.85) rotate(-5deg) translateZ(-50px); opacity: 0.9; filter: blur(2px); }
   100% { transform: perspective(1000px) scale(0.1) rotate(180deg) translateZ(-800px); opacity: 0; filter: blur(8px); }
 }"""
+            },
+            {
+                "id": "liquid-distort",
+                "name": "Liquid Distortion (液態波紋)",
+                "duration": 1500,
+                "css_code": """.transition-liquid-distort-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: liquid-warp-custom 1.5s forwards ease-in-out;
+}
+@keyframes liquid-warp-custom {
+  0% { transform: scale(1); border-radius: 0%; opacity: 1; }
+  35% { transform: scale(1.1) skewX(8deg) skewY(-4deg); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; opacity: 0.9; }
+  70% { transform: scale(1.25) skewX(-6deg) skewY(6deg); border-radius: 70% 30% 30% 70% / 50% 60% 40% 50%; opacity: 0.6; }
+  100% { transform: scale(1.4) skewX(0) skewY(0); border-radius: 50%; opacity: 0; }
+}"""
+            },
+            {
+                "id": "tv-static",
+                "name": "CRT TV Shutdown (電視關機)",
+                "duration": 1200,
+                "css_code": """.transition-tv-static-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: tv-shutdown-custom 1.2s forwards ease-in-out;
+}
+.transition-tv-static-custom::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,0.08), rgba(255,255,255,0.08) 1px, transparent 1px, transparent 2px);
+}
+@keyframes tv-shutdown-custom {
+  0% { transform: scaleY(1) scaleX(1); filter: brightness(1); opacity: 1; }
+  50% { transform: scaleY(0.015) scaleX(1); background-color: #fff; filter: brightness(2.5); opacity: 1; }
+  80% { transform: scaleY(0.015) scaleX(0.015); background-color: #fff; filter: brightness(5); opacity: 1; }
+  100% { transform: scaleY(0) scaleX(0); opacity: 0; }
+}"""
+            },
+            {
+                "id": "mosaic-wipe",
+                "name": "Mosaic Polygon (馬賽克折紙)",
+                "duration": 1400,
+                "css_code": """.transition-mosaic-wipe-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: mosaic-reveal-anim-custom 1.4s forwards cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes mosaic-reveal-anim-custom {
+  0% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); opacity: 1; }
+  35% { clip-path: polygon(15% 15%, 85% 5%, 95% 85%, 5% 95%); filter: brightness(1.3); opacity: 0.9; }
+  70% { clip-path: polygon(35% 35%, 65% 25%, 75% 75%, 25% 75%); filter: brightness(1.6); opacity: 0.6; }
+  100% { clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%); opacity: 0; }
+}"""
+            },
+            {
+                "id": "page-curl",
+                "name": "3D Page Curl (3D 翻頁)",
+                "duration": 1500,
+                "css_code": """.transition-page-curl-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  transform-origin: left center;
+  animation: page-curl-anim-custom 1.5s forwards cubic-bezier(0.25, 1, 0.5, 1);
+}
+@keyframes page-curl-anim-custom {
+  0% { transform: perspective(1200px) rotateY(0deg) skewY(0deg); opacity: 1; }
+  100% { transform: perspective(1200px) rotateY(-110deg) skewY(-10deg) translateX(-100px); opacity: 0; }
+}"""
+            },
+            {
+                "id": "star-wipe",
+                "name": "Retro Star Wipe (經典星星擦除)",
+                "duration": 1300,
+                "css_code": """.transition-star-wipe-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: star-wipe-anim-custom 1.3s forwards ease-in-out;
+}
+@keyframes star-wipe-anim-custom {
+  0% { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); opacity: 1; transform: scale(5); }
+  100% { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); opacity: 0; transform: scale(0); }
+}"""
+            },
+            {
+                "id": "diamond-wipe",
+                "name": "Diamond Iris Wipe (菱形鏡頭擦除)",
+                "duration": 1200,
+                "css_code": """.transition-diamond-wipe-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: diamond-wipe-anim-custom 1.2s forwards ease-in-out;
+}
+@keyframes diamond-wipe-anim-custom {
+  0% { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); opacity: 1; transform: scale(3); }
+  100% { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); opacity: 0; transform: scale(0); }
+}"""
             }
         ]
         for t in transitions:
