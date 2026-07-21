@@ -101,6 +101,14 @@ def init_db():
             output_image TEXT,
             created_at TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS transitions (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            duration INTEGER DEFAULT 1400,
+            css_code TEXT DEFAULT '',
+            active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
     """)
     # Migration: add v2_model and v2_quality columns (v0.4.0)
     try:
@@ -188,3 +196,109 @@ def set_setting(key: str, value: str):
     conn = get_conn()
     conn.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES (?,?)", (key, value))
     conn.commit()
+
+
+def seed_transitions():
+    with get_db() as db:
+        existing = db.execute("SELECT COUNT(*) FROM transitions").fetchone()[0]
+        if existing > 0:
+            return
+        
+        transitions = [
+            {
+                "id": "glitch",
+                "name": "Glitch (故障風)",
+                "duration": 1000,
+                "css_code": """.transition-glitch-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #111;
+  animation: screen-glitch-shake-custom 1.0s forwards ease-in-out;
+}
+@keyframes screen-glitch-shake-custom {
+  0%, 100% { transform: translate(0) scale(1); opacity: 1; }
+  10% { transform: translate(-4px, 4px) skew(-2deg); opacity: 0.9; }
+  20% { transform: translate(4px, -4px) skew(3deg); opacity: 0.8; }
+  35% { transform: translate(-3px, -2px) skew(-3deg); opacity: 0.95; }
+  50% { transform: translate(3px, 3px) skew(2deg); opacity: 0.7; }
+  70% { transform: translate(-5px, 2px) skew(-1deg); opacity: 0.9; }
+  90% { transform: translate(0) scale(1.05); opacity: 0.4; }
+  100% { transform: translate(0) scale(1); opacity: 0; }
+}"""
+            },
+            {
+                "id": "flash",
+                "name": "Flash & Burn (閃光)",
+                "duration": 1200,
+                "css_code": """.transition-flash-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #fff;
+  animation: flash-burn-custom 1.2s forwards cubic-bezier(0.1, 0.8, 0.3, 1);
+}
+@keyframes flash-burn-custom {
+  0% { opacity: 1; background: #fff; }
+  30% { opacity: 1; background: #ffaa44; filter: brightness(1.5); }
+  100% { opacity: 0; background: transparent; }
+}"""
+            },
+            {
+                "id": "swipe",
+                "name": "Laser Swipe (雷射)",
+                "duration": 1400,
+                "css_code": """.transition-swipe-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0,0,0,0.8);
+  overflow: hidden;
+  animation: fade-out-bg-custom 1.4s forwards;
+}
+.transition-swipe-custom::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #667eea;
+  box-shadow: 0 0 15px #764ba2, 0 0 30px #667eea;
+  animation: laser-swipe-custom 1.4s forwards linear;
+}
+@keyframes laser-swipe-custom {
+  0% { top: 0%; opacity: 1; }
+  90% { top: 100%; opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+@keyframes fade-out-bg-custom {
+  0% { background: rgba(0,0,0,0.8); }
+  90% { background: rgba(0,0,0,0.8); }
+  100% { background: transparent; }
+}"""
+            },
+            {
+                "id": "zoom",
+                "name": "Zoom Reveal (縮放)",
+                "duration": 1200,
+                "css_code": """.transition-zoom-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #000;
+  animation: zoom-reveal-custom 1.2s forwards cubic-bezier(0.25, 1, 0.5, 1);
+}
+@keyframes zoom-reveal-custom {
+  0% { transform: scale(1.5); opacity: 1; background: #000; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 0; background: transparent; }
+}"""
+            }
+        ]
+        
+        for t in transitions:
+            db.execute(
+                "INSERT OR IGNORE INTO transitions (id, name, duration, css_code, active) VALUES (?,?,?,?,1)",
+                (t["id"], t["name"], t["duration"], t["css_code"])
+            )
+

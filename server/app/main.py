@@ -4,7 +4,7 @@ from pathlib import Path
 
 from app.config import settings
 from app.db import init_db, seed_styles
-from app.api import styles, capture, gallery, events, admin, ws
+from app.api import styles, capture, gallery, events, admin, ws, transitions
 from app.services.printing import start_print_worker
 
 app = FastAPI(title="PhotoLab AI Booth")
@@ -15,6 +15,8 @@ app.include_router(gallery.router)
 app.include_router(events.router)
 app.include_router(admin.router)
 app.include_router(ws.router)
+app.include_router(transitions.router)
+app.include_router(transitions.public_router)
 
 from app.db import init_db, seed_styles, get_setting
 
@@ -22,7 +24,7 @@ from app.db import init_db, seed_styles, get_setting
 def health():
     return {
         "status": "ok", 
-        "version": "0.13.0",
+        "version": "0.14.0",
         "custom_css": get_setting("custom_css", "")
     }
 
@@ -36,8 +38,10 @@ def startup():
     ws.main_loop = asyncio.get_running_loop()
     for d in ["upload_dir", "output_dir", "print_dir"]:
         Path(getattr(settings, d)).mkdir(parents=True, exist_ok=True)
+    from app.db import init_db, seed_styles, seed_transitions
     init_db()
     seed_styles()
+    seed_transitions()
     
     # Graceful recovery: fail any pending/processing jobs
     from app.db import get_db

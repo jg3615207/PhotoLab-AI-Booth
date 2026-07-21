@@ -54,6 +54,7 @@ export default function StylesTab() {
   const [fTransition, setFTransition] = useState('glitch');
   const [fAnimatedThumb, setFAnimatedThumb] = useState('');
   const [fDynamicPrompt, setFDynamicPrompt] = useState(0);
+  const [transitionsList, setTransitionsList] = useState<any[]>([]);
 
   // Undo prompt memory
   const [previousPrompt, setPreviousPrompt] = useState<string | null>(null);
@@ -81,6 +82,10 @@ export default function StylesTab() {
       const resModels = await fetch('/api/styles/v2-models');
       const dataModels = await resModels.json();
       setV2Models(dataModels || []);
+
+      const resTrans = await fetch('/api/transitions/list');
+      const dataTrans = await resTrans.json();
+      setTransitionsList(dataTrans || []);
     } catch (e) {
       console.error("Failed to load styles", e);
     } finally {
@@ -547,11 +552,11 @@ export default function StylesTab() {
                 <div>
                   <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '揭曉動畫' : 'Reveal Transition'}</label>
                   <select value={fTransition} onChange={e => setFTransition(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
-                    <option value="glitch">Glitch (故障風)</option>
-                    <option value="flash">Flash & Burn (閃光)</option>
-                    <option value="swipe">Laser Swipe (雷射)</option>
-                    <option value="random">Random (隨機)</option>
-                    <option value="none">None (無)</option>
+                    {transitionsList.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                    <option value="random">{isZh ? 'Random (隨機)' : 'Random'}</option>
+                    <option value="none">{isZh ? 'None (無)' : 'None'}</option>
                   </select>
                 </div>
               </div>

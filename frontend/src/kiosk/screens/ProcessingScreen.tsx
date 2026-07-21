@@ -12,20 +12,22 @@ export default function ProcessingScreen() {
 
   const [tip, setTip] = useState(tips[0]);
   const [transitionType, setTransitionType] = useState('glitch');
+  const [transitions, setTransitions] = useState<any[]>([]);
   const [activeTransition, setActiveTransition] = useState<string | null>(null);
   const isFinishedRef = useRef(false);
   
   useEffect(() => {
     if (selectedStyleId) {
-      fetch('/api/styles')
-        .then(r => r.json())
-        .then(list => {
-          const match = list.find((s: any) => s.id === selectedStyleId);
-          if (match) {
-            setTransitionType(match.transition_type || 'glitch');
-          }
-        })
-        .catch(e => console.error("Failed to load transition type:", e));
+      Promise.all([
+        fetch('/api/styles').then(r => r.json()),
+        fetch('/api/transitions/list').then(r => r.json())
+      ]).then(([styleList, transList]) => {
+        const matchStyle = styleList.find((s: any) => s.id === selectedStyleId);
+        if (matchStyle) {
+          setTransitionType(matchStyle.transition_type || 'glitch');
+        }
+        setTransitions(transList || []);
+      }).catch(e => console.error("Failed to load transitions details:", e));
     }
   }, [selectedStyleId]);
 
@@ -51,17 +53,24 @@ export default function ProcessingScreen() {
       
       let trans = transitionType;
       if (trans === 'random') {
-        const types = ['glitch', 'flash', 'swipe'];
-        trans = types[Math.floor(Math.random() * types.length)];
+        const activeTypes = transitions.map(t => t.id).filter(id => id !== 'random' && id !== 'none');
+        if (activeTypes.length > 0) {
+          trans = activeTypes[Math.floor(Math.random() * activeTypes.length)];
+        } else {
+          trans = 'glitch';
+        }
       }
 
       if (trans === 'none') {
         startReveal();
       } else {
+        const transMatch = transitions.find(t => t.id === trans);
+        const duration = transMatch ? transMatch.duration : 1400;
+        
         setActiveTransition(trans);
         setTimeout(() => {
           startReveal();
-        }, 1400); // Keep sync with CSS animations
+        }, duration);
       }
     };
 
@@ -146,7 +155,7 @@ export default function ProcessingScreen() {
   return (
     <div className="screen active" style={{ display: 'flex' }}>
       {activeTransition && (
-        <div className={`transition-overlay transition-${activeTransition}`} />
+        <div className={`transition-overlay transition-${activeTransition}-custom`} />
       )}
       <div className="processing-content">
         <div className="spinner"></div>

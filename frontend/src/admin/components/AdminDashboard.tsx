@@ -5,6 +5,7 @@ import AnalyticsTab from './AnalyticsTab';
 import WikiTab from './WikiTab';
 import SystemTab from './SystemTab';
 import LiveJobsTab from './LiveJobsTab';
+import TransitionsTab from './TransitionsTab';
 import { AdminLangProvider, useAdminLang } from '../context/AdminLangContext';
 
 function DashboardContent() {
@@ -21,7 +22,7 @@ function DashboardContent() {
             <h2 style={{ margin: 0, fontSize: '20px', color: '#fff', fontWeight: 700 }}>
               {isZh ? 'PhotoLab 管理員' : 'PhotoLab Admin'}
             </h2>
-            <span style={{ fontSize: '11px', background: 'rgba(102,126,234,0.2)', color: '#667eea', border: '1px solid rgba(102,126,234,0.4)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>v0.13.0</span>
+            <span style={{ fontSize: '11px', background: 'rgba(102,126,234,0.2)', color: '#667eea', border: '1px solid rgba(102,126,234,0.4)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>v0.14.0</span>
           </div>
 
           <div className="lang-toggle" style={{ display: 'flex', alignItems: 'center' }}>
@@ -37,6 +38,9 @@ function DashboardContent() {
           </div>
           <div className={`nav-item ${activeTab === 'sessions' ? 'active' : ''}`} onClick={() => setActiveTab('sessions')}>
             📅 {isZh ? '場次管理' : 'Session Manager'}
+          </div>
+          <div className={`nav-item ${activeTab === 'transitions' ? 'active' : ''}`} onClick={() => setActiveTab('transitions')}>
+            ⚡ {isZh ? '過渡特效' : 'Transitions'}
           </div>
           <div className={`nav-item ${activeTab === 'jobs' ? 'active' : ''}`} onClick={() => setActiveTab('jobs')}>
             ⚙️ {isZh ? '即時任務' : 'Live Jobs'}
@@ -56,6 +60,7 @@ function DashboardContent() {
       <div className="main-content">
         {activeTab === 'styles' && <StylesTab />}
         {activeTab === 'sessions' && <SessionsTab />}
+        {activeTab === 'transitions' && <TransitionsTab />}
         {activeTab === 'jobs' && <LiveJobsTab />}
         {activeTab === 'analytics' && <AnalyticsTab />}
         {activeTab === 'wiki' && <WikiTab />}
