@@ -424,7 +424,7 @@ export default function StylesTab() {
     setFPrompt(s.prompt_template || '');
     setFResolution(s.resolution || '2k');
     setFV2Quality(s.v2_quality || 'medium');
-    setFAspect(s.aspect_ratio || '16:9');
+    setFAspect(s.aspect_ratio || '2:3');
     setFSeed(s.seed || '');
     setTestModels([s.v2_model || 'nb2-cheap', '', '', '']);
     setTestResults({});
@@ -441,14 +441,14 @@ export default function StylesTab() {
         testVideoRef.current.srcObject = stream;
       }
     } catch (e: any) {
-      alert(isZh ? "相機錯誤: " + e.message : "Camera error: " + e.message);
+      alert(isZh ? "無法存取相機" : "Cannot access camera");
       setTestTab('upload');
     }
   };
 
   const stopCamera = () => {
     if (cameraStream) {
-      cameraStream.getTracks().forEach(t => t.stop());
+      cameraStream.getTracks().forEach(track => track.stop());
       setCameraStream(null);
     }
   };
@@ -481,6 +481,8 @@ export default function StylesTab() {
 
       setTestResults(prev => ({ ...prev, [index]: { loading: true } }));
 
+      const targetAspect = testStyle.aspect_ratio || fAspect || '2:3';
+
       const form = new FormData();
       form.append('image', testImageBlob, 'test.jpg');
       form.append('style_id', testStyle.id);
@@ -489,7 +491,7 @@ export default function StylesTab() {
       if (modelId) form.append('model_override', modelId);
       if (fResolution) form.append('resolution_override', fResolution);
       if (fV2Quality) form.append('quality_override', fV2Quality);
-      if (fAspect) form.append('aspect_override', fAspect);
+      form.append('aspect_override', targetAspect);
       if (fSeed) form.append('seed_override', fSeed);
 
       try {
@@ -513,8 +515,10 @@ export default function StylesTab() {
         const job = await r.json();
         if (job.status === 'done') {
           clearInterval(iv);
-          const fn = job.print_image ? job.print_image.split(/[/\\]/).slice(-2).join('/') : job.output_image;
-          setTestResults(prev => ({ ...prev, [index]: { url: `/api/images/${fn}`, job_id: jobId, loading: false } }));
+          const rawFile = job.output_image
+            ? job.output_image.split(/[/\\]/).slice(-2).join('/')
+            : (job.print_image ? job.print_image.split(/[/\\]/).slice(-2).join('/') : '');
+          setTestResults(prev => ({ ...prev, [index]: { url: `/api/images/${rawFile}`, job_id: jobId, loading: false } }));
         } else if (job.status === 'failed') {
           clearInterval(iv);
           setTestResults(prev => ({ ...prev, [index]: { error: job.error_message || 'Failed', loading: false } }));
@@ -722,7 +726,12 @@ export default function StylesTab() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
           <div style={{ background: '#151525', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', width: '760px', maxHeight: '95vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ color: '#fff', margin: 0, fontSize: '20px' }}>🧪 {isZh ? '測試風格' : 'Test Style'}: {testStyle.name}</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h2 style={{ color: '#fff', margin: 0, fontSize: '20px' }}>🧪 {isZh ? '測試風格' : 'Test Style'}: {testStyle.name}</h2>
+                <span style={{ fontSize: '11px', background: 'rgba(102,126,234,0.2)', color: '#a3b8ff', border: '1px solid rgba(102,126,234,0.4)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
+                  📐 {testStyle.aspect_ratio || '2:3'}
+                </span>
+              </div>
               <button onClick={() => { stopCamera(); setTestStyle(null); }} style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer' }}>×</button>
             </div>
 
