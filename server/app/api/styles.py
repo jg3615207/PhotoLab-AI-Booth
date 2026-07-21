@@ -282,9 +282,21 @@ def generate_ref_image(style_id: str, body: GenerateRefRequest):
     except Exception as e:
         raise HTTPException(500, f"Failed to download generated image: {str(e)}")
 
+    preview_url = f"/api/styles/{style_id}/_preview.jpg"
+    try:
+        with get_db() as db:
+            db.execute(
+                """INSERT INTO ref_gen_logs 
+                   (style_id, prompt, aspect_ratio, resolution, v2_model, v2_quality, preview_url, cost_time, cost_money, status) 
+                   VALUES (?,?,?,?,?,?,?,?,?,'generated')""",
+                (style_id, body.prompt, body.aspect_ratio, body.resolution, body.v2_model, body.v2_quality, preview_url, result.cost_time, result.cost_money)
+            )
+    except Exception as log_err:
+        print(f"Failed to log ref gen: {log_err}")
+
     return {
         "status": "generated",
-        "preview_url": f"/api/styles/{style_id}/_preview.jpg",
+        "preview_url": preview_url,
         "cost_money": result.cost_money,
         "cost_time": result.cost_time,
         "task_id": result.task_id,
@@ -312,6 +324,12 @@ def accept_ref_image(style_id: str):
 
     # Delete preview file
     preview_path.unlink(missing_ok=True)
+
+    try:
+        with get_db() as db:
+            db.execute("UPDATE ref_gen_logs SET status='accepted' WHERE style_id=? AND status='generated'", (style_id,))
+    except Exception:
+        pass
 
     # Upload to RunningHub v1 (workflow API)
     rh_file_name = None

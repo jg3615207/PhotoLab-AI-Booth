@@ -101,6 +101,20 @@ def init_db():
             output_image TEXT,
             created_at TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS ref_gen_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            style_id TEXT,
+            prompt TEXT,
+            aspect_ratio TEXT,
+            resolution TEXT,
+            v2_model TEXT,
+            v2_quality TEXT,
+            preview_url TEXT,
+            cost_time INTEGER DEFAULT 0,
+            cost_money REAL DEFAULT 0,
+            status TEXT DEFAULT 'generated',
+            created_at TEXT DEFAULT (datetime('now'))
+        );
         CREATE TABLE IF NOT EXISTS transitions (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,

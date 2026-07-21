@@ -22,7 +22,16 @@ def download_image(job_id: str):
 
 @router.get("/images/{job_id}/{filename}")
 def serve_image(job_id: str, filename: str):
-    path = os.path.join(settings.output_dir, job_id, filename)
+    job_dir = os.path.join(settings.output_dir, job_id)
+    path = os.path.join(job_dir, filename)
+    
+    if not os.path.exists(path):
+        for alt in ["print_ready.jpg", "framed.jpg", "raw.jpg", "input.jpg"]:
+            alt_path = os.path.join(job_dir, alt)
+            if os.path.exists(alt_path):
+                path = alt_path
+                break
+
     if not os.path.exists(path):
         raise HTTPException(404)
         

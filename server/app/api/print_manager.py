@@ -34,6 +34,7 @@ def get_job_history(
                 s.output_image,
                 s.print_image,
                 s.print_status,
+                s.capture_source,
                 COALESCE(s.download_count, 0) as download_count,
                 s.cost_time,
                 s.cost_money,
@@ -82,6 +83,31 @@ def get_job_history(
             result.append(d)
             
         return result
+
+@router.get("/ref-gen-history")
+def get_ref_gen_history(limit: int = Query(100)):
+    with get_db() as db:
+        rows = db.execute("""
+            SELECT 
+                rg.id,
+                rg.style_id,
+                COALESCE(st.name, rg.style_id) as style_name,
+                rg.prompt,
+                rg.aspect_ratio,
+                rg.resolution,
+                rg.v2_model,
+                rg.v2_quality,
+                rg.preview_url,
+                rg.cost_time,
+                rg.cost_money,
+                rg.status,
+                rg.created_at
+            FROM ref_gen_logs rg
+            LEFT JOIN styles st ON rg.style_id = st.id
+            ORDER BY rg.created_at DESC
+            LIMIT ?
+        """, (limit,)).fetchall()
+        return [dict(r) for r in rows]
 
 @router.get("/print-queue")
 def get_print_queue():
