@@ -297,9 +297,12 @@ export default function StylesTab() {
     }
   };
 
-  const handleToggleActive = async (id: string, active: boolean) => {
+  const handleToggleActive = async (id: string, active: boolean, dynamicPromptEnabled?: number) => {
     const f = new FormData();
     f.append('active', active ? '1' : '0');
+    if (dynamicPromptEnabled !== undefined) {
+      f.append('dynamic_prompt_enabled', dynamicPromptEnabled.toString());
+    }
     await fetch(`/api/styles/${id}`, { method: 'PUT', body: f });
     loadStyles();
   };
@@ -821,9 +824,30 @@ export default function StylesTab() {
                 <div style={{ fontSize: '13px', color: '#bbb', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
                   {s.prompt_template || <i>{isZh ? '無提示詞' : 'No prompt template'}</i>}
                 </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <span className={`status ${s.rh_ref_file ? 'status-active' : 'status-inactive'}`} style={{ fontSize: '11px' }}>
                     ref {s.rh_ref_file ? 'OK' : (isZh ? '無' : 'None')}
+                  </span>
+
+                  {/* VISION DYNAMIC PROMPT BADGE & TOGGLE */}
+                  <span 
+                    onClick={() => handleToggleActive(s.id, s.active === 1, s.dynamic_prompt_enabled === 1 ? 0 : 1)}
+                    title={isZh ? '點擊切換視覺動態提示詞' : 'Click to toggle Vision Dynamic Prompt'}
+                    style={{ 
+                      fontSize: '11px', 
+                      padding: '2px 8px', 
+                      borderRadius: '10px', 
+                      background: s.dynamic_prompt_enabled === 1 ? 'rgba(0,210,255,0.18)' : 'rgba(255,255,255,0.05)', 
+                      color: s.dynamic_prompt_enabled === 1 ? '#00d2ff' : '#888', 
+                      border: s.dynamic_prompt_enabled === 1 ? '1px solid rgba(0,210,255,0.4)' : '1px solid rgba(255,255,255,0.12)',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    👁️ {isZh ? (s.dynamic_prompt_enabled === 1 ? 'Vision動態: 開' : 'Vision動態: 關') : (s.dynamic_prompt_enabled === 1 ? 'Vision: ON' : 'Vision: OFF')}
                   </span>
                 </div>
               </div>
