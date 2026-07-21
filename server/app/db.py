@@ -107,6 +107,7 @@ def init_db():
             duration INTEGER DEFAULT 1400,
             css_code TEXT DEFAULT '',
             active INTEGER DEFAULT 1,
+            is_favorite INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now'))
         );
     """)
@@ -129,6 +130,10 @@ def init_db():
         pass
     try:
         conn.execute("ALTER TABLE events ADD COLUMN frame_path TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE transitions ADD COLUMN is_favorite INTEGER DEFAULT 0")
     except sqlite3.OperationalError:
         pass
     try:

@@ -553,7 +553,7 @@ export default function StylesTab() {
                   <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '揭曉動畫' : 'Reveal Transition'}</label>
                   <select value={fTransition} onChange={e => setFTransition(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
                     {transitionsList.map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+                      <option key={t.id} value={t.id}>{t.is_favorite ? `⭐ ${t.name}` : t.name}</option>
                     ))}
                     <option value="random">{isZh ? 'Random (隨機)' : 'Random'}</option>
                     <option value="none">{isZh ? 'None (無)' : 'None'}</option>

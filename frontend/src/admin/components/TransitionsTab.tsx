@@ -8,6 +8,7 @@ interface TransitionItem {
   duration: number;
   css_code: string;
   active: number;
+  is_favorite?: number;
 }
 
 export default function TransitionsTab() {
@@ -25,6 +26,7 @@ export default function TransitionsTab() {
   const [fDuration, setFDuration] = useState(1400);
   const [fCssCode, setFCssCode] = useState('');
   const [fActive, setFActive] = useState(1);
+  const [fFavorite, setFFavorite] = useState(0);
 
   // Simulation State
   const [simulatingItem, setSimulatingItem] = useState<TransitionItem | null>(null);
@@ -53,6 +55,21 @@ export default function TransitionsTab() {
     setFDuration(1400);
     setFCssCode('');
     setFActive(1);
+    setFFavorite(0);
+  };
+
+  const handleToggleFavorite = async (tid: string, currentFav: number) => {
+    const nextFav = currentFav ? 0 : 1;
+    try {
+      const form = new FormData();
+      form.append('is_favorite', nextFav.toString());
+      const r = await fetch(`/api/admin/transitions/${tid}/favorite`, { method: 'POST', body: form });
+      if (r.ok) {
+        loadTransitions();
+      }
+    } catch (e) {
+      console.error("Failed to toggle favorite", e);
+    }
   };
 
   const handleCreate = async () => {
@@ -65,6 +82,7 @@ export default function TransitionsTab() {
     form.append('name', fName.trim());
     form.append('duration', fDuration.toString());
     form.append('css_code', fCssCode);
+    form.append('is_favorite', fFavorite.toString());
 
     try {
       const r = await fetch('/api/admin/transitions', { method: 'POST', body: form });
@@ -87,6 +105,7 @@ export default function TransitionsTab() {
     form.append('duration', fDuration.toString());
     form.append('css_code', fCssCode);
     form.append('active', fActive.toString());
+    form.append('is_favorite', fFavorite.toString());
 
     try {
       const r = await fetch(`/api/admin/transitions/${editingItem.id}`, { method: 'PUT', body: form });
@@ -126,6 +145,7 @@ export default function TransitionsTab() {
     setFDuration(item.duration);
     setFCssCode(item.css_code);
     setFActive(item.active);
+    setFFavorite(item.is_favorite || 0);
   };
 
   // Start Simulator Flow
@@ -230,17 +250,43 @@ export default function TransitionsTab() {
             >
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 style={{ color: '#fff', margin: 0, fontSize: '18px' }}>{t.name}</h3>
-                  <span style={{ 
-                    fontSize: '11px', 
-                    padding: '2px 8px', 
-                    borderRadius: '10px', 
-                    background: t.active ? 'rgba(79,255,79,0.15)' : 'rgba(255,79,79,0.15)',
-                    color: t.active ? '#4f4' : '#f44',
-                    fontWeight: 600
-                  }}>
-                    {t.active ? (isZh ? '已啟用' : 'Active') : (isZh ? '已停用' : 'Inactive')}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button 
+                      onClick={() => handleToggleFavorite(t.id, t.is_favorite || 0)}
+                      title={t.is_favorite ? (isZh ? '取消最愛' : 'Unmark Favorite') : (isZh ? '設為最愛' : 'Mark Favorite')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '20px',
+                        cursor: 'pointer',
+                        padding: 0,
+                        filter: t.is_favorite ? 'none' : 'grayscale(100%) opacity(0.35)',
+                        transform: t.is_favorite ? 'scale(1.15)' : 'scale(1)',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      ⭐
+                    </button>
+                    <h3 style={{ color: '#fff', margin: 0, fontSize: '18px' }}>{t.name}</h3>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {t.is_favorite === 1 && (
+                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(255, 215, 0, 0.2)', color: '#ffd700', border: '1px solid rgba(255, 215, 0, 0.4)', fontWeight: 600 }}>
+                        ★ {isZh ? '最愛' : 'Fav'}
+                      </span>
+                    )}
+                    <span style={{ 
+                      fontSize: '11px', 
+                      padding: '2px 8px', 
+                      borderRadius: '10px', 
+                      background: t.active ? 'rgba(79,255,79,0.15)' : 'rgba(255,79,79,0.15)',
+                      color: t.active ? '#4f4' : '#f44',
+                      fontWeight: 600
+                    }}>
+                      {t.active ? (isZh ? '已啟用' : 'Active') : (isZh ? '已停用' : 'Inactive')}
+                    </span>
+                  </div>
                 </div>
                 
                 <p style={{ color: '#aaa', fontSize: '14px', margin: '4px 0' }}>
