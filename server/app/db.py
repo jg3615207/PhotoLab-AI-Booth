@@ -205,13 +205,13 @@ def seed_transitions():
             {
                 "id": "glitch",
                 "name": "Glitch (故障風)",
-                "duration": 1000,
+                "duration": 1400,
                 "css_code": """.transition-glitch-custom {
   position: fixed;
   inset: 0;
   z-index: 99999;
   background: #111;
-  animation: screen-glitch-shake-custom 1.0s forwards ease-in-out;
+  animation: screen-glitch-shake-custom 1.4s forwards ease-in-out;
 }
 @keyframes screen-glitch-shake-custom {
   0%, 100% { transform: translate(0) scale(1); opacity: 1; }
@@ -227,13 +227,13 @@ def seed_transitions():
             {
                 "id": "flash",
                 "name": "Flash & Burn (閃光)",
-                "duration": 1200,
+                "duration": 1680,
                 "css_code": """.transition-flash-custom {
   position: fixed;
   inset: 0;
   z-index: 99999;
   background: #fff;
-  animation: flash-burn-custom 1.2s forwards cubic-bezier(0.1, 0.8, 0.3, 1);
+  animation: flash-burn-custom 1.68s forwards cubic-bezier(0.1, 0.8, 0.3, 1);
 }
 @keyframes flash-burn-custom {
   0% { opacity: 1; background: #fff; }
@@ -244,14 +244,14 @@ def seed_transitions():
             {
                 "id": "swipe",
                 "name": "Laser Swipe (雷射)",
-                "duration": 1400,
+                "duration": 1960,
                 "css_code": """.transition-swipe-custom {
   position: fixed;
   inset: 0;
   z-index: 99999;
   background: rgba(0,0,0,0.8);
   overflow: hidden;
-  animation: fade-out-bg-custom 1.4s forwards;
+  animation: fade-out-bg-custom 1.96s forwards;
 }
 .transition-swipe-custom::after {
   content: "";
@@ -261,7 +261,7 @@ def seed_transitions():
   height: 4px;
   background: #667eea;
   box-shadow: 0 0 15px #764ba2, 0 0 30px #667eea;
-  animation: laser-swipe-custom 1.4s forwards linear;
+  animation: laser-swipe-custom 1.96s forwards linear;
 }
 @keyframes laser-swipe-custom {
   0% { top: 0%; opacity: 1; }
@@ -277,13 +277,13 @@ def seed_transitions():
             {
                 "id": "zoom",
                 "name": "Zoom Reveal (縮放)",
-                "duration": 1200,
+                "duration": 1680,
                 "css_code": """.transition-zoom-custom {
   position: fixed;
   inset: 0;
   z-index: 99999;
   background: #000;
-  animation: zoom-reveal-custom 1.2s forwards cubic-bezier(0.25, 1, 0.5, 1);
+  animation: zoom-reveal-custom 1.68s forwards cubic-bezier(0.25, 1, 0.5, 1);
 }
 @keyframes zoom-reveal-custom {
   0% { transform: scale(1.5); opacity: 1; background: #000; }
@@ -294,7 +294,7 @@ def seed_transitions():
             {
                 "id": "chromatic-radial-split",
                 "name": "Chromatic Radial Split (分色雷射)",
-                "duration": 1500,
+                "duration": 2100,
                 "css_code": """.transition-chromatic-radial-split-custom {
   position: fixed;
   inset: 0;
@@ -312,7 +312,7 @@ def seed_transitions():
   background-size: cover;
   background-position: center;
   mix-blend-mode: screen;
-  animation-duration: 1.5s;
+  animation-duration: 2.1s;
   animation-fill-mode: forwards;
   animation-timing-function: ease-out;
 }
@@ -336,7 +336,7 @@ def seed_transitions():
             {
                 "id": "cube-3d",
                 "name": "3D Cube Flip (3D 立方體)",
-                "duration": 1500,
+                "duration": 2100,
                 "css_code": """.transition-cube-3d-custom {
   position: fixed;
   inset: 0;
@@ -345,7 +345,7 @@ def seed_transitions():
   background-size: cover;
   background-position: center;
   transform-origin: right center;
-  animation: cube-flip-custom 1.5s forwards cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  animation: cube-flip-custom 2.1s forwards cubic-bezier(0.55, 0.055, 0.675, 0.19);
 }
 @keyframes cube-flip-custom {
   0% { transform: perspective(1000px) rotateY(0deg) translateZ(0); opacity: 1; }
@@ -355,7 +355,7 @@ def seed_transitions():
             {
                 "id": "card-flip",
                 "name": "3D Card Flip (3D 翻牌)",
-                "duration": 1200,
+                "duration": 1680,
                 "css_code": """.transition-card-flip-custom {
   position: fixed;
   inset: 0;
@@ -364,7 +364,7 @@ def seed_transitions():
   background-size: cover;
   background-position: center;
   backface-visibility: hidden;
-  animation: card-flip-anim-custom 1.2s forwards ease-in-out;
+  animation: card-flip-anim-custom 1.68s forwards ease-in-out;
 }
 @keyframes card-flip-anim-custom {
   0% { transform: perspective(1000px) rotateY(0deg); opacity: 1; }
@@ -375,7 +375,7 @@ def seed_transitions():
             {
                 "id": "door-3d",
                 "name": "3D Swing Doors (3D 開門)",
-                "duration": 1500,
+                "duration": 2100,
                 "css_code": """.transition-door-3d-custom {
   position: fixed;
   inset: 0;
@@ -392,7 +392,7 @@ def seed_transitions():
   width: 50%;
   background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
   background-size: 200% 100%;
-  animation-duration: 1.5s;
+  animation-duration: 2.1s;
   animation-fill-mode: forwards;
   animation-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
 }
@@ -420,7 +420,7 @@ def seed_transitions():
             {
                 "id": "fly-3d",
                 "name": "3D Fly & Spin (3D 旋轉飛出)",
-                "duration": 1400,
+                "duration": 1960,
                 "css_code": """.transition-fly-3d-custom {
   position: fixed;
   inset: 0;
@@ -428,7 +428,7 @@ def seed_transitions():
   background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
   background-size: cover;
   background-position: center;
-  animation: fly-spin-custom 1.4s forwards cubic-bezier(0.25, 1, 0.5, 1);
+  animation: fly-spin-custom 1.96s forwards cubic-bezier(0.25, 1, 0.5, 1);
 }
 @keyframes fly-spin-custom {
   0% { transform: perspective(1000px) scale(1) rotate(0deg) translateZ(0); opacity: 1; filter: blur(0); }
@@ -439,7 +439,7 @@ def seed_transitions():
             {
                 "id": "liquid-distort",
                 "name": "Liquid Distortion (液態波紋)",
-                "duration": 1500,
+                "duration": 2100,
                 "css_code": """.transition-liquid-distort-custom {
   position: fixed;
   inset: 0;
@@ -447,7 +447,7 @@ def seed_transitions():
   background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
   background-size: cover;
   background-position: center;
-  animation: liquid-warp-custom 1.5s forwards ease-in-out;
+  animation: liquid-warp-custom 2.1s forwards ease-in-out;
 }
 @keyframes liquid-warp-custom {
   0% { transform: scale(1); border-radius: 0%; opacity: 1; }
@@ -459,7 +459,7 @@ def seed_transitions():
             {
                 "id": "tv-static",
                 "name": "CRT TV Shutdown (電視關機)",
-                "duration": 1200,
+                "duration": 1680,
                 "css_code": """.transition-tv-static-custom {
   position: fixed;
   inset: 0;
@@ -467,7 +467,7 @@ def seed_transitions():
   background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
   background-size: cover;
   background-position: center;
-  animation: tv-shutdown-custom 1.2s forwards ease-in-out;
+  animation: tv-shutdown-custom 1.68s forwards ease-in-out;
 }
 .transition-tv-static-custom::after {
   content: "";
@@ -485,7 +485,7 @@ def seed_transitions():
             {
                 "id": "mosaic-wipe",
                 "name": "Mosaic Polygon (馬賽克折紙)",
-                "duration": 1400,
+                "duration": 1960,
                 "css_code": """.transition-mosaic-wipe-custom {
   position: fixed;
   inset: 0;
@@ -493,7 +493,7 @@ def seed_transitions():
   background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
   background-size: cover;
   background-position: center;
-  animation: mosaic-reveal-anim-custom 1.4s forwards cubic-bezier(0.4, 0, 0.2, 1);
+  animation: mosaic-reveal-anim-custom 1.96s forwards cubic-bezier(0.4, 0, 0.2, 1);
 }
 @keyframes mosaic-reveal-anim-custom {
   0% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); opacity: 1; }
@@ -505,7 +505,7 @@ def seed_transitions():
             {
                 "id": "page-curl",
                 "name": "3D Page Curl (3D 翻頁)",
-                "duration": 1500,
+                "duration": 2100,
                 "css_code": """.transition-page-curl-custom {
   position: fixed;
   inset: 0;
@@ -514,7 +514,7 @@ def seed_transitions():
   background-size: cover;
   background-position: center;
   transform-origin: left center;
-  animation: page-curl-anim-custom 1.5s forwards cubic-bezier(0.25, 1, 0.5, 1);
+  animation: page-curl-anim-custom 2.1s forwards cubic-bezier(0.25, 1, 0.5, 1);
 }
 @keyframes page-curl-anim-custom {
   0% { transform: perspective(1200px) rotateY(0deg) skewY(0deg); opacity: 1; }
@@ -524,7 +524,7 @@ def seed_transitions():
             {
                 "id": "star-wipe",
                 "name": "Retro Star Wipe (經典星星擦除)",
-                "duration": 1300,
+                "duration": 1820,
                 "css_code": """.transition-star-wipe-custom {
   position: fixed;
   inset: 0;
@@ -532,7 +532,7 @@ def seed_transitions():
   background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
   background-size: cover;
   background-position: center;
-  animation: star-wipe-anim-custom 1.3s forwards ease-in-out;
+  animation: star-wipe-anim-custom 1.82s forwards ease-in-out;
 }
 @keyframes star-wipe-anim-custom {
   0% { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); opacity: 1; transform: scale(5); }
@@ -542,7 +542,7 @@ def seed_transitions():
             {
                 "id": "diamond-wipe",
                 "name": "Diamond Iris Wipe (菱形鏡頭擦除)",
-                "duration": 1200,
+                "duration": 1680,
                 "css_code": """.transition-diamond-wipe-custom {
   position: fixed;
   inset: 0;
@@ -550,7 +550,7 @@ def seed_transitions():
   background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
   background-size: cover;
   background-position: center;
-  animation: diamond-wipe-anim-custom 1.2s forwards ease-in-out;
+  animation: diamond-wipe-anim-custom 1.68s forwards ease-in-out;
 }
 @keyframes diamond-wipe-anim-custom {
   0% { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); opacity: 1; transform: scale(3); }
@@ -562,4 +562,8 @@ def seed_transitions():
             db.execute(
                 "INSERT OR IGNORE INTO transitions (id, name, duration, css_code, active) VALUES (?,?,?,?,1)",
                 (t["id"], t["name"], t["duration"], t["css_code"])
+            )
+            db.execute(
+                "UPDATE transitions SET duration = ?, css_code = ? WHERE id = ?",
+                (t["duration"], t["css_code"], t["id"])
             )
