@@ -78,3 +78,52 @@ h2 { font-size: 32px; margin-bottom: 16px; font-weight: 700; letter-spacing: -0.
   .qr-section { margin: 12px 0; padding: 12px; }
   .qr-img { width: 120px; height: 120px; }
 }
+
+.hand-guide-overlay {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 20;
+  animation: slideInDown 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  pointer-events: none;
+}
+
+.hand-guide-icon {
+  font-size: 28px;
+  display: inline-block;
+  animation: handPulse 1.6s infinite ease-in-out;
+}
+
+.hand-guide-icon::after {
+  content: "🖐️";
+  animation: handCloseEmojiStep 1.6s infinite;
+}
+
+@keyframes handPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.85); }
+}
+
+@keyframes handCloseEmojiStep {
+  0%, 45% { content: "🖐️"; }
+  50%, 95% { content: "✊"; }
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

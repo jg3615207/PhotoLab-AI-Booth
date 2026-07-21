@@ -11,6 +11,7 @@ export default function CaptureScreen() {
   const { videoRef, error, isMirrored, startCamera, stopCamera, toggleMirror } = useCamera();
   const [countdown, setCountdown] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
+  const [handDetected, setHandDetected] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   const { showWarning } = useFaceDetection(videoRef.current, 2);
@@ -19,7 +20,7 @@ export default function CaptureScreen() {
     if (countdown === null && !error) {
       startCountdown();
     }
-  });
+  }, setHandDetected);
 
   useEffect(() => {
     startCamera();
@@ -109,6 +110,20 @@ export default function CaptureScreen() {
         {countdown !== null && (
           <div className="countdown-overlay active">
             <span id="countdown-number">{countdown}</span>
+          </div>
+        )}
+
+        {handDetected && countdown === null && (
+          <div className="hand-guide-overlay">
+            <span className="hand-guide-icon"></span>
+            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff', lineHeight: '1.2' }}>
+                {isZh ? '偵測到手勢功能' : 'Gesture Mode Active'}
+              </span>
+              <span style={{ fontSize: '11px', color: '#aaa', marginTop: '2px', lineHeight: '1.2' }}>
+                {isZh ? '比出 👍 或 ✌️ 以啟動倒數' : 'Show 👍 or ✌️ to start capture'}
+              </span>
+            </div>
           </div>
         )}
         

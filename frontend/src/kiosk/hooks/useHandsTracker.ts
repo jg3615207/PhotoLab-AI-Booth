@@ -10,7 +10,8 @@ declare global {
 export function useHandsTracker(
   videoElement: HTMLVideoElement | null,
   isMirrored: boolean,
-  onGestureDetected: (gesture: string) => void
+  onGestureDetected: (gesture: string) => void,
+  onHandDetected?: (detected: boolean) => void
 ) {
   const handsRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
@@ -31,7 +32,12 @@ export function useHandsTracker(
       });
 
       hands.onResults((results: any) => {
-        if (results?.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const handDetected = !!(results?.multiHandLandmarks && results.multiHandLandmarks.length > 0);
+        if (onHandDetected) {
+          onHandDetected(handDetected);
+        }
+
+        if (handDetected) {
           for (const landmarks of results.multiHandLandmarks) {
             const thumbTip = landmarks[4];
             const indexTip = landmarks[8];
@@ -79,5 +85,5 @@ export function useHandsTracker(
         if (handsRef.current) handsRef.current.close();
       } catch (e) {}
     };
-  }, [videoElement, isMirrored, onGestureDetected]);
+  }, [videoElement, isMirrored, onGestureDetected, onHandDetected]);
 }
