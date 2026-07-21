@@ -1,8 +1,14 @@
-import os, math
+import os, math, zipfile, tempfile
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Form, HTTPException, Query
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from app.db import get_db, get_setting, set_setting
+from app.services.printing import enqueue_print
+
+class BulkActionRequest(BaseModel):
+    job_ids: list[str]
 
 router = APIRouter(prefix="/api/admin", tags=["print_manager"])
 
@@ -177,3 +183,48 @@ def toggle_queue_pause():
     next_val = "1" if curr == "0" else "0"
     set_setting("print_queue_paused", next_val)
     return {"paused": next_val == "1"}
+
+@router.post("/bulk-reprint")
+def bulk_reprint(req: BulkActionRequest):
+    if not req.job_ids:
+        raise HTTPException(400, "No job_ids provided")
+        
+    queued_count = 0
+    with get_db() as db:
+        for job_id in req.job_ids:
+            sess = db.execute("SELECT output_image, print_image FROM sessions WHERE job_id=?", (job_id,)).fetchone()
+            if sess:
+                target_path = sess["print_image"] if (sess["print_image"] and os.path.exists(sess["print_image"])) else sess["output_image"]
+                if target_path and os.path.exists(target_path):
+                    enqueue_print(job_id, target_path)
+                    queued_count += 1
+                    
+    return {"status": "ok", "queued_count": queued_count}
+
+@router.post("/bulk-download")
+def bulk_download(req: BulkActionRequest):
+    if not req.job_ids:
+        raise HTTPException(400, "No job_ids provided")
+        
+    tmp_zip = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    tmp_zip_path = tmp_zip.name
+    tmp_zip.close()
+
+    added_count = 0
+    with zipfile.ZipFile(tmp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        with get_db() as db:
+            for job_id in req.job_ids:
+                sess = db.execute("SELECT output_image, print_image FROM sessions WHERE job_id=?", (job_id,)).fetchone()
+                if sess:
+                    target_path = sess["print_image"] if (sess["print_image"] and os.path.exists(sess["print_image"])) else sess["output_image"]
+                    if target_path and os.path.exists(target_path):
+                        arcname = f"PhotoLab_{job_id}.jpg"
+                        zipf.write(target_path, arcname=arcname)
+                        db.execute("UPDATE sessions SET download_count = COALESCE(download_count, 0) + 1 WHERE job_id=?", (job_id,))
+                        added_count += 1
+
+    if added_count == 0:
+        os.unlink(tmp_zip_path)
+        raise HTTPException(404, "No valid image files found to package into zip")
+
+    return FileResponse(tmp_zip_path, media_type="application/zip", filename="PhotoLab_Selected_Photos.zip")

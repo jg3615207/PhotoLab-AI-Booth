@@ -68,6 +68,10 @@ export default function JobHistoryTab() {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Bulk Selection states
+  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+
   // Ref Gens states
   const [refLogs, setRefLogs] = useState<RefGenRecord[]>([]);
   const [loadingRefs, setLoadingRefs] = useState(false);
@@ -78,7 +82,7 @@ export default function JobHistoryTab() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Auto-refresh counter
+  // Auto-refresh timestamp
   const [lastRefreshed, setLastRefreshed] = useState<string>('');
 
   const loadLiveJobs = async () => {
@@ -168,6 +172,78 @@ export default function JobHistoryTab() {
       (j.v2_model && j.v2_model.toLowerCase().includes(term));
   });
 
+  // Bulk Selection Handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedJobIds(filteredJobs.map(j => j.job_id));
+    } else {
+      setSelectedJobIds([]);
+    }
+  };
+
+  const handleToggleSelect = (jobId: string) => {
+    setSelectedJobIds(prev => 
+      prev.includes(jobId) ? prev.filter(id => id !== jobId) : [...prev, jobId]
+    );
+  };
+
+  const handleBulkReprint = async () => {
+    if (selectedJobIds.length === 0) return;
+    if (!confirm(isZh ? `確定要把選取的 ${selectedJobIds.length} 張照片加入列印隊列嗎？` : `Reprint ${selectedJobIds.length} selected photos?`)) return;
+
+    setBulkProcessing(true);
+    try {
+      const r = await fetch('/api/admin/bulk-reprint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_ids: selectedJobIds })
+      });
+      const data = await r.json();
+      if (r.ok) {
+        alert(isZh ? `成功將 ${data.queued_count} 張照片加入列印隊列！` : `Successfully queued ${data.queued_count} photos for printing!`);
+        setSelectedJobIds([]);
+        loadPhotoJobs();
+      } else {
+        alert(data.detail || "Bulk reprint failed");
+      }
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkDownload = async () => {
+    if (selectedJobIds.length === 0) return;
+    setBulkProcessing(true);
+    try {
+      const r = await fetch('/api/admin/bulk-download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_ids: selectedJobIds })
+      });
+      if (r.ok) {
+        const blob = await r.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `PhotoLab_Selected_${selectedJobIds.length}_Photos.zip`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        loadPhotoJobs();
+      } else {
+        const err = await r.json();
+        alert(err.detail || "Bulk download failed");
+      }
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
   // Stats
   const totalJobs = filteredJobs.length;
   const testJobsCount = filteredJobs.filter(j => j.capture_source === 'test').length;
@@ -184,7 +260,7 @@ export default function JobHistoryTab() {
             ⚙️ {isZh ? '任務管理 (Jobs Center)' : 'Jobs Manager'}
           </h2>
           <p style={{ margin: '4px 0 0 0', color: '#aaa', fontSize: '13px' }}>
-            {isZh ? '即時任務監控、歷史相片紀錄、AI 模型標籤與參考圖生成日誌' : 'Live task monitor, photo job logs, AI model badges & reference image generation history'}
+            {isZh ? '即時任務監控、歷史相片紀錄、生成耗時、批次打包與列印操作' : 'Live task monitor, photo job logs, generation duration, bulk download & print operations'}
           </p>
         </div>
 
@@ -268,7 +344,7 @@ export default function JobHistoryTab() {
           {loadingLive ? (
             <div style={{ textAlign: 'center', padding: '40px', color: '#aaa' }}>{isZh ? '讀取即時任務中...' : 'Loading live jobs...'}</div>
           ) : liveJobs.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '50px', background: 'rgba(255,255,255,0.02)', border: '1px border-dashed rgba(255,255,255,0.1)', borderRadius: '12px', color: '#aaa' }}>
+            <div style={{ textAlign: 'center', padding: '50px', background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px', color: '#aaa' }}>
               <div style={{ fontSize: '36px', marginBottom: '10px' }}>🟢</div>
               <div style={{ fontSize: '16px', color: '#fff', fontWeight: 600 }}>{isZh ? '目前沒有正在進行中的 AI 拍照任務' : 'No Live Jobs In Progress'}</div>
               <div style={{ fontSize: '13px', color: '#777', marginTop: '4px' }}>{isZh ? '當訪客在機台拍照或後台進行測試時，會即時顯示於此' : 'Active generation tasks will stream live here automatically.'}</div>
@@ -332,6 +408,62 @@ export default function JobHistoryTab() {
               <span style={{ fontSize: '24px', fontWeight: 700, color: '#ff77bc' }}>${totalCost.toFixed(4)}</span>
             </div>
           </div>
+
+          {/* BULK ACTIONS TOOLBAR */}
+          {selectedJobIds.length > 0 && (
+            <div style={{ background: 'linear-gradient(135deg, rgba(102,126,234,0.25), rgba(118,75,162,0.25))', border: '1px solid #667eea', borderRadius: '12px', padding: '14px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>
+                  ✅ {isZh ? `已選擇 ${selectedJobIds.length} 個相片任務` : `Selected ${selectedJobIds.length} photo jobs`}
+                </span>
+                <button onClick={() => setSelectedJobIds([])} style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}>
+                  {isZh ? '取消全選' : 'Deselect All'}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  disabled={bulkProcessing}
+                  onClick={handleBulkDownload}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #38ef7d, #11998e)',
+                    color: '#000',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  📦 {isZh ? '批次打包 ZIP 下載' : 'Bulk ZIP Download'}
+                </button>
+
+                <button
+                  disabled={bulkProcessing}
+                  onClick={handleBulkReprint}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  🖨️ {isZh ? '批次重新列印' : 'Bulk Reprint'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Filter Toolbar */}
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px', marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center' }}>
@@ -397,27 +529,54 @@ export default function JobHistoryTab() {
             </div>
           ) : (
             <div style={{ overflowX: 'auto', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', minWidth: '1000px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', minWidth: '1050px' }}>
                 <thead>
                   <tr style={{ background: 'rgba(255,255,255,0.05)', color: '#aaa', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                    <th style={{ padding: '16px 18px', width: '210px' }}>{isZh ? '預覽 / Job ID' : 'Thumb / Job ID'}</th>
-                    <th style={{ padding: '16px 18px', width: '190px', whiteSpace: 'nowrap' }}>{isZh ? '場次與來源' : 'Session & Source'}</th>
-                    <th style={{ padding: '16px 18px', width: '150px' }}>{isZh ? '風格名稱' : 'Style'}</th>
-                    <th style={{ padding: '16px 18px', width: '130px' }}>{isZh ? 'AI 使用模型' : 'AI Model'}</th>
-                    <th style={{ padding: '16px 18px', width: '150px' }}>{isZh ? '檔案詳細' : 'File Info'}</th>
-                    <th style={{ padding: '16px 18px', width: '130px' }}>{isZh ? '下載狀態' : 'Downloaded?'}</th>
-                    <th style={{ padding: '16px 18px', width: '130px' }}>{isZh ? '列印狀態' : 'Print Status'}</th>
-                    <th style={{ padding: '16px 18px', width: '120px' }}>{isZh ? '耗時與費用' : 'Time & Cost'}</th>
-                    <th style={{ padding: '16px 18px', textAlign: 'right', width: '170px' }}>{isZh ? '操作' : 'Actions'}</th>
+                    <th style={{ padding: '16px', width: '40px', textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={filteredJobs.length > 0 && selectedJobIds.length === filteredJobs.length}
+                        onChange={e => handleSelectAll(e.target.checked)}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                      />
+                    </th>
+                    <th style={{ padding: '16px 14px', width: '200px' }}>{isZh ? '預覽 / Job ID' : 'Thumb / Job ID'}</th>
+                    <th style={{ padding: '16px 14px', width: '180px', whiteSpace: 'nowrap' }}>{isZh ? '場次與來源' : 'Session & Source'}</th>
+                    <th style={{ padding: '16px 14px', width: '140px' }}>{isZh ? '風格名稱' : 'Style'}</th>
+                    <th style={{ padding: '16px 14px', width: '120px' }}>{isZh ? 'AI 模型' : 'AI Model'}</th>
+                    <th style={{ padding: '16px 14px', width: '120px' }}>{isZh ? '生成耗時' : 'Gen Duration'}</th>
+                    <th style={{ padding: '16px 14px', width: '140px' }}>{isZh ? '檔案與費用' : 'File & Cost'}</th>
+                    <th style={{ padding: '16px 14px', width: '120px' }}>{isZh ? '下載狀態' : 'Downloaded?'}</th>
+                    <th style={{ padding: '16px 14px', width: '120px' }}>{isZh ? '列印狀態' : 'Print Status'}</th>
+                    <th style={{ padding: '16px 14px', textAlign: 'right', width: '160px' }}>{isZh ? '操作' : 'Actions'}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredJobs.map((j) => {
                     const isTest = j.capture_source === 'test';
+                    const isSelected = selectedJobIds.includes(j.job_id);
+                    const genSeconds = j.cost_time ? (j.cost_time / 1000).toFixed(1) : null;
+
                     return (
-                      <tr key={j.job_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: isTest ? 'rgba(118,75,162,0.05)' : 'transparent' }}>
-                        <td style={{ padding: '14px 18px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <tr 
+                        key={j.job_id} 
+                        style={{ 
+                          borderBottom: '1px solid rgba(255,255,255,0.04)', 
+                          background: isSelected ? 'rgba(102,126,234,0.15)' : (isTest ? 'rgba(118,75,162,0.05)' : 'transparent'),
+                          transition: 'background 0.2s'
+                        }}
+                      >
+                        <td style={{ padding: '14px', textAlign: 'center' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={isSelected}
+                            onChange={() => handleToggleSelect(j.job_id)}
+                            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                          />
+                        </td>
+
+                        <td style={{ padding: '14px 14px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <img 
                               src={`/api/images/${j.job_id}/print_ready.jpg`} 
                               onError={(e: any) => {
@@ -425,7 +584,7 @@ export default function JobHistoryTab() {
                                 e.target.src = `/api/images/${j.job_id}/output.jpg`;
                               }}
                               alt="thumb" 
-                              style={{ width: '48px', height: '64px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', flexShrink: 0 }} 
+                              style={{ width: '44px', height: '58px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', flexShrink: 0 }} 
                             />
                             <div>
                               <div style={{ fontWeight: 700, color: '#667eea', fontFamily: 'monospace', fontSize: '13px' }}>{j.job_id}</div>
@@ -434,7 +593,7 @@ export default function JobHistoryTab() {
                           </div>
                         </td>
                         
-                        <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '14px 14px', whiteSpace: 'nowrap' }}>
                           <div style={{ fontWeight: 600, color: '#fff', fontSize: '13px', marginBottom: '4px' }}>{j.event_name}</div>
                           {isTest ? (
                             <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '10px', background: 'rgba(155,89,182,0.25)', color: '#d5a6bd', border: '1px solid rgba(155,89,182,0.4)', fontWeight: 600, display: 'inline-block', whiteSpace: 'nowrap' }}>
@@ -447,22 +606,33 @@ export default function JobHistoryTab() {
                           )}
                         </td>
 
-                        <td style={{ padding: '14px 18px', color: '#fff', fontWeight: 600 }}>
+                        <td style={{ padding: '14px 14px', color: '#fff', fontWeight: 600 }}>
                           {j.style_name}
                         </td>
 
-                        <td style={{ padding: '14px 18px' }}>
+                        <td style={{ padding: '14px 14px' }}>
                           <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '8px', background: 'rgba(102,126,234,0.15)', color: '#a3b8ff', border: '1px solid rgba(102,126,234,0.3)', fontWeight: 600, fontFamily: 'monospace' }}>
                             {j.v2_model || 'nb2-cheap'}
                           </span>
                         </td>
 
-                        <td style={{ padding: '14px 18px' }}>
-                          <div style={{ fontSize: '12px', color: '#ddd', fontWeight: 500 }}>{j.file_name}</div>
-                          <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{j.file_size_formatted}</div>
+                        {/* GENERATION TIME COLUMN */}
+                        <td style={{ padding: '14px 14px' }}>
+                          {genSeconds ? (
+                            <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '10px', background: 'rgba(0,210,255,0.15)', color: '#00d2ff', border: '1px solid rgba(0,210,255,0.3)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              ⚡ {genSeconds}s
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '12px', color: '#555' }}>-</span>
+                          )}
                         </td>
 
-                        <td style={{ padding: '14px 18px' }}>
+                        <td style={{ padding: '14px 14px' }}>
+                          <div style={{ fontSize: '12px', color: '#ddd', fontWeight: 500 }}>{j.file_size_formatted}</div>
+                          <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>${j.cost_money ? j.cost_money.toFixed(4) : '0'}</div>
+                        </td>
+
+                        <td style={{ padding: '14px 14px' }}>
                           {j.download_count > 0 ? (
                             <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '12px', background: 'rgba(56,239,125,0.15)', color: '#38ef7d', fontWeight: 700, border: '1px solid rgba(56,239,125,0.3)', display: 'inline-block', whiteSpace: 'nowrap' }}>
                               ✓ {isZh ? `已下載 (${j.download_count}次)` : `Downloaded (${j.download_count}x)`}
@@ -474,7 +644,7 @@ export default function JobHistoryTab() {
                           )}
                         </td>
 
-                        <td style={{ padding: '14px 18px' }}>
+                        <td style={{ padding: '14px 14px' }}>
                           {j.print_status === 'completed' && (
                             <div>
                               <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', background: 'rgba(79,255,79,0.15)', color: '#4f4', fontWeight: 600 }}>
@@ -503,26 +673,21 @@ export default function JobHistoryTab() {
                           )}
                         </td>
 
-                        <td style={{ padding: '14px 18px' }}>
-                          <div style={{ fontSize: '12px', color: '#aaa' }}>{j.cost_time ? `${(j.cost_time/1000).toFixed(1)}s` : '-'}</div>
-                          <div style={{ fontSize: '11px', color: '#888' }}>${j.cost_money ? j.cost_money.toFixed(4) : '0'}</div>
-                        </td>
-
-                        <td style={{ padding: '14px 18px', textAlign: 'right' }}>
+                        <td style={{ padding: '14px 14px', textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
                             <a 
                               href={`/api/images/${j.job_id}/download`} 
                               target="_blank" 
                               rel="noreferrer"
                               className="btn-secondary" 
-                              style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', textDecoration: 'none', display: 'inline-block' }}
+                              style={{ padding: '6px 10px', borderRadius: '6px', fontSize: '12px', textDecoration: 'none', display: 'inline-block' }}
                             >
                               ⬇️ {isZh ? '下載' : 'Download'}
                             </a>
                             <button 
                               onClick={() => handleReprint(j.job_id)}
                               className="btn-primary" 
-                              style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', background: 'linear-gradient(135deg, #667eea, #764ba2)' }}
+                              style={{ padding: '6px 10px', borderRadius: '6px', fontSize: '12px', background: 'linear-gradient(135deg, #667eea, #764ba2)' }}
                             >
                               🖨️ {isZh ? '補印' : 'Reprint'}
                             </button>
@@ -556,7 +721,7 @@ export default function JobHistoryTab() {
                     <th style={{ padding: '16px 18px' }}>{isZh ? '生成提示詞 (Prompt)' : 'Prompt'}</th>
                     <th style={{ padding: '16px 18px', width: '160px' }}>{isZh ? '模型與設定' : 'Model & Config'}</th>
                     <th style={{ padding: '16px 18px', width: '140px' }}>{isZh ? '採納狀態' : 'Status'}</th>
-                    <th style={{ padding: '16px 18px', width: '140px' }}>{isZh ? '生成時間與費用' : 'Time & Cost'}</th>
+                    <th style={{ padding: '16px 18px', width: '140px' }}>{isZh ? '生成耗時與費用' : 'Time & Cost'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -600,7 +765,7 @@ export default function JobHistoryTab() {
                       </td>
 
                       <td style={{ padding: '14px 18px' }}>
-                        <div style={{ fontSize: '12px', color: '#aaa' }}>{(log.cost_time/1000).toFixed(1)}s</div>
+                        <div style={{ fontSize: '12px', color: '#00d2ff', fontWeight: 700 }}>⚡ {(log.cost_time/1000).toFixed(1)}s</div>
                         <div style={{ fontSize: '11px', color: '#888' }}>${log.cost_money.toFixed(4)}</div>
                       </td>
                     </tr>
