@@ -90,9 +90,16 @@ def spool_print_simple(image_path: str, copies: int = 1, printer_name: str = "")
 def print_image(image_path: str, copies: int = 1):
     name = settings.printer_name
     try:
+        import win32api
         import win32print
         pname = name or win32print.GetDefaultPrinter()
-        return spool_print_simple(image_path, copies, pname)
+        if not pname:
+            print("[print] No default printer configured or found.")
+            return False
+        
+        for _ in range(copies):
+            win32api.ShellExecute(0, "printto", image_path, f'"{pname}"', ".", 0)
+        return True
     except Exception as e:
         print(f"[print] ERROR: {e}")
         return False
