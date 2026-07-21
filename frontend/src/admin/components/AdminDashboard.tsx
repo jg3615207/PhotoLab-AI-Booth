@@ -21,7 +21,7 @@ function DashboardContent() {
             <h2 style={{ margin: 0, fontSize: '20px', color: '#fff', fontWeight: 700 }}>
               {isZh ? 'PhotoLab 管理員' : 'PhotoLab Admin'}
             </h2>
-            <span style={{ fontSize: '11px', background: 'rgba(102,126,234,0.2)', color: '#667eea', border: '1px solid rgba(102,126,234,0.4)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>v0.12.3</span>
+            <span style={{ fontSize: '11px', background: 'rgba(102,126,234,0.2)', color: '#667eea', border: '1px solid rgba(102,126,234,0.4)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>v0.12.4</span>
           </div>
 
           <div className="lang-toggle" style={{ display: 'flex', alignItems: 'center' }}>

@@ -22,7 +22,7 @@ from app.db import init_db, seed_styles, get_setting
 def health():
     return {
         "status": "ok", 
-        "version": "0.12.3",
+        "version": "0.12.4",
         "custom_css": get_setting("custom_css", "")
     }
 
