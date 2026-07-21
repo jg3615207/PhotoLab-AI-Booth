@@ -16,6 +16,17 @@ export function useHandsTracker(
   const handsRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
 
+  const onGestureDetectedRef = useRef(onGestureDetected);
+  const onHandDetectedRef = useRef(onHandDetected);
+
+  useEffect(() => {
+    onGestureDetectedRef.current = onGestureDetected;
+  }, [onGestureDetected]);
+
+  useEffect(() => {
+    onHandDetectedRef.current = onHandDetected;
+  }, [onHandDetected]);
+
   useEffect(() => {
     if (!videoElement || !window.Hands || !window.Camera) return;
 
@@ -33,8 +44,8 @@ export function useHandsTracker(
 
       hands.onResults((results: any) => {
         const handDetected = !!(results?.multiHandLandmarks && results.multiHandLandmarks.length > 0);
-        if (onHandDetected) {
-          onHandDetected(handDetected);
+        if (onHandDetectedRef.current) {
+          onHandDetectedRef.current(handDetected);
         }
 
         if (handDetected) {
@@ -45,12 +56,12 @@ export function useHandsTracker(
             
             // Thumbs up gesture
             if (thumbTip.y < indexTip.y - 0.1 && thumbTip.y < middleTip.y - 0.1) {
-              onGestureDetected('thumbs-up');
+              onGestureDetectedRef.current('thumbs-up');
               break;
             }
             // Peace sign gesture
             if (indexTip.y < landmarks[5].y && middleTip.y < landmarks[9].y && landmarks[16].y > landmarks[13].y) {
-              onGestureDetected('peace-sign');
+              onGestureDetectedRef.current('peace-sign');
               break;
             }
           }
@@ -85,5 +96,5 @@ export function useHandsTracker(
         if (handsRef.current) handsRef.current.close();
       } catch (e) {}
     };
-  }, [videoElement, isMirrored, onGestureDetected, onHandDetected]);
+  }, [videoElement, isMirrored]);
 }
