@@ -255,11 +255,6 @@ def upload_frame(style_id: str, image: UploadFile = File(...)):
 @router.post("/{style_id}/generate-ref")
 def generate_ref_image(style_id: str, body: GenerateRefRequest):
     """Generate a style reference image from text prompt using AI."""
-    with get_db() as db:
-        row = db.execute("SELECT id FROM styles WHERE id=?", (style_id,)).fetchone()
-        if not row:
-            raise HTTPException(404, "Style not found")
-
     from app.providers.runninghub_v2 import RunningHubV2Provider
     provider = RunningHubV2Provider()
 
@@ -299,11 +294,6 @@ def generate_ref_image(style_id: str, body: GenerateRefRequest):
 @router.post("/{style_id}/accept-ref")
 def accept_ref_image(style_id: str):
     """Accept the preview image as the official style reference."""
-    with get_db() as db:
-        row = db.execute("SELECT id FROM styles WHERE id=?", (style_id,)).fetchone()
-        if not row:
-            raise HTTPException(404, "Style not found")
-
     style_dir = STYLES_DIR / style_id
     preview_path = style_dir / "_preview.jpg"
     if not preview_path.exists():

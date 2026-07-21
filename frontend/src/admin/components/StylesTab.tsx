@@ -64,6 +64,70 @@ export default function StylesTab() {
   const [refFile, setRefFile] = useState<File | null>(null);
   const [refPreviewUrl, setRefPreviewUrl] = useState<string | null>(null);
 
+  // AI Gen Ref Image states
+  const [generatingRef, setGeneratingRef] = useState(false);
+  const [aiRefPreview, setAiRefPreview] = useState<string | null>(null);
+  const [aiRefCost, setAiRefCost] = useState<{ time?: number; money?: number } | null>(null);
+
+  const handleGenerateAiRef = async () => {
+    if (!fPrompt.trim()) {
+      alert(isZh ? "請先輸入提示詞模板 (Prompt Template)！" : "Please enter a prompt template first!");
+      return;
+    }
+    const targetId = editingStyle ? editingStyle.id : (fId.trim() || 'temp_style');
+    setGeneratingRef(true);
+    setAiRefPreview(null);
+    try {
+      const res = await fetch(`/api/styles/${targetId}/generate-ref`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: fPrompt,
+          aspect_ratio: fAspect,
+          resolution: fResolution,
+          v2_model: fV2Model,
+          v2_quality: fV2Quality
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "AI generation failed");
+      }
+      setAiRefPreview(data.preview_url + `?t=${Date.now()}`);
+      setAiRefCost({ time: data.cost_time, money: data.cost_money });
+    } catch (err: any) {
+      alert(isZh ? `AI 生成參考圖失敗: ${err.message}` : `AI Gen Ref failed: ${err.message}`);
+    } finally {
+      setGeneratingRef(false);
+    }
+  };
+
+  const handleAcceptAiRef = async () => {
+    const targetId = editingStyle ? editingStyle.id : (fId.trim() || 'temp_style');
+    try {
+      const res = await fetch(`/api/styles/${targetId}/accept-ref`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Accept failed");
+      }
+      setRefPreviewUrl(data.ref_image + `?t=${Date.now()}`);
+      setAiRefPreview(null);
+      setRefFile(null);
+      loadStyles();
+      alert(isZh ? "已成功將 AI 生成圖設為風格參考圖！" : "Accepted AI image as style reference!");
+    } catch (err: any) {
+      alert(isZh ? `設定參考圖失敗: ${err.message}` : `Accept ref failed: ${err.message}`);
+    }
+  };
+
+  const handleDiscardAiRef = async () => {
+    const targetId = editingStyle ? editingStyle.id : (fId.trim() || 'temp_style');
+    try {
+      await fetch(`/api/styles/${targetId}/generate-ref`, { method: 'DELETE' });
+    } catch (e) {}
+    setAiRefPreview(null);
+  };
+
   // Test modal state
   const [testImageBlob, setTestImageBlob] = useState<Blob | null>(null);
   const [testPreviewUrl, setTestPreviewUrl] = useState<string | null>(null);
@@ -499,16 +563,68 @@ export default function StylesTab() {
                 <textarea value={fPrompt} onChange={e => setFPrompt(e.target.value)} rows={4} placeholder="吉卜力動漫風格，保留臉部特徵..." style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', fontFamily: 'inherit' }} />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#0d0d1a', padding: '12px', borderRadius: '8px' }}>
-                {refPreviewUrl && <img src={refPreviewUrl} style={{ width: '40px', height: '60px', objectFit: 'cover', borderRadius: '4px' }} alt="Ref" />}
-                <div style={{ flexGrow: 1 }}>
-                  <div style={{ fontSize: '13px', color: '#fff' }}>{isZh ? '參考圖片' : 'Reference Image'}</div>
-                  <div style={{ fontSize: '12px', color: '#888' }}>{refFile ? refFile.name : (refPreviewUrl ? (isZh ? '已設定參考圖' : 'Active reference set') : (isZh ? '未選取參考圖片' : 'No reference image'))}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#0d0d1a', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {refPreviewUrl && <img src={refPreviewUrl} style={{ width: '48px', height: '72px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)' }} alt="Ref" />}
+                    <div>
+                      <div style={{ fontSize: '13px', color: '#fff', fontWeight: 600 }}>{isZh ? '參考圖片 (Reference Image)' : 'Reference Image'}</div>
+                      <div style={{ fontSize: '12px', color: '#888' }}>
+                        {refFile ? refFile.name : (refPreviewUrl ? (isZh ? '已設定官方參考圖' : 'Active reference set') : (isZh ? '未設定參考圖片' : 'No reference image'))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      type="button" 
+                      className="btn-primary" 
+                      onClick={handleGenerateAiRef} 
+                      disabled={generatingRef} 
+                      style={{ padding: '6px 14px', fontSize: '12px', background: 'linear-gradient(135deg, #ff007f, #764ba2)', borderRadius: '6px' }}
+                    >
+                      {generatingRef ? (isZh ? '⌛ AI 生成中...' : '⌛ Generating...') : (isZh ? '✨ AI 生成參考圖' : '✨ AI Gen Ref')}
+                    </button>
+
+                    <label className="btn-secondary" style={{ padding: '6px 14px', fontSize: '12px', cursor: 'pointer', borderRadius: '6px' }}>
+                      📁 {isZh ? '上傳參考圖' : 'Upload Ref'}
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleRefUpload} />
+                    </label>
+                  </div>
                 </div>
-                <label className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}>
-                  {isZh ? '上傳參考圖' : 'Upload Ref'}
-                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleRefUpload} />
-                </label>
+
+                {/* AI Generated Preview Panel */}
+                {aiRefPreview && (
+                  <div style={{ marginTop: '10px', background: 'rgba(255,0,127,0.08)', border: '1px solid rgba(255,0,127,0.4)', borderRadius: '8px', padding: '12px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <img src={aiRefPreview} alt="AI Preview" style={{ width: '80px', height: '120px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #ff007f' }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#ff77bc', marginBottom: '4px' }}>
+                        ✨ {isZh ? 'AI 參考圖片生成成功！' : 'AI Reference Image Generated!'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '10px' }}>
+                        {aiRefCost?.time && `${(aiRefCost.time/1000).toFixed(1)}s`} {aiRefCost?.money && `| $${aiRefCost.money.toFixed(4)}`}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                          type="button"
+                          className="btn-primary" 
+                          onClick={handleAcceptAiRef} 
+                          style={{ padding: '6px 14px', fontSize: '12px', background: '#38ef7d', color: '#000', fontWeight: 700, borderRadius: '6px' }}
+                        >
+                          ✅ {isZh ? '設為風格參考圖' : 'Set as Reference'}
+                        </button>
+                        <button 
+                          type="button"
+                          className="btn-secondary" 
+                          onClick={handleDiscardAiRef} 
+                          style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '6px' }}
+                        >
+                          ❌ {isZh ? '捨棄' : 'Discard'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
