@@ -96,5 +96,5 @@ export function useHandsTracker(
         if (handsRef.current) handsRef.current.close();
       } catch (e) {}
     };
-  }, [videoElement, isMirrored]);
+  }, [videoElement]);
 }
