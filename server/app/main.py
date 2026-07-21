@@ -24,7 +24,7 @@ from app.db import init_db, seed_styles, get_setting
 def health():
     return {
         "status": "ok", 
-        "version": "0.15.0",
+        "version": "0.16.0",
         "custom_css": get_setting("custom_css", "")
     }
 

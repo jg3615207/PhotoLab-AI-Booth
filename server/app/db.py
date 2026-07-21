@@ -561,6 +561,325 @@ def seed_transitions():
   0% { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); opacity: 1; transform: scale(3); }
   100% { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); opacity: 0; transform: scale(0); }
 }"""
+            },
+            {
+                "id": "cinematic-zoom",
+                "name": "Cinematic Zoom (電影縮放)",
+                "duration": 2100,
+                "css_code": """.transition-cinematic-zoom-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: cinematic-zoom-anim 2.1s forwards cubic-bezier(0.7, 0, 0.24, 1);
+}
+@keyframes cinematic-zoom-anim {
+  0% { transform: scale(1); filter: blur(0) brightness(1); opacity: 1; }
+  50% { transform: scale(1.4); filter: blur(12px) brightness(1.5); opacity: 0.8; }
+  100% { transform: scale(2.2); filter: blur(30px) brightness(3); opacity: 0; }
+}"""
+            },
+            {
+                "id": "cross-warp-morph",
+                "name": "Cross Warp Morph (交叉扭曲變形)",
+                "duration": 2100,
+                "css_code": """.transition-cross-warp-morph-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: cross-warp-anim 2.1s forwards ease-in-out;
+}
+@keyframes cross-warp-anim {
+  0% { transform: scale(1) skew(0deg, 0deg); opacity: 1; filter: contrast(1); }
+  40% { transform: scale(1.15) skew(15deg, -8deg) rotate(3deg); opacity: 0.8; filter: contrast(2) hue-rotate(90deg); }
+  70% { transform: scale(1.3) skew(-12deg, 10deg) rotate(-4deg); opacity: 0.4; filter: contrast(3) hue-rotate(180deg); }
+  100% { transform: scale(1.5) skew(0deg, 0deg) rotate(0deg); opacity: 0; filter: contrast(1) hue-rotate(360deg); }
+}"""
+            },
+            {
+                "id": "domain-warp-dissolve",
+                "name": "Domain Warp Dissolve (網格漸變溶解)",
+                "duration": 2100,
+                "css_code": """.transition-domain-warp-dissolve-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: domain-warp-anim 2.1s forwards cubic-bezier(0.55, 0, 0.1, 1);
+}
+@keyframes domain-warp-anim {
+  0% { clip-path: circle(100% at 50% 50%); filter: saturate(1); opacity: 1; }
+  40% { clip-path: polygon(0 0, 100% 10%, 85% 100%, 15% 90%); filter: saturate(2) invert(0.2); opacity: 0.9; }
+  75% { clip-path: polygon(20% 20%, 80% 15%, 70% 80%, 30% 85%); filter: saturate(4) invert(0.6); opacity: 0.5; }
+  100% { clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%); opacity: 0; }
+}"""
+            },
+            {
+                "id": "flash-through-white",
+                "name": "Flash Through White (過曝白閃)",
+                "duration": 1680,
+                "css_code": """.transition-flash-through-white-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #fff;
+  animation: flash-white-anim 1.68s forwards cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+@keyframes flash-white-anim {
+  0% { opacity: 0; }
+  35% { opacity: 1; background: #ffffff; filter: brightness(2); }
+  70% { opacity: 0.9; background: #ffffff; }
+  100% { opacity: 0; }
+}"""
+            },
+            {
+                "id": "gravitational-lens",
+                "name": "Gravitational Lens (引力透鏡黑洞)",
+                "duration": 2100,
+                "css_code": """.transition-gravitational-lens-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  border-radius: 0%;
+  animation: gravity-lens-anim 2.1s forwards cubic-bezier(0.6, 0, 0.07, 1);
+}
+@keyframes gravity-lens-anim {
+  0% { transform: scale(1) rotate(0deg); border-radius: 0%; opacity: 1; filter: drop-shadow(0 0 0 transparent); }
+  50% { transform: scale(0.6) rotate(180deg); border-radius: 50%; opacity: 0.9; filter: drop-shadow(0 0 40px #764ba2); }
+  100% { transform: scale(0) rotate(360deg); border-radius: 50%; opacity: 0; filter: drop-shadow(0 0 100px #000); }
+}"""
+            },
+            {
+                "id": "light-leak",
+                "name": "Light Leak (暖色光斑爆發)",
+                "duration": 1960,
+                "css_code": """.transition-light-leak-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: light-leak-fade 1.96s forwards;
+}
+.transition-light-leak-custom::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 80% 20%, rgba(255, 160, 50, 0.95), rgba(255, 50, 120, 0.8) 40%, rgba(120, 0, 255, 0) 70%);
+  mix-blend-mode: screen;
+  animation: light-leak-sweep 1.96s forwards ease-in-out;
+}
+@keyframes light-leak-sweep {
+  0% { opacity: 0; transform: scale(0.8) translate(-20%, -20%); }
+  50% { opacity: 1; transform: scale(1.4) translate(10%, 10%); }
+  100% { opacity: 0; transform: scale(2) translate(30%, 30%); }
+}
+@keyframes light-leak-fade {
+  0% { opacity: 1; }
+  80% { opacity: 0.8; }
+  100% { opacity: 0; }
+}"""
+            },
+            {
+                "id": "ridged-burn",
+                "name": "Ridged Burn (熱感熔燒)",
+                "duration": 2100,
+                "css_code": """.transition-ridged-burn-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: ridged-burn-anim 2.1s forwards cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes ridged-burn-anim {
+  0% { filter: brightness(1) contrast(1) sepia(0); opacity: 1; }
+  40% { filter: brightness(2) contrast(3) sepia(1) hue-rotate(-50deg); opacity: 0.9; transform: scale(1.05); }
+  80% { filter: brightness(4) contrast(5) sepia(1) hue-rotate(40deg); opacity: 0.4; transform: scale(1.15); }
+  100% { filter: brightness(10) contrast(10) sepia(1); opacity: 0; transform: scale(1.3); }
+}"""
+            },
+            {
+                "id": "ripple-waves",
+                "name": "Ripple Waves (水滴波紋)",
+                "duration": 2100,
+                "css_code": """.transition-ripple-waves-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: ripple-wave-anim 2.1s forwards ease-out;
+}
+@keyframes ripple-wave-anim {
+  0% { transform: scale(1); clip-path: circle(100% at 50% 50%); opacity: 1; }
+  30% { transform: scale(1.04); clip-path: circle(75% at 50% 50%); filter: contrast(1.3); }
+  60% { transform: scale(1.08); clip-path: circle(45% at 50% 50%); filter: contrast(1.6); }
+  100% { transform: scale(1.15); clip-path: circle(0% at 50% 50%); opacity: 0; }
+}"""
+            },
+            {
+                "id": "sdf-iris",
+                "name": "SDF Iris (光圈相機快門)",
+                "duration": 1960,
+                "css_code": """.transition-sdf-iris-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: sdf-iris-anim 1.96s forwards cubic-bezier(0.77, 0, 0.175, 1);
+}
+@keyframes sdf-iris-anim {
+  0% { clip-path: circle(150% at 50% 50%); opacity: 1; }
+  100% { clip-path: circle(0% at 50% 50%); opacity: 0; }
+}"""
+            },
+            {
+                "id": "swirl-vortex",
+                "name": "Swirl Vortex (漩渦黑洞)",
+                "duration": 2100,
+                "css_code": """.transition-swirl-vortex-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: swirl-vortex-anim 2.1s forwards cubic-bezier(0.6, -0.28, 0.735, 0.045);
+}
+@keyframes swirl-vortex-anim {
+  0% { transform: rotate(0deg) scale(1); opacity: 1; filter: blur(0); }
+  50% { transform: rotate(180deg) scale(0.6); opacity: 0.8; filter: blur(3px); }
+  100% { transform: rotate(720deg) scale(0); opacity: 0; filter: blur(15px); }
+}"""
+            },
+            {
+                "id": "thermal-distortion",
+                "name": "Thermal Distortion (熱感熱浪)",
+                "duration": 2100,
+                "css_code": """.transition-thermal-distortion-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: thermal-anim 2.1s forwards ease-in-out;
+}
+@keyframes thermal-anim {
+  0% { filter: invert(0) hue-rotate(0deg) saturate(1); opacity: 1; }
+  50% { filter: invert(1) hue-rotate(180deg) saturate(5) contrast(2); opacity: 0.8; transform: scale(1.05); }
+  100% { filter: invert(0) hue-rotate(360deg) saturate(10) brightness(3); opacity: 0; transform: scale(1.15); }
+}"""
+            },
+            {
+                "id": "whip-pan",
+                "name": "Whip Pan (高速運鏡掃搖)",
+                "duration": 1680,
+                "css_code": """.transition-whip-pan-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: whip-pan-anim 1.68s forwards cubic-bezier(0.7, 0, 0.3, 1);
+}
+@keyframes whip-pan-anim {
+  0% { transform: translateX(0) skewX(0deg); filter: blur(0); opacity: 1; }
+  50% { transform: translateX(-50%) skewX(-30deg); filter: blur(15px); opacity: 0.8; }
+  100% { transform: translateX(-100%) skewX(-60deg); filter: blur(30px); opacity: 0; }
+}"""
+            },
+            {
+                "id": "blur-transition",
+                "name": "Blur Transition (高斯模糊漸變)",
+                "duration": 1960,
+                "css_code": """.transition-blur-transition-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: gaussian-blur-anim 1.96s forwards ease-in-out;
+}
+@keyframes gaussian-blur-anim {
+  0% { filter: blur(0px) brightness(1); opacity: 1; }
+  60% { filter: blur(20px) brightness(1.3); opacity: 0.9; }
+  100% { filter: blur(40px) brightness(2); opacity: 0; }
+}"""
+            },
+            {
+                "id": "cover-transition",
+                "name": "Cover Slide (封面推開)",
+                "duration": 1960,
+                "css_code": """.transition-cover-transition-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: cover-slide-anim 1.96s forwards cubic-bezier(0.7, 0, 0.3, 1);
+}
+@keyframes cover-slide-anim {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-100%); opacity: 0; }
+}"""
+            },
+            {
+                "id": "destruction-transition",
+                "name": "Destruction Shatter (碎裂崩解)",
+                "duration": 1960,
+                "css_code": """.transition-destruction-transition-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: shatter-explode-anim 1.96s forwards cubic-bezier(0.6, -0.28, 0.735, 0.045);
+}
+@keyframes shatter-explode-anim {
+  0% { transform: scale(1) rotate(0deg); filter: contrast(1); opacity: 1; }
+  40% { transform: scale(1.1) rotate(5deg); clip-path: polygon(0 0, 100% 0, 80% 100%, 0 80%); filter: contrast(2) brightness(1.5); }
+  100% { transform: scale(0.2) rotate(-35deg) translateY(200px); clip-path: polygon(20% 20%, 80% 0, 100% 80%, 0 100%); filter: contrast(5) brightness(3); opacity: 0; }
+}"""
+            },
+            {
+                "id": "mechanical-transitions",
+                "name": "Mechanical Gear (機械齒輪閉合)",
+                "duration": 2100,
+                "css_code": """.transition-mechanical-transitions-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: mechanical-iris-anim 2.1s forwards cubic-bezier(0.87, 0, 0.13, 1);
+}
+@keyframes mechanical-iris-anim {
+  0% { clip-path: polygon(50% 0%, 80% 10%, 100% 35%, 100% 70%, 80% 90%, 50% 100%, 20% 90%, 0% 70%, 0% 35%, 20% 10%); transform: rotate(0deg) scale(1); opacity: 1; }
+  50% { transform: rotate(90deg) scale(0.8); }
+  100% { clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%); transform: rotate(180deg) scale(0.2); opacity: 0; }
+}"""
             }
         ]
         for t in transitions:
