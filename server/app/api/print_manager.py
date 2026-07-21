@@ -166,8 +166,12 @@ def reprint_queue_job(queue_id: int):
     return {"status": "requeued"}
 
 @router.delete("/print-queue/{queue_id}")
+@router.post("/print-queue/{queue_id}/cancel")
 def delete_queue_job(queue_id: int):
     with get_db() as db:
+        row = db.execute("SELECT session_id FROM print_queue WHERE id=?", (queue_id,)).fetchone()
+        if row and row["session_id"]:
+            db.execute("UPDATE sessions SET print_status='cancelled' WHERE job_id=?", (row["session_id"],))
         db.execute("DELETE FROM print_queue WHERE id=?", (queue_id,))
     return {"status": "deleted"}
 
