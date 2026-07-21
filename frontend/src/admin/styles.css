@@ -1,0 +1,164 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #07070b; color: #e2e8f0; overflow-x: hidden; }
+
+.layout { display: flex; min-height: 100vh; background: radial-gradient(circle at top left, #1a1a2e, #07070b 60%); }
+.sidebar { width: 260px; background: rgba(15, 15, 25, 0.8); backdrop-filter: blur(20px); padding: 24px; flex-shrink: 0; border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+.sidebar h2 { margin: 0 0 32px 0; font-size: 20px; color: #fff; font-weight: 700; letter-spacing: -0.5px; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+.nav-item { display: block; padding: 12px 16px; color: #94a3b8; text-decoration: none; border-radius: 12px; margin-bottom: 8px; cursor: pointer; font-size: 15px; font-weight: 500; transition: all 0.2s ease; border: 1px solid transparent; }
+.nav-item:hover { background: rgba(255,255,255,0.05); color: #fff; transform: translateX(4px); }
+.nav-item.active { background: linear-gradient(135deg, rgba(102,126,234,0.15), rgba(118,75,162,0.15)); color: #fff; border-color: rgba(102, 126, 234, 0.3); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
+.main-content { flex-grow: 1; padding: 40px; max-width: 1200px; margin: 0 auto; }
+h1 { color: #fff; margin-bottom: 32px; font-size: 32px; font-weight: 700; letter-spacing: -1px; }
+
+.lang-toggle button { padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #cbd5e1; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+.lang-toggle button:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+p { color: #94a3b8; line-height: 1.6; }
+
+.style-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 800px; width: 100%; margin-top: 20px; }
+.style-card { background: #1a1a2e; border-radius: 16px; padding: 20px; text-align: center; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+.style-card:hover { border-color: #667eea; transform: translateY(-4px); }
+.style-card .style-thumb { width: 100%; aspect-ratio: 2/3; background: #2a2a4e; border-radius: 8px; margin-bottom: 12px; object-fit: cover; }
+.style-card .style-name { font-size: 16px; font-weight: 600; }
+.style-card .style-badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #333; margin-top: 6px; }
+
+.capture-container { position: relative; width: 100%; max-width: 600px; aspect-ratio: 2/3; background: #111; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.no-camera-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; color: #666; text-align: center; padding: 40px; }
+.no-camera-msg .upload-icon { font-size: 64px; margin-bottom: 12px; }
+.no-camera-msg p { margin: 4px 0; font-size: 18px; }
+.no-camera-msg .sub { font-size: 14px; color: #555; }
+#video { width: 100%; height: 100%; object-fit: cover; }
+
+.countdown-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); }
+.countdown-overlay.active { display: flex; }
+#countdown-number { font-size: 120px; font-weight: 800; color: #fff; }
+
+.capture-controls { margin-top: 20px; display: flex; gap: 12px; }
+.btn-back, .btn-secondary { padding: 12px 30px; font-size: 18px; border: 2px solid #555; border-radius: 30px; background: transparent; color: #fff; cursor: pointer; }
+.btn-primary { padding: 12px 30px; font-size: 18px; border: none; border-radius: 30px; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; cursor: pointer; }
+
+.preview-img { max-width: 500px; width: 100%; border-radius: 12px; margin: 20px 0; }
+.preview-controls { display: flex; gap: 12px; }
+
+.processing-content { text-align: center; }
+.spinner { width: 60px; height: 60px; border: 4px solid #333; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 24px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#processing-tip { color: #888; margin-top: 8px; }
+
+.result-img { max-width: 500px; width: 100%; border-radius: 12px; margin: 20px 0; }
+.result-controls { display: flex; gap: 12px; }
+.qr-section { display: flex; flex-direction: column; align-items: center; margin: 16px 0; }
+.qr-img { width: 150px; height: 150px; border-radius: 8px; background: #fff; padding: 4px; }
+.qr-label { font-size: 14px; color: #888; margin-top: 4px; }
+
+h2 { font-size: 28px; margin-bottom: 12px; }
+
+/* ========================================================= */
+/* Big Reveal Transition Animations                          */
+/* ========================================================= */
+
+.reveal-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  overflow: hidden;
+}
+
+.reveal-img {
+  position: absolute;
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 20px;
+  object-fit: contain;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.reveal-text {
+  position: absolute;
+  font-size: 64px;
+  font-weight: 800;
+  color: #fff;
+  text-transform: uppercase;
+  text-shadow: 0 4px 20px rgba(0,0,0,0.8), 0 0 40px rgba(255,255,255,0.5);
+  text-align: center;
+  z-index: 10;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.reveal-text.show {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 1. Glitch Effect */
+.effect-glitch .original {
+  animation: glitch-anim 0.4s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-anim {
+  0% { clip-path: polygon(0 2%, 100% 2%, 100% 5%, 0 5%); transform: translate(-5px, 2px); filter: hue-rotate(90deg) saturate(3); }
+  20% { clip-path: polygon(0 15%, 100% 15%, 100% 15%, 0 15%); transform: translate(5px, -2px); filter: hue-rotate(-90deg) saturate(3); }
+  40% { clip-path: polygon(0 10%, 100% 10%, 100% 20%, 0 20%); transform: translate(-5px, 5px); }
+  60% { clip-path: polygon(0 50%, 100% 50%, 100% 55%, 0 55%); transform: translate(5px, 2px); }
+  80% { clip-path: polygon(0 70%, 100% 70%, 100% 80%, 0 80%); transform: translate(-2px, -2px); }
+  100% { clip-path: polygon(0 80%, 100% 80%, 100% 90%, 0 90%); transform: translate(2px, 5px); filter: hue-rotate(180deg) saturate(3); }
+}
+
+/* 2. Flash & Burn Effect */
+.effect-flash {
+  animation: flash-bg 1.5s forwards;
+}
+@keyframes flash-bg {
+  0% { background: #000; }
+  30% { background: #fff; }
+  100% { background: #000; }
+}
+.effect-flash .original {
+  animation: burn-out 1.5s forwards;
+}
+@keyframes burn-out {
+  0% { filter: brightness(1) contrast(1); opacity: 1; }
+  30% { filter: brightness(5) contrast(3); opacity: 0.8; }
+  60% { opacity: 0; transform: scale(1.1); filter: brightness(10) blur(20px); }
+  100% { opacity: 0; }
+}
+
+/* 3. Laser Swipe Effect */
+.effect-swipe .original {
+  transition: clip-path 1.5s cubic-bezier(0.77, 0, 0.175, 1);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+}
+.effect-swipe.start-swipe .original {
+  clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
+}
+.effect-swipe::after {
+  content: "";
+  position: absolute;
+  top: 5vh;
+  bottom: 5vh;
+  left: 5vw;
+  width: 4px;
+  background: #0ff;
+  box-shadow: 0 0 20px 10px rgba(0,255,255,0.8);
+  opacity: 0;
+  transition: all 1.5s cubic-bezier(0.77, 0, 0.175, 1);
+  z-index: 5;
+}
+.effect-swipe.start-swipe::after {
+  opacity: 1;
+  left: 95vw;
+}
+
+/* Base fade for generated image in all transitions */
+.reveal-generated-show {
+  opacity: 1 !important;
+  transition: opacity 0.5s ease-in 0.8s;
+}

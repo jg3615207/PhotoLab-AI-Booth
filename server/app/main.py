@@ -26,9 +26,9 @@ def health():
         "custom_css": get_setting("custom_css", "")
     }
 
-kiosk_dir = Path(__file__).parent.parent.parent / "kiosk"
-if kiosk_dir.exists():
-    app.mount("/", StaticFiles(directory=str(kiosk_dir), html=True), name="kiosk")
+dist_dir = Path(__file__).parent.parent.parent / "frontend" / "dist"
+if dist_dir.exists():
+    app.mount("/", StaticFiles(directory=str(dist_dir), html=True), name="frontend")
 
 @app.on_event("startup")
 def startup():
