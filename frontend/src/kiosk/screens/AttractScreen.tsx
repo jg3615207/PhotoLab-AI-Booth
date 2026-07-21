@@ -2,8 +2,13 @@ import React from 'react';
 import { useKiosk } from '../context/KioskContext';
 
 export default function AttractScreen() {
-  const { setScreen, session, lang, toggleLang } = useKiosk();
+  const { setScreen, session, lang, toggleLang, setRetakeCount } = useKiosk();
   const isZh = lang === 'zh-Hant';
+
+  const handleStart = () => {
+    setRetakeCount(0);
+    setScreen('styles');
+  };
 
   return (
     <div className="screen active" style={{ display: 'flex' }}>
@@ -23,7 +28,7 @@ export default function AttractScreen() {
       <div className="attract-content" style={{ textAlign: 'center' }}>
         <h1 className="logo">PhotoLab</h1>
         <p className="tagline">{isZh ? 'AI 智能照相亭' : 'AI Photo Booth'}</p>
-        <button className="btn-start" onClick={() => setScreen('styles')}>
+        <button className="btn-start" onClick={handleStart}>
           {isZh ? '觸屏開始' : 'Touch to Start'}
         </button>
       </div>

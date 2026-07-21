@@ -6,6 +6,7 @@ interface StyleData {
   name: string;
   thumbnail: string;
   max_people: number;
+  animated_thumbnail?: string;
 }
 
 export default function StyleSelectionScreen() {
@@ -14,6 +15,7 @@ export default function StyleSelectionScreen() {
 
   const [styles, setStyles] = useState<StyleData[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [hoveredStyleId, setHoveredStyleId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/styles')
@@ -41,25 +43,56 @@ export default function StyleSelectionScreen() {
       <h2>{isZh ? '選擇風格' : 'Choose Your Style'}</h2>
       {error && <p>{error}</p>}
       <div className="style-grid">
-        {styles.map(s => (
-          <div key={s.id} className="style-card" onClick={() => handleSelectStyle(s.id)}>
-            <img 
-              className="style-thumb" 
-              src={s.thumbnail} 
-              alt={s.name}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-              }}
-            />
-            <div className="style-name">{s.name}</div>
-            <div className="style-badge">
-              {s.max_people > 1 
-                ? (isZh ? `最多 ${s.max_people} 人` : `Up to ${s.max_people} people`) 
-                : (isZh ? '單人' : 'Solo (1 person)')}
+        {styles.map(s => {
+          const isHovered = hoveredStyleId === s.id;
+          const hasVideo = s.animated_thumbnail && (s.animated_thumbnail.endsWith('.mp4') || s.animated_thumbnail.endsWith('.webm'));
+          
+          return (
+            <div 
+              key={s.id} 
+              className="style-card" 
+              onClick={() => handleSelectStyle(s.id)}
+              onMouseEnter={() => setHoveredStyleId(s.id)}
+              onMouseLeave={() => setHoveredStyleId(null)}
+            >
+              {isHovered && s.animated_thumbnail ? (
+                hasVideo ? (
+                  <video 
+                    className="style-thumb"
+                    src={s.animated_thumbnail}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                  />
+                ) : (
+                  <img 
+                    className="style-thumb" 
+                    src={s.animated_thumbnail} 
+                    alt={s.name}
+                  />
+                )
+              ) : (
+                <img 
+                  className="style-thumb" 
+                  src={s.thumbnail} 
+                  alt={s.name}
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                />
+              )}
+              <div className="style-name">{s.name}</div>
+              <div className="style-badge">
+                {s.max_people > 1 
+                  ? (isZh ? `最多 ${s.max_people} 人` : `Up to ${s.max_people} people`) 
+                  : (isZh ? '單人' : 'Solo (1 person)')}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <button className="btn-back" onClick={() => setScreen('attract')} style={{ marginTop: '20px' }}>
         {isZh ? '返回' : 'Back'}

@@ -5,16 +5,27 @@ import { useHandsTracker } from '../hooks/useHandsTracker';
 import { useFaceDetection } from '../hooks/useFaceDetection';
 
 export default function CaptureScreen() {
-  const { setScreen, setCapturedImage, lang } = useKiosk();
+  const { setScreen, setCapturedImage, lang, session } = useKiosk();
   const isZh = lang === 'zh-Hant';
 
   const { videoRef, error, isMirrored, startCamera, stopCamera, toggleMirror } = useCamera();
   const [countdown, setCountdown] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('none');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   const { showWarning } = useFaceDetection(videoRef.current, 2);
+
+  const filters = [
+    { id: 'none', nameZh: '原始', nameEn: 'Normal', css: 'none' },
+    { id: 'bw', nameZh: '黑白', nameEn: 'B&W', css: 'grayscale(100%)' },
+    { id: 'sepia', nameZh: '復古', nameEn: 'Sepia', css: 'sepia(100%)' },
+    { id: 'vivid', nameZh: '鮮明', nameEn: 'Vivid', css: 'saturate(1.4) contrast(1.15)' }
+  ];
+  
+  const currentFilterCSS = filters.find(f => f.id === activeFilter)?.css || 'none';
+  const showFilters = session?.enable_filters === 1 || session?.enable_filters === true;
 
   useHandsTracker(videoRef.current, isMirrored, (gesture) => {
     if (countdown === null && !error) {
@@ -63,6 +74,9 @@ export default function CaptureScreen() {
       canvas.height = video.videoHeight || 1920;
       const ctx = canvas.getContext('2d');
       if (ctx) {
+        if (currentFilterCSS !== 'none') {
+          ctx.filter = currentFilterCSS;
+        }
         if (isMirrored) {
           ctx.translate(canvas.width, 0);
           ctx.scale(-1, 1);
@@ -96,7 +110,7 @@ export default function CaptureScreen() {
             ref={videoRef} 
             autoPlay 
             playsInline 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: isMirrored ? 'scaleX(-1)' : 'scaleX(1)' }} 
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: isMirrored ? 'scaleX(-1)' : 'scaleX(1)', filter: currentFilterCSS }} 
           />
         )}
         
@@ -124,6 +138,30 @@ export default function CaptureScreen() {
                 {isZh ? '比出 👍 或 ✌️ 以啟動倒數' : 'Show 👍 or ✌️ to start capture'}
               </span>
             </div>
+          </div>
+        )}
+
+        {showFilters && !error && (
+          <div style={{ position: 'absolute', bottom: '15px', left: '50%', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', padding: '6px 12px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            {filters.map(f => (
+              <button
+                key={f.id}
+                onClick={() => setActiveFilter(f.id)}
+                style={{
+                  background: activeFilter === f.id ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent',
+                  border: 'none',
+                  color: 'white',
+                  padding: '6px 14px',
+                  borderRadius: '18px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  transition: 'all 0.2s'
+                }}
+              >
+                {isZh ? f.nameZh : f.nameEn}
+              </button>
+            ))}
           </div>
         )}
         

@@ -555,6 +555,31 @@ export default function StylesTab() {
                   </select>
                 </div>
               </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'center' }}>
+                <div>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '動畫預覽檔名 / URL' : 'Animated Preview File/URL'}</label>
+                  <input 
+                    type="text" 
+                    value={fAnimatedThumb} 
+                    onChange={e => setFAnimatedThumb(e.target.value)} 
+                    placeholder="e.g., preview.mp4 or preview.gif" 
+                    style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} 
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', height: '100%', paddingTop: '20px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', color: '#aaa', fontSize: '13px', cursor: 'pointer', gap: '8px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={fDynamicPrompt === 1} 
+                      onChange={e => setFDynamicPrompt(e.target.checked ? 1 : 0)} 
+                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                    />
+                    {isZh ? '啟用視覺動態提示詞' : 'Enable Vision Dynamic Prompt'}
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>

@@ -9,6 +9,8 @@ interface SessionData {
   active: boolean;
   logo_path?: string;
   allowed_styles?: string[];
+  retake_limit?: number;
+  enable_filters?: number | boolean;
 }
 
 interface KioskContextType {
@@ -24,6 +26,8 @@ interface KioskContextType {
   setJobData: (data: any | null) => void;
   lang: KioskLang;
   toggleLang: () => void;
+  retakeCount: number;
+  setRetakeCount: (count: number) => void;
 }
 
 const KioskContext = createContext<KioskContextType | undefined>(undefined);
@@ -35,6 +39,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [jobData, setJobData] = useState<any | null>(null);
   const [lang, setLang] = useState<KioskLang>('zh-Hant'); // Default to zh-Hant or toggleable
+  const [retakeCount, setRetakeCount] = useState(0);
 
   const toggleLang = () => {
     setLang(prev => (prev === 'en' ? 'zh-Hant' : 'en'));
@@ -55,6 +60,8 @@ export function KioskProvider({ children }: { children: ReactNode }) {
         setJobData,
         lang,
         toggleLang,
+        retakeCount,
+        setRetakeCount,
       }}
     >
       {children}
