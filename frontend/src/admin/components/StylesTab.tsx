@@ -126,10 +126,15 @@ export default function StylesTab() {
     } else {
       let errMsg = 'Error';
       try {
-        const err = await r.json();
-        errMsg = err.detail || JSON.stringify(err);
+        const text = await r.text();
+        try {
+          const err = JSON.parse(text);
+          errMsg = err.detail || JSON.stringify(err);
+        } catch (e) {
+          errMsg = text;
+        }
       } catch (e) {
-        errMsg = await r.text();
+        errMsg = r.statusText || 'Error';
       }
       alert((isZh ? "建立風格失敗: " : "Create style failed: ") + errMsg);
     }
@@ -209,10 +214,15 @@ export default function StylesTab() {
     } else {
       let errMsg = 'Error';
       try {
-        const err = await r.json();
-        errMsg = err.detail || JSON.stringify(err);
+        const text = await r.text();
+        try {
+          const err = JSON.parse(text);
+          errMsg = err.detail || JSON.stringify(err);
+        } catch (e) {
+          errMsg = text;
+        }
       } catch (e) {
-        errMsg = await r.text();
+        errMsg = r.statusText || 'Error';
       }
       alert((isZh ? "儲存失敗: " : "Save style failed: ") + errMsg);
     }
