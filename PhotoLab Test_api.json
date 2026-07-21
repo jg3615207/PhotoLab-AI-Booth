@@ -1,0 +1,80 @@
+{
+  "1": {
+    "inputs": {
+      "prompt": "Refer to these pictures to generate 3✖️3 charts, split the picture of MV9 palace grid, no text",
+      "resolution": "2k",
+      "aspectRatio": "16:9",
+      "skip_error": false,
+      "seed": 1603635056,
+      "image1": [
+        "2",
+        0
+      ],
+      "image2": [
+        "3",
+        0
+      ],
+      "image3": [
+        "4",
+        0
+      ],
+      "image4": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "RH_RhartImageNG31FlashImageToImage",
+    "_meta": {
+      "title": "RH Nano Banana2 Gemini31flash Image to Image Channel Low Price"
+    }
+  },
+  "2": {
+    "inputs": {
+      "image": "15b9273b8760cb2ebbc5216d493a956648f2de91c41b6c38b46409deb33d47ce.jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "3": {
+    "inputs": {
+      "image": "6f83b3cc0f7d18f4d086ba93c81f71fd8f42a3f0387a8053714cb51dc7b89eee.jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "4": {
+    "inputs": {
+      "image": "782e15c742959f852c4b9b0a1c638c1bfbb337e7920b5d35a6e2e870fd48d8b1.jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "5": {
+    "inputs": {
+      "image": "122720276bd3e9f5e67181f363c6af3ba01fe47652065d0253be335774160e45.jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "6": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  }
+}

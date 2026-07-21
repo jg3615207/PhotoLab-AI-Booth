@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title data-i18n="kiosk.html.title">PhotoLab AI Booth</title>
+<script src="lang/i18n.js"></script>
+<script src="lang/en.js"></script>
+<script src="lang/zh-Hant.js"></script>
+<link rel="stylesheet" href="styles.css">
+<style>
+.lang-toggle { position:fixed; bottom:12px; left:12px; z-index:100; }
+.lang-toggle button { background:rgba(26,26,46,0.8); border:1px solid rgba(102,126,234,0.4); color:#889; padding:4px 10px; border-radius:12px; font-size:11px; cursor:pointer; font-family:inherit; }
+.lang-toggle button:hover { background:rgba(102,126,234,0.3); color:#ccd; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<style id="custom-kiosk-css"></style>
+<script>
+  fetch('/api/health').then(r=>r.json()).then(d=>{
+    if(d.custom_css) document.getElementById('custom-kiosk-css').textContent = d.custom_css;
+  }).catch(e=>console.error('Failed to load custom css:', e));
+</script>
+
+<style>
+.transition-glitch { animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both; }
+@keyframes glitch { 0% { transform: translate(0) } 20% { transform: translate(-2px, 2px) filter: hue-rotate(90deg); } 40% { transform: translate(-2px, -2px) } 60% { transform: translate(2px, 2px) filter: hue-rotate(-90deg); } 80% { transform: translate(2px, -2px) } 100% { transform: translate(0) } }
+.transition-fade { animation: fadeIn 2s ease-in; }
+@keyframes fadeIn { from { opacity: 0; filter: blur(10px); } to { opacity: 1; filter: blur(0); } }
+#face-warning { display:none; position:absolute; top:80px; left:50%; transform:translateX(-50%); background:rgba(255,0,0,0.8); color:white; padding:10px 20px; border-radius:8px; z-index:20; font-weight:bold; }
+#camera-filters { display:none; position:absolute; bottom:80px; left:50%; transform:translateX(-50%); gap:10px; background:rgba(0,0,0,0.5); padding:10px; border-radius:10px; z-index:10; flex-wrap:wrap; justify-content:center; }
+#camera-filters button { background:#2a2a4e; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; }
+#camera-filters button.active { background:#667eea; }
+</style>
+</head>
+<body>
+<div id="flash-effect" style="position:fixed;top:0;left:0;right:0;bottom:0;background:white;z-index:9999;pointer-events:none;opacity:0;transition:opacity 0.5s ease-out;display:none;"></div>
+<div id="session-brand-header" style="position:fixed;top:20px;left:0;right:0;text-align:center;z-index:100;display:flex;justify-content:center;align-items:center;gap:10px;pointer-events:none;"></div>
+<div id="app">
+  <div id="screen-join" class="screen active">
+    <div class="attract-content" style="background:#1a1a2e; padding:40px; border-radius:12px; border:1px solid #333; max-width:400px; width:90%;">
+      <h2 style="color:#fff; margin-bottom:16px;">Welcome to PhotoLab</h2>
+      <p style="color:#aaa; margin-bottom:24px;">Please enter your Session ID to continue.</p>
+      <input type="text" id="join-session-id" placeholder="e.g. summer-party" style="width:100%; padding:12px; border-radius:8px; border:1px solid #445; background:#0d0d1a; color:#fff; margin-bottom:24px; font-size:16px; text-align:center;">
+      <button class="btn-primary" style="width:100%; padding:12px; font-size:16px; border:none; border-radius:8px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; cursor:pointer;" onclick="joinSession()">Join Session</button>
+      <p id="join-error" style="color:#f44; margin-top:16px; display:none;"></p>
+    </div>
+  </div>
+
+  <div id="screen-attract" class="screen">
+    <div class="attract-content">
+      <h1 class="logo" data-i18n="kiosk.html.logo">PhotoLab</h1>
+      <p class="tagline" data-i18n="kiosk.html.tagline">AI Photo Booth</p>
+      <button class="btn-start" onclick="showStyles()" data-i18n="kiosk.html.startButton">Touch to Start</button>
+    </div>
+  </div>
+
+  <div id="screen-styles" class="screen">
+    <h2 data-i18n="kiosk.html.chooseStyleTitle">Choose Your Style</h2>
+    <div id="style-grid" class="style-grid"></div>
+  </div>
+
+  <div id="screen-capture" class="screen">
+    <div class="capture-container" id="capture-container">
+      <video id="video" autoplay playsinline></video>
+      <div id="no-camera-msg" class="no-camera-msg" style="display:none">
+        <div class="upload-icon">&#128247;</div>
+        <p data-i18n="kiosk.html.noCameraDetected">No camera detected</p>
+        <p class="sub" data-i18n="kiosk.html.noCameraSub">Use "Upload Photo" below</p>
+      </div>
+      <button id="btn-mirror" onclick="toggleMirror()" style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(0,0,0,0.5);color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;">Mirror &#8644;</button>
+      <canvas id="canvas" style="display:none"></canvas>
+      <div id="countdown-overlay" class="countdown-overlay">
+        <span id="countdown-number">3</span>
+      </div>
+    </div>
+    <div class="capture-controls">
+      <button id="btn-capture" onclick="startCountdown()" data-i18n="kiosk.html.takePhoto">Take Photo</button>
+      <button class="btn-secondary" onclick="document.getElementById('file-input').click()" data-i18n="kiosk.html.uploadPhoto">Upload Photo</button>
+      <input id="file-input" type="file" accept="image/*" style="display:none" onchange="handleFileUpload(event)">
+      <button class="btn-back" onclick="showStyles()" data-i18n="kiosk.html.backButton">Back</button>
+    </div>
+  </div>
+
+  <div id="screen-preview" class="screen">
+    <h2 data-i18n="kiosk.html.reviewTitle">Review Your Photo</h2>
+    <img id="preview-img" class="preview-img">
+    <div class="preview-controls">
+      <button class="btn-primary" onclick="confirmCapture()" data-i18n="kiosk.html.useThis">Use This</button>
+      <button id="btn-retake" class="btn-secondary" onclick="showCapture()" data-i18n="kiosk.html.retake">Retake</button>
+    </div>
+  </div>
+
+  <div id="screen-processing" class="screen">
+    <div class="processing-content">
+      <div class="spinner"></div>
+      <h2 data-i18n="kiosk.html.processingTitle">Creating Your Masterpiece...</h2>
+      <p id="processing-tip" data-i18n="kiosk.html.processingTip">Applying artistic style</p>
+    </div>
+  </div>
+
+  <div id="screen-reveal" class="screen">
+    <div class="reveal-container">
+      <img id="reveal-original" class="reveal-img original">
+      <img id="reveal-generated" class="reveal-img generated" style="opacity: 0">
+      <div id="reveal-text" class="reveal-text"></div>
+    </div>
+  </div>
+
+  <div id="screen-result" class="screen">
+    <h2 id="result-title" data-i18n="kiosk.html.resultTitle">Your Photo Is Ready!</h2>
+    <img id="result-img" class="result-img">
+    <div class="qr-section">
+      <img id="qr-img" class="qr-img">
+      <p class="qr-label"><span data-i18n="kiosk.html.qrLabel">Scan to download</span></p>
+    </div>
+    <div class="result-controls">
+      <a id="result-download" class="btn-primary" href="#" download="photolab.jpg" data-i18n="kiosk.html.downloadButton">Download</a>
+      <button class="btn-secondary" onclick="showAttract()" data-i18n="kiosk.html.newPhoto">New Photo</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<script src="app.js"></script>
+<script src="gestures.js"></script>
+<div style="position:fixed;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:#555;pointer-events:none;z-index:10;" data-i18n="kiosk.html.versionBadge">PhotoLab v0.11.4</div>
+
+<div class="lang-toggle">
+  <button onclick="__toggleLang()" id="lang-btn" data-i18n="lang.toggle">中文</button>
+</div>
+
+<script>
+window.addEventListener('langchange', function(e) {
+  var btn = document.getElementById('lang-btn');
+  if (btn) btn.textContent = e.detail.lang === 'en' ? '中文' : 'English';
+});
+</script>
+</body>
+</html>

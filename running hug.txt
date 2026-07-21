@@ -1,0 +1,192 @@
+# Welcome to the RunningHub API. Easily invoke RunningHub's standard model APIs.
+
+## Start Using
+
+### Register User
+
+To use the Standard Model API, register as a RunningHub user and top up your wallet. Only Enterprise Shared API Keys are supported.
+
+### Get Your API Key
+
+RunningHub automatically generates a unique 32-bit API KEY for each user
+
+Please keep your API KEY safe and do not disclose it. Subsequent steps will depend on this key for operations
+
+### Submit a request
+
+Submit an API request. RunningHub API has handled the API Key for you, you just need to submit the request
+
+```curl
+curl --location --request POST 'https://www.runninghub.ai/openapi/v2/rhart-image-n-g31-flash/image-to-image' \
+--header "Content-Type: application/json" \
+--header "Authorization: Bearer ${RUNNINGHUB_API_KEY}" \
+--data-raw '{
+  "imageUrls": [
+    "https://www.runninghub.cn/view?filename=174ba2c54b8af1fdd5a01370049dd6407a693d8b05b4717079698e87680e038e.png&type=input&subfolder=&Rh-Comfy-Auth=eyJ1c2VySWQiOiIzZjY1MTNlNWEwNjY1N2I4OGYyNjU5NTEzYmU3ZDM0YyIsInNpZ25FeHBpcmUiOjE3NzI3NjM5NDg5OTQsInRzIjoxNzcyMTU5MTQ4OTk0LCJzaWduIjoiNjAxNWY0MjI2NzI2Yzk0YTFkOTExNjg2NGRkZmU2ZTAifQ==&Rh-Identify=3f6513e5a06657b88f2659513be7d34c&rand=0.8958046627705756"
+  ],
+  "prompt": "Transform this sketch into a detailed, full-color illustration in the style of Ming Dynasty ink-wash Wuxia. Strictly retain man'\''s pose and the shape of the black crow, but replace the background with a snowy bamboo forest. Enhance the ink-wash bleeding textures and apply a cool color palette to create a solemn atmosphere.",
+  "aspectRatio": "9:16",
+  "resolution": "1k"
+}'
+```
+
+#### Request Parameters
+
+| Schema | Type | Required/Optional | The generated result from the AI application. |
+| --- | --- | --- | --- |
+| `imageUrls` | List(String) | Required | Max 10 images, 30 MB each |
+| `prompt` | String | Required | Text length limit: 1 - 20000 |
+| `aspectRatio` | String | Optional | Enum values: [1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3, 5:4, 4:5, 21:9, 1:4, 4:1, 1:8, 8:1] |
+| `resolution` | String | Required | Enum values: [1k, 2k, 4k] |
+
+#### Response Example
+
+```json
+{
+  "taskId": "2013508786110730241",
+  "status": "RUNNING",
+  "errorCode": "",
+  "errorMessage": "",
+  "results": null,
+  "clientId": "f828b9af25161bc066ef152db7b29ccc",
+  "promptTips": "{\"result\": true, \"error\": null, \"outputs_to_execute\": [\"4\"], \"node_errors\": {}}"
+}
+```
+
+#### Response Fields
+
+| Schema | Type | The generated result from the AI application. |
+| --- | --- | --- |
+| `taskId` | String | Task ID, used to query task status later |
+| `status` | String | Current task status. Common states: QUEUED, RUNNING, SUCCESS, FAILED |
+| `errorCode` | String | Error code, returned only upon failure |
+| `errorMessage` | String | Detailed error message |
+| `results` | List | Generation results (null when submitting) |
+| ├ `url` | String | Important: This link is valid for only 24 hours. After task generation is complete, be sure to download the video file or transfer it to your server within this time window. Once expired, the link will be permanently invalid and cannot be restored. |
+| ├ `nodeId` | String | Workflow node ID that produced this result |
+| ├ `outputType` | String | File extension (e.g., png, mp4, txt) |
+| └ `text` | String | Content is displayed here if the output is plain text |
+| `clientId` | String | Client session ID, used to identify the current connection |
+| `promptTips` | String (JSON) | Validation info from the ComfyUI backend, including node IDs to execute or debugging info |
+
+### Query Result
+
+Query the execution progress and final results by Task ID
+
+#### Request Example
+
+```curl
+curl --location --request POST 'https://www.runninghub.ai/openapi/v2/query' \
+--header "Content-Type: application/json" \
+--header "Authorization: Bearer ${RUNNINGHUB_API_KEY}" \
+--data-raw '{
+  "taskId": "${RUNNINGHUB_TASKID}"
+}'
+```
+
+#### Response Example
+
+```json
+{
+  "taskId": "2013508786110730241",
+  "status": "SUCCESS",
+  "errorCode": "",
+  "errorMessage": "",
+  "failedReason": {},
+  "usage": {
+    "consumeMoney": null,
+    "consumeCoins": null,
+    "taskCostTime": "0",
+    "thirdPartyConsumeMoney": null
+  },
+  "results": [
+    {
+      "url": "https://rh-images-1252422369.cos.ap-beijing.myqcloud.com/b04e28cad0ee39193921a30a2eb4dc00/output/ComfyUI_00001_plhjr_1768892915.png",
+      "nodeId": "2",
+      "outputType": "png",
+      "text": null
+    }
+  ],
+  "clientId": "",
+  "promptTips": ""
+}
+```
+
+#### Response Fields
+
+| Schema | Type | The generated result from the AI application. |
+| --- | --- | --- |
+| `taskId` | String | Task ID |
+| `status` | String | Final task status. SUCCESS indicates successful generation |
+| `results` | List | List of generation results, including images, videos, or text outputs |
+| ├ `url` | String | Important: This link is valid for only 24 hours. After task generation is complete, be sure to download the video file or transfer it to your server within this time window. Once expired, the link will be permanently invalid and cannot be restored. |
+| ├ `nodeId` | String | Workflow node ID that produced this result |
+| ├ `outputType` | String | File extension (e.g., png, mp4, txt) |
+| └ `text` | String | Content is displayed here if the output is plain text |
+| `errorCode` | String | Error code (if any) |
+| `errorMessage` | String | Error message (if any) |
+| `failedReason` | Object | ComfyUI-related failure reason |
+| `usage` | Object | Task usage information |
+| ├ `thirdPartyConsumeMoney` | String | Third-party API consumed amount |
+| ├ `consumeMoney` | String | Runtime duration cost |
+| ├ `consumeCoins` | String | RH coins consumed |
+| └ `taskCostTime` | String | Execution time (ComfyUI workflow runtime) |
+### File Upload
+
+Resource file (eg: `imageUrls`) parameters accept either public file URLs or Base64 data URIs.
+
+#### Public URL
+
+Pass a publicly accessible URL directly:
+
+```json
+{
+  "imageUrls": [
+    "https://example.com/image.png"
+  ]
+}
+```
+
+#### Base64 data URI
+
+Embed images in Base64 format:
+
+```json
+{
+  "images": [
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+  ]
+}
+```
+
+#### RH Upload API
+
+Upload a local file to obtain a URL.
+
+**Endpoint:** `https://www.runninghub.ai/openapi/v2/media/upload/binary`
+
+**Request**
+
+```curl
+curl --location --request POST 'https://www.runninghub.ai/openapi/v2/media/upload/binary' \
+--header 'Authorization: Bearer [Your API KEY]' \
+--form 'file=@/path/to/image.png'
+```
+
+**Response**
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "type": "image",
+    "download_url": "xxxx.png",
+    "fileName": "openapi/xxxx.png",
+    "size": "3490"
+  }
+}
+```
+
+**Remark:** The uploaded URL is valid for one day. After expiration, it cannot be accessed directly by URL.
+
