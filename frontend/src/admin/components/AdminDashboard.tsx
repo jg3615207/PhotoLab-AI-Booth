@@ -18,18 +18,29 @@ function DashboardContent() {
   return (
     <div className="layout">
       <div className="sidebar">
-        <div style={{ margin: '0 0 24px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ margin: 0, fontSize: '20px', color: '#fff', fontWeight: 700 }}>
               {isZh ? 'PhotoLab 管理員' : 'PhotoLab Admin'}
             </h2>
-            <span style={{ fontSize: '11px', background: 'rgba(102,126,234,0.2)', color: '#667eea', border: '1px solid rgba(102,126,234,0.4)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>v0.19.0</span>
+            <button 
+              onClick={toggleLang} 
+              style={{ 
+                padding: '4px 10px', 
+                fontSize: '12px', 
+                borderRadius: '6px', 
+                background: 'rgba(255,255,255,0.06)', 
+                border: '1px solid rgba(255,255,255,0.15)', 
+                color: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              🌐 {isZh ? 'English' : '繁體中文'}
+            </button>
           </div>
 
-          <div className="lang-toggle" style={{ display: 'flex', alignItems: 'center' }}>
-            <button onClick={toggleLang} style={{ padding: '4px 10px', fontSize: '12px' }}>
-              {isZh ? 'English' : '繁體中文'}
-            </button>
+          <div>
+            <span style={{ fontSize: '11px', background: 'rgba(102,126,234,0.2)', color: '#a3b8ff', border: '1px solid rgba(102,126,234,0.4)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>v0.23.0</span>
           </div>
         </div>
         
