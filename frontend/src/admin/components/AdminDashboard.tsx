@@ -40,7 +40,7 @@ function DashboardContent() {
           </div>
 
           <div>
-            <span style={{ fontSize: '11px', background: 'rgba(102,126,234,0.2)', color: '#a3b8ff', border: '1px solid rgba(102,126,234,0.4)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>v0.23.0</span>
+            <span style={{ fontSize: '11px', background: 'rgba(102,126,234,0.2)', color: '#a3b8ff', border: '1px solid rgba(102,126,234,0.4)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>v0.26.0</span>
           </div>
         </div>
         
