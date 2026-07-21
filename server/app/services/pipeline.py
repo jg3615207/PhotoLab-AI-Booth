@@ -301,11 +301,15 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
             target_filename = f"{timestamp}_{style_id}_{job_id}.jpg"
             target_path = target_dir / target_filename
             
-            # If auto-print is OFF, save the generated photo (raw_path / framed_path) instead of the 4x6 print frame layout
-            save_source = print_path if allow_auto_print else (framed_path if os.path.exists(framed_path) else raw_path)
+            # Save the raw AI image to preserve the style's exact aspect ratio (16:9, 1:1, 9:16, 3:2, 2:3, etc.)
+            save_source = raw_path if (raw_path and os.path.exists(raw_path)) else (framed_path if os.path.exists(framed_path) else print_path)
             
-            import shutil
-            shutil.copy2(save_source, target_path)
+            if save_source.endswith(".png"):
+                img_raw = Image.open(save_source).convert("RGB")
+                img_raw.save(target_path, "JPEG", quality=95)
+            else:
+                import shutil
+                shutil.copy2(save_source, target_path)
             print(f"Successfully saved local copy to {target_path} (source: {save_source})")
     except Exception as e:
         print(f"Failed to save copy to local directory: {e}")
