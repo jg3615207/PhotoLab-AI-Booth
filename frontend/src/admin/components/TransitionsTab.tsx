@@ -404,16 +404,10 @@ export default function TransitionsTab() {
               {simStep === 'countdown' && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                   {/* Placeholder camera feed input */}
-                  <div style={{ position: 'absolute', inset: 0, opacity: 0.35, background: 'radial-gradient(circle, #2a2b4d 0%, #0d0d1a 100%)' }} />
-                  
-                  {/* Smiley line-art portrait SVG */}
-                  <svg width="140" height="140" viewBox="0 0 24 24" fill="none" stroke="#667eea" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.8, zIndex: 10 }}>
-                    <path d="M18 21a6 6 0 0 0-12 0" />
-                    <circle cx="12" cy="10" r="4" />
-                    <circle cx="12" cy="12" r="10" />
-                  </svg>
+                  <img src="/img/placeholder_before.jpg" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9 }} alt="Live Camera" />
+                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0, 0, 0, 0.2)', zIndex: 5 }} />
 
-                  <div style={{ zIndex: 10, marginTop: '24px', fontSize: '18px', color: '#fff', fontWeight: 600 }}>
+                  <div style={{ zIndex: 10, marginTop: 'auto', marginBottom: '40px', fontSize: '18px', color: '#fff', fontWeight: 600, textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
                     {isZh ? '擺好姿勢！' : 'Strike a Pose!'}
                   </div>
 
@@ -423,7 +417,7 @@ export default function TransitionsTab() {
                     fontSize: '90px', 
                     fontWeight: 800, 
                     color: '#fff', 
-                    textShadow: '0 0 20px #667eea', 
+                    textShadow: '0 0 20px rgba(102,126,234,0.8), 0 2px 10px rgba(0,0,0,0.5)', 
                     animation: 'scalePulse 1.0s infinite',
                     zIndex: 20
                   }}>
@@ -434,34 +428,38 @@ export default function TransitionsTab() {
 
               {/* Waiting / Processing UI */}
               {simStep === 'processing' && (
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a14' }}>
-                  <div className="spinner" style={{ width: '50px', height: '50px', border: '4px solid rgba(255,255,255,0.05)', borderTop: '4px solid #667eea', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '24px' }}></div>
-                  <h3 style={{ color: '#fff', margin: '0 0 10px 0', fontSize: '18px' }}>
-                    {isZh ? 'AI 智能畫筆調配中...' : 'AI Masterpiece creation...'}
-                  </h3>
-                  <p style={{ color: '#888', fontSize: '13px', margin: 0 }}>
-                    {isZh ? '模擬 AI 生成管線 (請等待 5 秒)' : 'Simulating pipeline (Wait 5s)'}
-                  </p>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <img src="/img/placeholder_before.jpg" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(5px) brightness(0.35)' }} alt="Processing" />
+                  
+                  <div style={{ zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px', textAlign: 'center' }}>
+                    <div className="spinner" style={{ width: '50px', height: '50px', border: '4px solid rgba(255,255,255,0.05)', borderTop: '4px solid #667eea', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '24px' }}></div>
+                    <h3 style={{ color: '#fff', margin: '0 0 10px 0', fontSize: '18px', fontWeight: 600 }}>
+                      {isZh ? 'AI 智能畫筆調配中...' : 'AI Masterpiece creation...'}
+                    </h3>
+                    <p style={{ color: '#aaa', fontSize: '13px', margin: 0 }}>
+                      {isZh ? '模擬 AI 生成管線 (請等待 5 秒)' : 'Simulating pipeline (Wait 5s)'}
+                    </p>
+                  </div>
                 </div>
               )}
 
               {/* Transition effect phase */}
               {simStep === 'transition' && (
-                <div style={{ position: 'absolute', inset: 0, background: '#0d0d1a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {/* Triggers the dynamic CSS class class we generated */}
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {/* The final stylized output in the background */}
+                  <img src="/img/placeholder_after.jpg" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} alt="Stylized Result" />
+                  
+                  {/* Triggers the dynamic CSS class we generated */}
                   <div className={`transition-overlay transition-${simulatingItem.id}-custom`} style={{ position: 'absolute', inset: 0 }} />
-                  <span style={{ color: '#888', fontSize: '13px', zIndex: 10 }}>Running Transition Animation...</span>
                 </div>
               )}
 
               {/* Final styled AI result view */}
               {simStep === 'result' && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#121225', padding: '24px', animation: 'fadeIn 0.5s forwards' }}>
-                  {/* Composed Styled Neon Output SVG */}
-                  <div style={{ background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)', width: '100%', height: '360px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', marginBottom: '24px', border: '4px solid #fff' }}>
-                    <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.6))' }}>
-                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                    </svg>
+                  {/* Composed Styled Neon Output Image */}
+                  <div style={{ width: '100%', height: '360px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', marginBottom: '24px', border: '4px solid #fff' }}>
+                    <img src="/img/placeholder_after.jpg" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="AI Portrait Result" />
                   </div>
 
                   <h3 style={{ color: '#fff', margin: '0 0 6px 0', fontSize: '20px', fontWeight: 700 }}>
