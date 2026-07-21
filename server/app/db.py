@@ -158,6 +158,19 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
+    try:
+        conn.execute("ALTER TABLE sessions ADD COLUMN download_count INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE sessions ADD COLUMN printed_at TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE print_queue ADD COLUMN printed_at TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+
     for col in [
         "animated_thumbnail TEXT DEFAULT ''",
         "dynamic_prompt_enabled INTEGER DEFAULT 0"

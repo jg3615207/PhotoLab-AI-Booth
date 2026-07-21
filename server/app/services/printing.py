@@ -98,21 +98,33 @@ def print_image(image_path: str, copies: int = 1):
         return False
 
 def print_worker():
-    from app.db import get_db
+    from app.db import get_db, get_setting
+    from datetime import datetime, timezone
     while True:
         try:
+            if get_setting("print_queue_paused", "0") == "1":
+                time.sleep(2)
+                continue
+
             with get_db() as db:
-                row = db.execute("SELECT id, image_path, copies FROM print_queue WHERE status='queued' ORDER BY created_at ASC LIMIT 1").fetchone()
+                row = db.execute("SELECT id, session_id, image_path, copies FROM print_queue WHERE status='queued' ORDER BY id ASC LIMIT 1").fetchone()
                 if row:
-                    job_id, path, copies = row["id"], row["image_path"], row["copies"]
-                    db.execute("UPDATE print_queue SET status='printing' WHERE id=?", (job_id,))
+                    job_db_id, session_id, path, copies = row["id"], row["session_id"], row["image_path"], row["copies"]
+                    db.execute("UPDATE print_queue SET status='printing' WHERE id=?", (job_db_id,))
+                    if session_id:
+                        db.execute("UPDATE sessions SET print_status='printing' WHERE job_id=?", (session_id,))
                     
                     success = print_image(path, copies)
+                    now_str = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
                     
                     if success:
-                        db.execute("UPDATE print_queue SET status='completed' WHERE id=?", (job_id,))
+                        db.execute("UPDATE print_queue SET status='completed', printed_at=? WHERE id=?", (now_str, job_db_id))
+                        if session_id:
+                            db.execute("UPDATE sessions SET print_status='completed', printed_at=? WHERE job_id=?", (now_str, session_id))
                     else:
-                        db.execute("UPDATE print_queue SET status='failed' WHERE id=?", (job_id,))
+                        db.execute("UPDATE print_queue SET status='failed' WHERE id=?", (job_db_id))
+                        if session_id:
+                            db.execute("UPDATE sessions SET print_status='failed' WHERE job_id=?", (session_id,))
         except Exception as e:
             print(f"[print_worker] ERROR: {e}")
         time.sleep(2)
@@ -126,5 +138,7 @@ def enqueue_print(image_path: str, copies: int = 1, session_id: str = ""):
     try:
         with get_db() as db:
             db.execute("INSERT INTO print_queue (session_id, image_path, copies, status) VALUES (?,?,?,?)", (session_id, image_path, copies, 'queued'))
+            if session_id:
+                db.execute("UPDATE sessions SET print_status='queued' WHERE job_id=?", (session_id,))
     except Exception as e:
         print(f"[enqueue_print] DB Error: {e}")

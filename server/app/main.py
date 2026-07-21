@@ -4,7 +4,7 @@ from pathlib import Path
 
 from app.config import settings
 from app.db import init_db, seed_styles
-from app.api import styles, capture, gallery, events, admin, ws, transitions
+from app.api import styles, capture, gallery, events, admin, ws, transitions, print_manager
 from app.services.printing import start_print_worker
 
 app = FastAPI(title="PhotoLab AI Booth")
@@ -17,6 +17,7 @@ app.include_router(admin.router)
 app.include_router(ws.router)
 app.include_router(transitions.router)
 app.include_router(transitions.public_router)
+app.include_router(print_manager.router)
 
 from app.db import init_db, seed_styles, get_setting
 
@@ -24,7 +25,7 @@ from app.db import init_db, seed_styles, get_setting
 def health():
     return {
         "status": "ok", 
-        "version": "0.16.0",
+        "version": "0.17.0",
         "custom_css": get_setting("custom_css", "")
     }
 
