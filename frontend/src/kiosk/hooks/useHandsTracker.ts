@@ -11,7 +11,8 @@ export function useHandsTracker(
   videoElement: HTMLVideoElement | null,
   isMirrored: boolean,
   onGestureDetected: (gesture: string) => void,
-  onHandDetected?: (detected: boolean) => void
+  onHandDetected?: (detected: boolean) => void,
+  enabled: boolean = true
 ) {
   const handsRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
@@ -28,7 +29,12 @@ export function useHandsTracker(
   }, [onHandDetected]);
 
   useEffect(() => {
-    if (!videoElement || !window.Hands || !window.Camera) return;
+    if (!enabled || !videoElement || !window.Hands || !window.Camera) {
+      if (onHandDetectedRef.current) {
+        onHandDetectedRef.current(false);
+      }
+      return;
+    }
 
     try {
       const hands = new window.Hands({
@@ -96,5 +102,5 @@ export function useHandsTracker(
         if (handsRef.current) handsRef.current.close();
       } catch (e) {}
     };
-  }, [videoElement]);
+  }, [videoElement, enabled]);
 }

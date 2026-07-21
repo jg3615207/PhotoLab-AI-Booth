@@ -18,6 +18,7 @@ interface SessionItem {
   retake_limit?: number;
   qr_bg_color?: string;
   qr_fg_color?: string;
+  enable_gesture_capture?: number;
   active: boolean;
   archived?: boolean;
   jobs_count: number;
@@ -48,6 +49,7 @@ export default function SessionsTab() {
   const [formRetakes, setFormRetakes] = useState(3);
   const [formQrBg, setFormQrBg] = useState('#ffffff');
   const [formQrFg, setFormQrFg] = useState('#000000');
+  const [formGesture, setFormGesture] = useState(1);
 
   // Preview status
   const [logoStatus, setLogoStatus] = useState('');
@@ -85,6 +87,7 @@ export default function SessionsTab() {
     setFormRetakes(3);
     setFormQrBg('#ffffff');
     setFormQrFg('#000000');
+    setFormGesture(1);
     setLogoPreview('');
     setFramePreview('');
     setLogoStatus('');
@@ -104,6 +107,7 @@ export default function SessionsTab() {
     setFormRetakes(s.retake_limit ?? 3);
     setFormQrBg(s.qr_bg_color || '#ffffff');
     setFormQrFg(s.qr_fg_color || '#000000');
+    setFormGesture(s.enable_gesture_capture ?? 1);
 
     if (s.logo_path) {
       setLogoPreview(`/api/events/${s.id}/logo?t=${Date.now()}`);
@@ -133,6 +137,7 @@ export default function SessionsTab() {
     setFormExpire(s.expire_date || '');
     setFormFilters(s.enable_filters || 0);
     setFormRetakes(s.retake_limit ?? 3);
+    setFormGesture(s.enable_gesture_capture ?? 1);
   };
 
   const handleSave = async () => {
@@ -151,7 +156,8 @@ export default function SessionsTab() {
       enable_filters: formFilters,
       retake_limit: formRetakes,
       qr_bg_color: formQrBg,
-      qr_fg_color: formQrFg
+      qr_fg_color: formQrFg,
+      enable_gesture_capture: formGesture
     };
 
     const method = editMode ? 'PUT' : 'POST';
@@ -334,6 +340,24 @@ export default function SessionsTab() {
                       <span>{style.name} ({style.id})</span>
                     </label>
                   ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '相片濾鏡效果' : 'Photo Filters Bar'}</label>
+                  <select value={formFilters} onChange={e => setFormFilters(parseInt(e.target.value))} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
+                    <option value={1}>{isZh ? '啟用 (可選黑白/復古/鮮明)' : 'Enabled'}</option>
+                    <option value={0}>{isZh ? '停用 (固定原始色彩)' : 'Disabled'}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '手勢感應拍照' : 'Gesture Capture'}</label>
+                  <select value={formGesture} onChange={e => setFormGesture(parseInt(e.target.value))} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
+                    <option value={1}>{isZh ? '啟用 (握拳倒數拍照)' : 'Enabled'}</option>
+                    <option value={0}>{isZh ? '停用 (僅限觸控/點擊拍照)' : 'Disabled'}</option>
+                  </select>
                 </div>
               </div>
 

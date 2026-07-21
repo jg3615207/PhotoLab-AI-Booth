@@ -26,12 +26,13 @@ export default function CaptureScreen() {
   
   const currentFilterCSS = filters.find(f => f.id === activeFilter)?.css || 'none';
   const showFilters = session?.enable_filters === 1 || session?.enable_filters === true;
+  const gestureEnabled = session?.enable_gesture_capture !== 0;
 
   useHandsTracker(videoRef.current, isMirrored, (gesture) => {
     if (countdown === null && !error) {
       startCountdown();
     }
-  }, setHandDetected);
+  }, setHandDetected, gestureEnabled);
 
   useEffect(() => {
     startCamera();

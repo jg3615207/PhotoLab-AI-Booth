@@ -1,2 +1,4 @@
 [2026-07-21 16:18:58] Watchdog Auto-Restarter active.
 [2026-07-21 16:18:58] Starting backend: C:\AI\VibeCoding\PhotoLab\server\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8765
+[2026-07-21 16:23:39] Watchdog Auto-Restarter active.
+[2026-07-21 16:23:39] Starting backend: C:\AI\VibeCoding\PhotoLab\server\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8765

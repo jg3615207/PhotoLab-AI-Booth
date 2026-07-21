@@ -24,6 +24,7 @@ class EventCreate(BaseModel):
     retake_limit: Optional[int] = 3
     qr_bg_color: Optional[str] = "#ffffff"
     qr_fg_color: Optional[str] = "#000000"
+    enable_gesture_capture: Optional[int] = 1
 
 class EventUpdate(BaseModel):
     name: Optional[str] = None
@@ -39,6 +40,7 @@ class EventUpdate(BaseModel):
     retake_limit: Optional[int] = None
     qr_bg_color: Optional[str] = None
     qr_fg_color: Optional[str] = None
+    enable_gesture_capture: Optional[int] = None
 
 @router.get("")
 def list_events():
@@ -84,9 +86,9 @@ def create_event(event: EventCreate):
     with get_db() as db:
         try:
             db.execute("""
-                INSERT INTO events (id, name, allowed_styles, allow_auto_print, logo_path, event_name_overlay, frame_cap, expire_date, active, frame_path, enable_filters, retake_limit, qr_bg_color, qr_fg_color)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (event.id, event.name, json.dumps(event.allowed_styles), event.allow_auto_print, event.logo_path, event.event_name_overlay, event.frame_cap, event.expire_date, event.active, event.frame_path, event.enable_filters, event.retake_limit, event.qr_bg_color, event.qr_fg_color))
+                INSERT INTO events (id, name, allowed_styles, allow_auto_print, logo_path, event_name_overlay, frame_cap, expire_date, active, frame_path, enable_filters, retake_limit, qr_bg_color, qr_fg_color, enable_gesture_capture)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (event.id, event.name, json.dumps(event.allowed_styles), event.allow_auto_print, event.logo_path, event.event_name_overlay, event.frame_cap, event.expire_date, event.active, event.frame_path, event.enable_filters, event.retake_limit, event.qr_bg_color, event.qr_fg_color, event.enable_gesture_capture))
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
     return {"status": "ok"}
@@ -135,6 +137,9 @@ def update_event(event_id: str, event: EventUpdate):
     if event.qr_fg_color is not None:
         updates.append("qr_fg_color=?")
         values.append(event.qr_fg_color)
+    if event.enable_gesture_capture is not None:
+        updates.append("enable_gesture_capture=?")
+        values.append(event.enable_gesture_capture)
 
     if not updates:
         return {"status": "ok"}

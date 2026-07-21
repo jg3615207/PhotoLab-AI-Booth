@@ -145,7 +145,8 @@ def init_db():
         "enable_filters INTEGER DEFAULT 0",
         "retake_limit INTEGER DEFAULT 3",
         "qr_bg_color TEXT DEFAULT '#ffffff'",
-        "qr_fg_color TEXT DEFAULT '#000000'"
+        "qr_fg_color TEXT DEFAULT '#000000'",
+        "enable_gesture_capture INTEGER DEFAULT 1"
     ]:
         try:
             conn.execute(f"ALTER TABLE events ADD COLUMN {col}")
