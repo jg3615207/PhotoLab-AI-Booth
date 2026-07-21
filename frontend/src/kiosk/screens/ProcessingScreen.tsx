@@ -11,7 +11,7 @@ export default function ProcessingScreen() {
   const tips = isZh ? tipsZh : tipsEn;
 
   const [tip, setTip] = useState(tips[0]);
-  const wsRef = useRef<WebSocket | null>(null);
+  const isFinishedRef = useRef(false);
   
   useEffect(() => {
     let tipIdx = 0;
@@ -25,32 +25,79 @@ export default function ProcessingScreen() {
   useEffect(() => {
     if (!jobData?.jobId) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws/jobs/${jobData.jobId}`;
-    
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    isFinishedRef.current = false;
 
-    ws.onmessage = (event) => {
-      const job = JSON.parse(event.data);
-      if (job.status === 'done') {
-        ws.close();
-        setJobData({ ...jobData, result: job });
-        startReveal();
-      } else if (job.status === 'failed') {
-        ws.close();
-        const errMsg = job.error_message || (isZh ? "處理失敗。" : "Processing failed.");
-        if (window.confirm(`${errMsg}\n\n${isZh ? '要再試一次嗎？' : 'Would you like to try again?'}`)) {
-          setScreen('capture');
-        } else {
-          setScreen('attract');
-        }
+    // Helper to handle completion
+    const handleJobComplete = (job: any) => {
+      if (isFinishedRef.current) return;
+      isFinishedRef.current = true;
+      setJobData({ ...jobData, result: job });
+      startReveal();
+    };
+
+    const handleJobFailed = (job: any) => {
+      if (isFinishedRef.current) return;
+      isFinishedRef.current = true;
+      const errMsg = job.error_message || job.error || (isZh ? "處理失敗。" : "Processing failed.");
+      if (window.confirm(`${errMsg}\n\n${isZh ? '要再試一次嗎？' : 'Would you like to try again?'}`)) {
+        setScreen('capture');
+      } else {
+        setScreen('attract');
       }
     };
 
+    // 1. Try WebSocket
+    let ws: WebSocket | null = null;
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      const wsUrl = `${protocol}//${host}/ws/jobs/${jobData.jobId}`;
+      ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        try {
+          const job = JSON.parse(event.data);
+          if (job.status === 'done') {
+            handleJobComplete(job);
+          } else if (job.status === 'failed') {
+            handleJobFailed(job);
+          }
+        } catch (e) {
+          console.error("WS Parse error", e);
+        }
+      };
+    } catch (e) {
+      console.warn("WebSocket init error, falling back to HTTP polling", e);
+    }
+
+    // 2. HTTP Polling Fallback (always runs to guarantee completion even if WS fails/drops)
+    const pollInterval = setInterval(async () => {
+      if (isFinishedRef.current) {
+        clearInterval(pollInterval);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/job/${jobData.jobId}`);
+        if (res.ok) {
+          const job = await res.json();
+          if (job.status === 'done') {
+            clearInterval(pollInterval);
+            if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+            handleJobComplete(job);
+          } else if (job.status === 'failed') {
+            clearInterval(pollInterval);
+            if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+            handleJobFailed(job);
+          }
+        }
+      } catch (err) {
+        console.error("Polling error", err);
+      }
+    }, 1500);
+
     return () => {
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+      clearInterval(pollInterval);
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
         ws.close();
       }
     };
