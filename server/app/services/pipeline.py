@@ -1,4 +1,4 @@
-import os, json, uuid, time
+import os, json, uuid, time, threading
 from pathlib import Path
 from datetime import datetime, timezone
 from PIL import Image
@@ -15,6 +15,14 @@ PUBLIC_BASE_URL = "https://math-univ-current-statewide.trycloudflare.com"
 
 provider_v1 = RunningHubProvider()
 provider_v2 = RunningHubV2Provider()
+
+# ------------------------------------------------------------------
+# Race state for generation failsafe: keyed by primary job_id
+# Each entry: {"done": threading.Event, "winner": str | None, "cancelled": set}
+# ------------------------------------------------------------------
+_race_lock = threading.Lock()
+_race_state: dict[str, dict] = {}
+
 
 
 import base64, httpx, io
@@ -63,7 +71,22 @@ def get_dynamic_prompt(image_path: str) -> str:
 def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: str | None = None,
                  prompt_override: str = None, model_override: str = None,
                  resolution_override: str = None, quality_override: str = None,
-                 aspect_override: str = None, seed_override: str = None):
+                 aspect_override: str = None, seed_override: str = None,
+                 primary_job_id: str = None):
+    """Run the AI generation pipeline for a job.
+
+    Args:
+        primary_job_id: When set, this job is a failsafe retry. Results are
+                        broadcast under primary_job_id if this job wins the race.
+    """
+    # Check if this job has already been cancelled by the race coordinator
+    _primary = primary_job_id or job_id
+    with _race_lock:
+        state = _race_state.get(_primary)
+        if state and job_id in state.get("cancelled", set()):
+            print(f"[failsafe] Job {job_id} was already cancelled before starting. Skipping.")
+            return
+
     with get_db() as db:
         row = db.execute(
             "SELECT prompt_template, aspect_ratio, resolution, seed, rh_ref_file, rh_ref_url, provider, v2_model, v2_quality, dynamic_prompt_enabled FROM styles WHERE id=?",
@@ -210,12 +233,46 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
     else:
         compose_print_frame(upscaled_path, print_path, target_size=(1200, 1800))
 
+    # ---------------------------------------------------------------
+    # Race coordinator: claim winner, cancel the other job if needed
+    # ---------------------------------------------------------------
+    _primary = primary_job_id or job_id
+    broadcast_job_id = _primary  # always broadcast under primary job_id
+
+    with _race_lock:
+        state = _race_state.get(_primary)
+        if state:
+            if job_id in state.get("cancelled", set()):
+                # We lost the race — discard result
+                print(f"[failsafe] Job {job_id} lost the race (already cancelled). Discarding result.")
+                return
+            if state.get("winner") is None:
+                # We win the race
+                state["winner"] = job_id
+                # Cancel all other jobs in the race
+                for other_jid in list(state.get("jobs", set())):
+                    if other_jid != job_id:
+                        state.setdefault("cancelled", set()).add(other_jid)
+                        print(f"[failsafe] Job {job_id} won. Cancelling {other_jid}.")
+                state["done"].set()
+            else:
+                # Another job already won
+                print(f"[failsafe] Job {job_id} finished but {state['winner']} already won. Discarding.")
+                return
+
     with get_db() as db:
         db.execute(
             "UPDATE sessions SET status='done', output_image=?, print_image=?, cost_time=?, cost_money=?, updated_at=datetime('now') WHERE job_id=?",
             (raw_path, print_path, result.cost_time, result.cost_money, job_id),
         )
-    broadcast_job_update(job_id, "done", output_image=raw_path)
+        # If this was a retry (secondary) job, also update the primary session row
+        # so the kiosk's poll on primary_job_id sees 'done'
+        if primary_job_id and primary_job_id != job_id:
+            db.execute(
+                "UPDATE sessions SET status='done', output_image=?, print_image=?, cost_time=?, cost_money=?, updated_at=datetime('now') WHERE job_id=?",
+                (raw_path, print_path, result.cost_time, result.cost_money, primary_job_id),
+            )
+    broadcast_job_update(broadcast_job_id, "done", output_image=raw_path)
 
     if allow_auto_print:
         with get_db() as db:
@@ -281,3 +338,113 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
         with get_db() as db:
             db.execute("UPDATE sessions SET error_message=COALESCE(error_message,'') || ' [QR:' || ? || ']' WHERE job_id=?", (str(e)[:100], job_id))
 
+
+def run_pipeline_with_failsafe(
+    job_id: str,
+    style_id: str,
+    image_path: str,
+    style_ref_path: str | None = None,
+    prompt_override: str = None,
+    model_override: str = None,
+    resolution_override: str = None,
+    quality_override: str = None,
+    aspect_override: str = None,
+    seed_override: str = None,
+    failsafe_timeout: int = 35,
+):
+    """
+    Orchestrate a generation with parallel failsafe retry.
+
+    Fires job_id (primary) immediately. If it hasn't completed within
+    failsafe_timeout seconds, fires a second retry job. Whichever finishes
+    first wins; the other is silently cancelled. The kiosk always receives
+    the result broadcast under the original job_id.
+    """
+    pipeline_kwargs = dict(
+        style_id=style_id,
+        image_path=image_path,
+        style_ref_path=style_ref_path,
+        prompt_override=prompt_override,
+        model_override=model_override,
+        resolution_override=resolution_override,
+        quality_override=quality_override,
+        aspect_override=aspect_override,
+        seed_override=seed_override,
+    )
+
+    # Set up race state for this primary job
+    done_event = threading.Event()
+    with _race_lock:
+        _race_state[job_id] = {
+            "done": done_event,
+            "winner": None,
+            "cancelled": set(),
+            "jobs": {job_id},
+        }
+
+    print(f"[failsafe] Starting primary job {job_id} with failsafe timeout={failsafe_timeout}s")
+
+    # Launch primary pipeline thread
+    t1 = threading.Thread(
+        target=run_pipeline,
+        args=(job_id,),
+        kwargs={**pipeline_kwargs, "primary_job_id": None},
+        daemon=True,
+    )
+    t1.start()
+
+    # Wait for either completion or timeout
+    finished = done_event.wait(timeout=failsafe_timeout)
+
+    if finished:
+        # Primary finished in time — clean up and we're done
+        print(f"[failsafe] Primary job {job_id} completed within {failsafe_timeout}s. No retry needed.")
+        with _race_lock:
+            _race_state.pop(job_id, None)
+        return
+
+    # Timeout hit — fire secondary retry job
+    retry_job_id = uuid.uuid4().hex[:12]
+    print(f"[failsafe] Primary job {job_id} exceeded {failsafe_timeout}s. Firing retry job {retry_job_id}.")
+
+    # Insert a secondary session row (internal, not shown to kiosk)
+    with get_db() as db:
+        primary_sess = db.execute(
+            "SELECT style_id, capture_source, input_image, ref_image, event_id, v2_model FROM sessions WHERE job_id=?",
+            (job_id,),
+        ).fetchone()
+        if primary_sess:
+            db.execute(
+                "INSERT INTO sessions (job_id, style_id, capture_source, input_image, ref_image, status, event_id, v2_model) VALUES (?,?,?,?,?,?,?,?)",
+                (
+                    retry_job_id,
+                    primary_sess["style_id"],
+                    primary_sess["capture_source"],
+                    primary_sess["input_image"],
+                    primary_sess["ref_image"],
+                    "created",
+                    primary_sess["event_id"],
+                    primary_sess["v2_model"],
+                ),
+            )
+
+    with _race_lock:
+        _race_state[job_id]["jobs"].add(retry_job_id)
+
+    t2 = threading.Thread(
+        target=run_pipeline,
+        args=(retry_job_id,),
+        kwargs={**pipeline_kwargs, "primary_job_id": job_id},
+        daemon=True,
+    )
+    t2.start()
+
+    # Wait indefinitely for either thread to finish via the shared event
+    # (The winner will set done_event; no extra wait needed since threads are daemon)
+    done_event.wait(timeout=600)  # hard safety cap of 10 min
+
+    # Cleanup race state
+    with _race_lock:
+        state = _race_state.pop(job_id, {})
+        winner = state.get("winner", "unknown")
+    print(f"[failsafe] Race for {job_id} complete. Winner: {winner}")

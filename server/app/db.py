@@ -197,6 +197,16 @@ def init_db():
             conn.execute(f"ALTER TABLE styles ADD COLUMN {col}")
         except sqlite3.OperationalError:
             pass
+
+    # Migration: Gen Failsafe settings (v0.26.0)
+    for col in [
+        "gen_failsafe_enabled INTEGER DEFAULT 0",
+        "gen_failsafe_timeout INTEGER DEFAULT 35"
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE events ADD COLUMN {col}")
+        except sqlite3.OperationalError:
+            pass
     # Backfill existing v2 styles to default model
     conn.execute("UPDATE styles SET v2_model='nb2-cheap' WHERE provider='v2' AND v2_model IS NULL")
 

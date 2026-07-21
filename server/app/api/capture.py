@@ -4,7 +4,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.config import settings
 from app.db import get_db
 from app.services.frames import check_faces
-from app.services.pipeline import run_pipeline
+from app.services.pipeline import run_pipeline, run_pipeline_with_failsafe
 import threading
 
 router = APIRouter(prefix="/api", tags=["capture"])
@@ -77,16 +77,52 @@ async def capture(
         if s and face_count > s["max_people"]:
             return {"error": f"Too many faces ({face_count}) for this style (max {s['max_people']})", "job_id": job_id}
 
-    threading.Thread(target=run_pipeline, args=(job_id, style_id, img_path, ref_path), kwargs={
-        "prompt_override": prompt_override,
-        "model_override": model_override,
-        "resolution_override": resolution_override,
-        "quality_override": quality_override,
-        "aspect_override": aspect_override,
-        "seed_override": seed_override,
-    }, daemon=True).start()
+    # Determine failsafe settings from event
+    failsafe_enabled = False
+    failsafe_timeout = 35
+    if event_id:
+        with get_db() as db:
+            ev = db.execute(
+                "SELECT gen_failsafe_enabled, gen_failsafe_timeout FROM events WHERE id=?",
+                (event_id,),
+            ).fetchone()
+            if ev:
+                try:
+                    failsafe_enabled = bool(ev["gen_failsafe_enabled"])
+                    failsafe_timeout = int(ev["gen_failsafe_timeout"] or 35)
+                except Exception:
+                    pass
+
+    pipeline_kwargs = dict(
+        style_id=style_id,
+        image_path=img_path,
+        style_ref_path=ref_path,
+        prompt_override=prompt_override,
+        model_override=model_override,
+        resolution_override=resolution_override,
+        quality_override=quality_override,
+        aspect_override=aspect_override,
+        seed_override=seed_override,
+    )
+
+    if failsafe_enabled:
+        # run_pipeline_with_failsafe blocks internally (waits for the race),
+        # so we wrap it in a daemon thread
+        threading.Thread(
+            target=run_pipeline_with_failsafe,
+            kwargs={**pipeline_kwargs, "job_id": job_id, "failsafe_timeout": failsafe_timeout},
+            daemon=True,
+        ).start()
+    else:
+        threading.Thread(
+            target=run_pipeline,
+            args=(job_id,),
+            kwargs=pipeline_kwargs,
+            daemon=True,
+        ).start()
 
     return {"job_id": job_id, "status": "created"}
+
 
 @router.get("/job/{job_id}")
 def get_job(job_id: str):

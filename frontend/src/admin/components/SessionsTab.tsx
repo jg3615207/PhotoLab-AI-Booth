@@ -19,6 +19,8 @@ interface SessionItem {
   qr_bg_color?: string;
   qr_fg_color?: string;
   enable_gesture_capture?: number;
+  gen_failsafe_enabled?: number;
+  gen_failsafe_timeout?: number;
   active: boolean;
   archived?: boolean;
   jobs_count: number;
@@ -50,6 +52,8 @@ export default function SessionsTab() {
   const [formQrBg, setFormQrBg] = useState('#ffffff');
   const [formQrFg, setFormQrFg] = useState('#000000');
   const [formGesture, setFormGesture] = useState(1);
+  const [formFailsafe, setFormFailsafe] = useState(0);
+  const [formFailsafeTimeout, setFormFailsafeTimeout] = useState(35);
 
   // Preview status
   const [logoStatus, setLogoStatus] = useState('');
@@ -88,6 +92,8 @@ export default function SessionsTab() {
     setFormQrBg('#ffffff');
     setFormQrFg('#000000');
     setFormGesture(1);
+    setFormFailsafe(0);
+    setFormFailsafeTimeout(35);
     setLogoPreview('');
     setFramePreview('');
     setLogoStatus('');
@@ -108,6 +114,8 @@ export default function SessionsTab() {
     setFormQrBg(s.qr_bg_color || '#ffffff');
     setFormQrFg(s.qr_fg_color || '#000000');
     setFormGesture(s.enable_gesture_capture ?? 1);
+    setFormFailsafe(s.gen_failsafe_enabled ?? 0);
+    setFormFailsafeTimeout(s.gen_failsafe_timeout ?? 35);
 
     if (s.logo_path) {
       setLogoPreview(`/api/events/${s.id}/logo?t=${Date.now()}`);
@@ -138,6 +146,8 @@ export default function SessionsTab() {
     setFormFilters(s.enable_filters || 0);
     setFormRetakes(s.retake_limit ?? 3);
     setFormGesture(s.enable_gesture_capture ?? 1);
+    setFormFailsafe(s.gen_failsafe_enabled ?? 0);
+    setFormFailsafeTimeout(s.gen_failsafe_timeout ?? 35);
   };
 
   const handleSave = async () => {
@@ -157,7 +167,9 @@ export default function SessionsTab() {
       retake_limit: formRetakes,
       qr_bg_color: formQrBg,
       qr_fg_color: formQrFg,
-      enable_gesture_capture: formGesture
+      enable_gesture_capture: formGesture,
+      gen_failsafe_enabled: formFailsafe,
+      gen_failsafe_timeout: formFailsafeTimeout
     };
 
     const method = editMode ? 'PUT' : 'POST';
@@ -397,6 +409,38 @@ export default function SessionsTab() {
                 <div>
                   <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? 'QR Code 前景顏色' : 'QR Code Foreground'}</label>
                   <input type="color" value={formQrFg} onChange={e => setFormQrFg(e.target.value)} style={{ width: '100%', height: '40px', padding: '2px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', cursor: 'pointer' }} />
+                </div>
+              </div>
+
+              {/* Gen Failsafe */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '12px', background: 'rgba(0,200,150,0.06)', borderRadius: '8px', border: '1px solid rgba(0,200,150,0.2)' }}>
+                <div>
+                  <label style={{ display: 'block', color: '#4ecdc4', fontSize: '13px', marginBottom: '4px', fontWeight: 600 }}>
+                    ⚡ {isZh ? '生成失敗保護 (Failsafe)' : 'Generation Failsafe'}
+                  </label>
+                  <select value={formFailsafe} onChange={e => setFormFailsafe(parseInt(e.target.value))} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
+                    <option value={0}>{isZh ? '停用' : 'Disabled'}</option>
+                    <option value={1}>{isZh ? '啟用 (自動重試)' : 'Enabled (auto-retry)'}</option>
+                  </select>
+                  <p style={{ fontSize: '11px', color: '#4ecdc4', marginTop: '4px', lineHeight: '1.4', opacity: 0.8 }}>
+                    {isZh ? '超時後自動發送第2次生成請求，兩者哪個先完成就用哪個' : 'After timeout, fires a 2nd gen request in parallel. First to finish wins.'}
+                  </p>
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: formFailsafe ? '#4ecdc4' : '#555', fontSize: '13px', marginBottom: '4px', fontWeight: 600 }}>
+                    ⏱ {isZh ? '等待超時 (秒)' : 'Failsafe Timeout (sec)'}
+                  </label>
+                  <input
+                    type="number"
+                    min={10} max={120}
+                    value={formFailsafeTimeout}
+                    onChange={e => setFormFailsafeTimeout(parseInt(e.target.value) || 35)}
+                    disabled={formFailsafe === 0}
+                    style={{ width: '100%', padding: '10px', background: formFailsafe === 0 ? '#1a1a2e' : '#0d0d1a', border: `1px solid ${formFailsafe ? '#4ecdc4' : '#333'}`, borderRadius: '6px', color: formFailsafe === 0 ? '#555' : '#fff', cursor: formFailsafe === 0 ? 'not-allowed' : 'auto' }}
+                  />
+                  <p style={{ fontSize: '11px', color: '#666', marginTop: '4px', lineHeight: '1.4' }}>
+                    {isZh ? '建議 30–45 秒 (NB2 平均約 20 秒)' : 'Recommended 30–45s (NB2 avg ~20s)'}
+                  </p>
                 </div>
               </div>
 
