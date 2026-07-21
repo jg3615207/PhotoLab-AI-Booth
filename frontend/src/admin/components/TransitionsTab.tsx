@@ -170,17 +170,20 @@ export default function TransitionsTab() {
         confetti({
           particleCount: 80,
           spread: 60,
-          origin: { x: 0.1, y: 0.6 }
+          origin: { x: 0.1, y: 0.6 },
+          zIndex: 99999
         });
         confetti({
           particleCount: 80,
           spread: 60,
-          origin: { x: 0.9, y: 0.6 }
+          origin: { x: 0.9, y: 0.6 },
+          zIndex: 99999
         });
         confetti({
           particleCount: 120,
           spread: 80,
-          origin: { x: 0.5, y: 0.4 }
+          origin: { x: 0.5, y: 0.4 },
+          zIndex: 99999
         });
       }, item.duration);
     }, 5000);
@@ -457,7 +460,14 @@ export default function TransitionsTab() {
                   <img src="/img/placeholder_after.jpg" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} alt="Stylized Result" />
                   
                   {/* Triggers the dynamic CSS class we generated */}
-                  <div className={`transition-overlay transition-${simulatingItem.id}-custom`} style={{ position: 'absolute', inset: 0 }} />
+                  <div 
+                    className={`transition-overlay transition-${simulatingItem.id}-custom`} 
+                    style={{ 
+                      position: 'absolute', 
+                      inset: 0,
+                      '--transition-before-img': "url('/img/placeholder_before.jpg')"
+                    } as React.CSSProperties} 
+                  />
                 </div>
               )}
 

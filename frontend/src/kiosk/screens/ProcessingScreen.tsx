@@ -154,9 +154,12 @@ export default function ProcessingScreen() {
 
   return (
     <div className="screen active" style={{ display: 'flex' }}>
-      {activeTransition && (
-        <div className={`transition-overlay transition-${activeTransition}-custom`} />
-      )}
+        <div 
+          className={`transition-overlay transition-${activeTransition}-custom`} 
+          style={{
+            '--transition-before-img': jobData?.jobId ? `url(/api/uploads/${jobData.jobId}/input.jpg)` : 'none'
+          } as React.CSSProperties} 
+        />
       <div className="processing-content">
         <div className="spinner"></div>
         <h2>{isZh ? 'AI 創作中...' : 'Creating Your Masterpiece...'}</h2>

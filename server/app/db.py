@@ -201,10 +201,6 @@ def set_setting(key: str, value: str):
 
 def seed_transitions():
     with get_db() as db:
-        existing = db.execute("SELECT COUNT(*) FROM transitions").fetchone()[0]
-        if existing > 0:
-            return
-        
         transitions = [
             {
                 "id": "glitch",
@@ -294,12 +290,155 @@ def seed_transitions():
   50% { transform: scale(1.1); opacity: 1; }
   100% { transform: scale(1); opacity: 0; background: transparent; }
 }"""
+            },
+            {
+                "id": "chromatic-radial-split",
+                "name": "Chromatic Radial Split (分色雷射)",
+                "duration": 1500,
+                "css_code": """.transition-chromatic-radial-split-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: transparent;
+  pointer-events: none;
+  overflow: hidden;
+}
+.transition-chromatic-radial-split-custom::before,
+.transition-chromatic-radial-split-custom::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  mix-blend-mode: screen;
+  animation-duration: 1.5s;
+  animation-fill-mode: forwards;
+  animation-timing-function: ease-out;
+}
+.transition-chromatic-radial-split-custom::before {
+  animation-name: radial-split-red-custom;
+}
+.transition-chromatic-radial-split-custom::after {
+  animation-name: radial-split-cyan-custom;
+}
+@keyframes radial-split-red-custom {
+  0% { transform: scale(1); clip-path: circle(0% at 50% 50%); opacity: 1; }
+  40% { transform: scale(1.05) translate(-6px, -4px); clip-path: circle(50% at 50% 50%); opacity: 1; }
+  100% { transform: scale(1.2) translate(-15px, -10px); clip-path: circle(120% at 50% 50%); opacity: 0; }
+}
+@keyframes radial-split-cyan-custom {
+  0% { transform: scale(1); clip-path: circle(0% at 50% 50%); opacity: 1; }
+  40% { transform: scale(1.03) translate(6px, 4px); clip-path: circle(50% at 50% 50%); opacity: 1; }
+  100% { transform: scale(1.15) translate(15px, 10px); clip-path: circle(120% at 50% 50%); opacity: 0; }
+}"""
+            },
+            {
+                "id": "cube-3d",
+                "name": "3D Cube Flip (3D 立方體)",
+                "duration": 1500,
+                "css_code": """.transition-cube-3d-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  transform-origin: right center;
+  animation: cube-flip-custom 1.5s forwards cubic-bezier(0.55, 0.055, 0.675, 0.19);
+}
+@keyframes cube-flip-custom {
+  0% { transform: perspective(1000px) rotateY(0deg) translateZ(0); opacity: 1; }
+  100% { transform: perspective(1000px) rotateY(-90deg) translateZ(-200px); opacity: 0; }
+}"""
+            },
+            {
+                "id": "card-flip",
+                "name": "3D Card Flip (3D 翻牌)",
+                "duration": 1200,
+                "css_code": """.transition-card-flip-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  backface-visibility: hidden;
+  animation: card-flip-anim-custom 1.2s forwards ease-in-out;
+}
+@keyframes card-flip-anim-custom {
+  0% { transform: perspective(1000px) rotateY(0deg); opacity: 1; }
+  50% { transform: perspective(1000px) rotateY(90deg); opacity: 0.5; }
+  100% { transform: perspective(1000px) rotateY(180deg); opacity: 0; }
+}"""
+            },
+            {
+                "id": "door-3d",
+                "name": "3D Swing Doors (3D 開門)",
+                "duration": 1500,
+                "css_code": """.transition-door-3d-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: transparent;
+  pointer-events: none;
+}
+.transition-door-3d-custom::before,
+.transition-door-3d-custom::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: 200% 100%;
+  animation-duration: 1.5s;
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
+}
+.transition-door-3d-custom::before {
+  left: 0;
+  background-position: left center;
+  transform-origin: left center;
+  animation-name: door-open-left-custom;
+}
+.transition-door-3d-custom::after {
+  right: 0;
+  background-position: right center;
+  transform-origin: right center;
+  animation-name: door-open-right-custom;
+}
+@keyframes door-open-left-custom {
+  0% { transform: perspective(1000px) rotateY(0deg); }
+  100% { transform: perspective(1000px) rotateY(-90deg); opacity: 0; }
+}
+@keyframes door-open-right-custom {
+  0% { transform: perspective(1000px) rotateY(0deg); }
+  100% { transform: perspective(1000px) rotateY(90deg); opacity: 0; }
+}"""
+            },
+            {
+                "id": "fly-3d",
+                "name": "3D Fly & Spin (3D 旋轉飛出)",
+                "duration": 1400,
+                "css_code": """.transition-fly-3d-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-image: var(--transition-before-img, url('/img/placeholder_before.jpg'));
+  background-size: cover;
+  background-position: center;
+  animation: fly-spin-custom 1.4s forwards cubic-bezier(0.25, 1, 0.5, 1);
+}
+@keyframes fly-spin-custom {
+  0% { transform: perspective(1000px) scale(1) rotate(0deg) translateZ(0); opacity: 1; filter: blur(0); }
+  30% { transform: perspective(1000px) scale(0.85) rotate(-5deg) translateZ(-50px); opacity: 0.9; filter: blur(2px); }
+  100% { transform: perspective(1000px) scale(0.1) rotate(180deg) translateZ(-800px); opacity: 0; filter: blur(8px); }
+}"""
             }
         ]
-        
         for t in transitions:
             db.execute(
                 "INSERT OR IGNORE INTO transitions (id, name, duration, css_code, active) VALUES (?,?,?,?,1)",
                 (t["id"], t["name"], t["duration"], t["css_code"])
             )
-
