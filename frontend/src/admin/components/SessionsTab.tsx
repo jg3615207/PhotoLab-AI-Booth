@@ -34,7 +34,8 @@ export default function SessionsTab() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [qrModalUrl, setQrModalUrl] = useState<string | null>(null);
+  const [qrModalSession, setQrModalSession] = useState<SessionItem | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Form State
   const [formId, setFormId] = useState('');
@@ -242,10 +243,27 @@ export default function SessionsTab() {
     }
   };
 
-  const showQrModal = (id: string) => {
-    const sessionUrl = `${window.location.origin}/?session=${id}`;
-    const qrCode = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(sessionUrl)}`;
-    setQrModalUrl(qrCode);
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleDownloadQr = async (qrUrl: string, sessionId: string) => {
+    try {
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `qr-code-${sessionId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      window.open(qrUrl, '_blank');
+    }
   };
 
   const toggleSelectAll = (checked: boolean) => {
@@ -312,7 +330,6 @@ export default function SessionsTab() {
                           }
                         }} 
                       />
-                      {/* FIXED THUMBNAIL SRC HERE TOO */}
                       <img src={style.thumbnail} style={{ width: '28px', height: '28px', objectFit: 'cover', borderRadius: '4px' }} alt="" />
                       <span>{style.name} ({style.id})</span>
                     </label>
@@ -432,7 +449,9 @@ export default function SessionsTab() {
             <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
               <button className="btn-secondary" onClick={() => openEditForm(s)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>{isZh ? '編輯' : 'Edit'}</button>
               <button className="btn-secondary" onClick={() => cloneSession(s)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>{isZh ? '複製' : 'Clone'}</button>
-              <button className="btn-secondary" onClick={() => showQrModal(s.id)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>QR</button>
+              <button className="btn-secondary" onClick={() => setQrModalSession(s)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>
+                {isZh ? 'QR / 連結' : 'QR / Links'}
+              </button>
               {s.active ? (
                 <button onClick={() => handleToggleActive(s.id, false)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px', background: '#8b2020', color: '#fff', border: 'none', cursor: 'pointer' }}>{isZh ? '停用' : 'Disable'}</button>
               ) : (
@@ -443,15 +462,58 @@ export default function SessionsTab() {
         ))}
       </div>
 
-      {/* QR Lightbox */}
-      {qrModalUrl && (
-        <div onClick={() => setQrModalUrl(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, cursor: 'pointer' }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '16px', textAlign: 'center' }}>
-            <img src={qrModalUrl} style={{ width: '280px', height: '280px' }} alt="Session QR" />
-            <div style={{ color: '#333', fontSize: '14px', marginTop: '12px', fontWeight: 600 }}>{isZh ? '掃碼進入活動場次' : 'Scan to Access Event Session'}</div>
+      {/* Enhanced QR / Links Lightbox Modal */}
+      {qrModalSession && (() => {
+        const sessionUrl = `${window.location.origin}/?session=${qrModalSession.id}`;
+        const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(sessionUrl)}`;
+
+        return (
+          <div onClick={() => setQrModalSession(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: '#151525', padding: '28px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center', width: '460px', maxWidth: '90vw' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ color: '#fff', margin: 0, fontSize: '18px' }}>🔗 {isZh ? '場次連結與 QR Code' : 'Session URL & QR Code'}</h3>
+                <button onClick={() => setQrModalSession(null)} style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer' }}>×</button>
+              </div>
+
+              {/* URL with Copy Button */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '6px', textAlign: 'left' }}>{isZh ? '活動連結 (Session URL)' : 'Session Direct Link'}</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={sessionUrl} 
+                    style={{ flexGrow: 1, padding: '10px 12px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '8px', color: '#667eea', fontSize: '13px', fontFamily: 'monospace' }} 
+                  />
+                  <button 
+                    className="btn-primary" 
+                    onClick={() => handleCopyLink(sessionUrl)} 
+                    style={{ padding: '10px 16px', borderRadius: '8px', whiteSpace: 'nowrap', fontSize: '13px' }}
+                  >
+                    {copiedLink ? (isZh ? '已複製！' : 'Copied!') : (isZh ? '複製連結' : 'Copy Link')}
+                  </button>
+                </div>
+              </div>
+
+              {/* QR Code Image Container */}
+              <div style={{ background: '#fff', padding: '16px', borderRadius: '16px', display: 'inline-block', marginBottom: '16px' }}>
+                <img src={qrImgUrl} style={{ width: '240px', height: '240px', display: 'block' }} alt="Session QR" />
+              </div>
+
+              {/* Download QR Button */}
+              <div>
+                <button 
+                  className="btn-secondary" 
+                  onClick={() => handleDownloadQr(qrImgUrl, qrModalSession.id)} 
+                  style={{ width: '100%', padding: '12px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  📥 {isZh ? '下載 QR Code 圖片' : 'Download QR Code Image'}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
