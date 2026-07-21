@@ -9,6 +9,7 @@ export default function SystemTab() {
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
   const [customCss, setCustomCss] = useState('');
+  const [localSaveDir, setLocalSaveDir] = useState('');
   const [statusMsg, setStatusMsg] = useState<{ text: string; color: string } | null>(null);
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -21,6 +22,7 @@ export default function SystemTab() {
         setApiKey(data.openai_api_key || '');
         setModel(data.openai_model || '');
         setCustomCss(data.custom_css || '');
+        setLocalSaveDir(data.local_save_dir || '');
       })
       .catch(err => console.error("Failed to load settings:", err));
   }, []);
@@ -63,6 +65,7 @@ export default function SystemTab() {
       form.append('base_url', apiBase);
       form.append('model', model);
       form.append('custom_css', customCss);
+      form.append('local_save_dir', localSaveDir);
 
       const r = await fetch('/api/styles/settings/save', { method: 'POST', body: form });
       const data = await r.json();
@@ -148,6 +151,21 @@ export default function SystemTab() {
             rows={5} 
             style={{ width: '100%', padding: '10px 14px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '8px', color: '#fff', fontFamily: 'monospace' }}
           />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', color: '#aaa', fontSize: '14px', marginBottom: '6px' }}>{isZh ? '本地相片儲存路徑 (Local Save Path)' : 'Local Photo Save Path'}</label>
+          <input 
+            type="text" 
+            value={localSaveDir} 
+            onChange={e => setLocalSaveDir(e.target.value)} 
+            placeholder={isZh ? "例如: D:\\PhotoBooth_Outputs" : "e.g., D:\\PhotoBooth_Outputs"} 
+            style={{ width: '100%', padding: '10px 14px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
+          />
+          <small style={{ display: 'block', color: '#888', marginTop: '6px', fontSize: '12px' }}>
+            {isZh ? "設定後，系統將在每次生成完成時複製一份成果照片至該目錄，並自動依據 Session ID (活動代碼) 分配子資料夾。" 
+                  : "If set, the system will save a copy of each completed photo here, organized into subdirectories by Session ID."}
+          </small>
         </div>
       </div>
 

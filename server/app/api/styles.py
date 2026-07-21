@@ -467,6 +467,7 @@ def get_settings_endpoint():
     api_key = get_setting("openai_api_key", settings.openai_api_key)
     base_url = get_setting("openai_base_url", settings.openai_base_url)
     model = get_setting("openai_model", settings.openai_model)
+    local_save_dir = get_setting("local_save_dir", "")
     
     masked_key = ""
     if api_key:
@@ -480,6 +481,7 @@ def get_settings_endpoint():
         "openai_base_url": base_url,
         "openai_model": model,
         "custom_css": get_setting("custom_css", ""),
+        "local_save_dir": local_save_dir,
     }
 
 
@@ -510,6 +512,7 @@ def save_settings_endpoint(
     base_url: str = Form(...),
     model: str = Form(...),
     custom_css: str = Form(""),
+    local_save_dir: str = Form(""),
 ):
     is_masked = "..." in api_key or "••" in api_key or api_key == "••••••••"
     if is_masked:
@@ -528,6 +531,7 @@ def save_settings_endpoint(
     set_setting("openai_base_url", base_url)
     set_setting("openai_model", model)
     set_setting("custom_css", custom_css)
+    set_setting("local_save_dir", local_save_dir)
     
     if not is_masked:
         set_setting("openai_api_key", api_key)

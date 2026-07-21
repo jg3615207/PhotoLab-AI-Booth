@@ -216,6 +216,26 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
     from app.services.printing import enqueue_print
     enqueue_print(print_path, copies=1, session_id=job_id)
 
+    # Save a copy locally if configured by admin (session-based folder structure)
+    try:
+        from app.db import get_setting
+        local_dir_setting = get_setting("local_save_dir", "")
+        if local_dir_setting:
+            target_base = Path(local_dir_setting)
+            session_folder = event_id if event_id else "default"
+            target_dir = target_base / session_folder
+            target_dir.mkdir(parents=True, exist_ok=True)
+            
+            timestamp = datetime.now(timezone.utc).astimezone().strftime("%Y%m%d_%H%M%S")
+            target_filename = f"{timestamp}_{style_id}_{job_id}.jpg"
+            target_path = target_dir / target_filename
+            
+            import shutil
+            shutil.copy2(print_path, target_path)
+            print(f"Successfully saved print-ready copy locally to {target_path}")
+    except Exception as e:
+        print(f"Failed to save copy to local directory: {e}")
+
     # Generate QR code
     try:
         pr = print_path.replace("\\", "/").split("/")[-2:]
