@@ -23,11 +23,11 @@ def list_styles(admin: bool = False):
             s = dict(r)
             s["thumbnail"] = f"/api/styles/{r['id']}/thumb.jpg"
             s["ref_image"] = f"/api/styles/{r['id']}/ref.jpg"
-            if r.get("animated_thumbnail"):
-                if r["animated_thumbnail"].startswith("http") or r["animated_thumbnail"].startswith("/"):
-                    s["animated_thumbnail"] = r["animated_thumbnail"]
+            if s.get("animated_thumbnail"):
+                if s["animated_thumbnail"].startswith("http") or s["animated_thumbnail"].startswith("/"):
+                    s["animated_thumbnail"] = s["animated_thumbnail"]
                 else:
-                    s["animated_thumbnail"] = f"/api/styles/{r['id']}/{r['animated_thumbnail']}"
+                    s["animated_thumbnail"] = f"/api/styles/{r['id']}/{s['animated_thumbnail']}"
             else:
                 s["animated_thumbnail"] = ""
             result.append(s)
