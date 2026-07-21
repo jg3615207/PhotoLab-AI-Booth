@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAdminLang } from '../context/AdminLangContext';
 
 interface StyleItem {
   id: string;
@@ -25,6 +26,9 @@ interface SessionItem {
 }
 
 export default function SessionsTab() {
+  const { lang } = useAdminLang();
+  const isZh = lang === 'zh-Hant';
+
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [styles, setStyles] = useState<StyleItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -102,18 +106,18 @@ export default function SessionsTab() {
 
     if (s.logo_path) {
       setLogoPreview(`/api/events/${s.id}/logo?t=${Date.now()}`);
-      setLogoStatus('Logo active');
+      setLogoStatus(isZh ? '已啟用 Logo' : 'Logo active');
     } else {
       setLogoPreview('');
-      setLogoStatus('No logo uploaded');
+      setLogoStatus(isZh ? '未上傳 Logo' : 'No logo uploaded');
     }
 
     if (s.frame_path) {
       setFramePreview(`/api/events/${s.id}/frame?t=${Date.now()}`);
-      setFrameStatus('Frame active');
+      setFrameStatus(isZh ? '已啟用相框' : 'Frame active');
     } else {
       setFramePreview('');
-      setFrameStatus('No frame uploaded');
+      setFrameStatus(isZh ? '未上傳相框' : 'No frame uploaded');
     }
 
     setShowForm(true);
@@ -121,7 +125,7 @@ export default function SessionsTab() {
 
   const cloneSession = (s: SessionItem) => {
     openNewForm();
-    setFormName(`Copy of ${s.name}`);
+    setFormName(`${s.name} ${isZh ? '的副本' : '(Copy)'}`);
     setFormAllowedStyles(s.allowed_styles || []);
     setFormPrint(s.allow_auto_print);
     setFormCap(s.frame_cap || 0);
@@ -132,7 +136,7 @@ export default function SessionsTab() {
 
   const handleSave = async () => {
     if (!formId.trim() || !formName.trim()) {
-      alert("Session ID and Name are required.");
+      alert(isZh ? "場次 ID 與名稱為必填項目" : "Session ID and Name are required.");
       return;
     }
 
@@ -164,10 +168,10 @@ export default function SessionsTab() {
         loadData();
       } else {
         const err = await r.json();
-        alert("Save failed: " + (err.detail || 'Unknown error'));
+        alert((isZh ? "儲存失敗: " : "Save failed: ") + (err.detail || 'Unknown error'));
       }
     } catch (e: any) {
-      alert("Error saving session: " + e.message);
+      alert("Error: " + e.message);
     }
   };
 
@@ -187,7 +191,7 @@ export default function SessionsTab() {
   const handleFileUpload = async (type: 'logo' | 'frame', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!formId) return alert("Save the session first.");
+    if (!formId) return alert(isZh ? "請先儲存場次" : "Save the session first.");
 
     const form = new FormData();
     form.append('image', file);
@@ -197,20 +201,20 @@ export default function SessionsTab() {
       const previewUrl = `/api/events/${formId}/${type}?t=${Date.now()}`;
       if (type === 'logo') {
         setLogoPreview(previewUrl);
-        setLogoStatus(file.name + ' uploaded');
+        setLogoStatus(file.name + (isZh ? ' 已上傳' : ' uploaded'));
       } else {
         setFramePreview(previewUrl);
-        setFrameStatus(file.name + ' uploaded');
+        setFrameStatus(file.name + (isZh ? ' 已上傳' : ' uploaded'));
       }
-      alert(`${type.toUpperCase()} uploaded successfully!`);
+      alert(type.toUpperCase() + (isZh ? " 上傳成功！" : " uploaded successfully!"));
     } else {
-      alert(`Failed to upload ${type}`);
+      alert((isZh ? "上傳失敗: " : "Failed to upload ") + type);
     }
   };
 
   const handleBulkArchive = async () => {
-    if (!selectedIds.length) return alert("Select sessions to archive.");
-    if (!confirm(`Archive ${selectedIds.length} sessions?`)) return;
+    if (!selectedIds.length) return alert(isZh ? "請先選擇要歸檔的場次" : "Select sessions to archive.");
+    if (!confirm(isZh ? `確定要歸檔這 ${selectedIds.length} 個場次嗎？` : `Archive ${selectedIds.length} sessions?`)) return;
 
     const r = await fetch('/api/admin/maintenance/events/bulk-archive', {
       method: 'POST',
@@ -224,8 +228,8 @@ export default function SessionsTab() {
   };
 
   const handleBulkDelete = async () => {
-    if (!selectedIds.length) return alert("Select sessions to delete.");
-    if (!confirm(`Permanently delete ${selectedIds.length} sessions?`)) return;
+    if (!selectedIds.length) return alert(isZh ? "請先選擇要刪除的場次" : "Select sessions to delete.");
+    if (!confirm(isZh ? `確定要永久刪除這 ${selectedIds.length} 個場次嗎？` : `Permanently delete ${selectedIds.length} sessions?`)) return;
 
     const r = await fetch('/api/admin/maintenance/events/bulk-delete', {
       method: 'POST',
@@ -255,9 +259,9 @@ export default function SessionsTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1 style={{ color: '#fff', margin: 0 }}>📅 Session Manager</h1>
+        <h1 style={{ color: '#fff', margin: 0 }}>📅 {isZh ? '場次管理' : 'Session Manager'}</h1>
         <button className="btn-primary" onClick={openNewForm} style={{ padding: '10px 20px', borderRadius: '8px' }}>
-          + New Session
+          + {isZh ? '新增場次' : 'New Session'}
         </button>
       </div>
 
@@ -265,11 +269,11 @@ export default function SessionsTab() {
       {showForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: '#151525', padding: '28px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', width: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ color: '#fff', marginTop: 0, marginBottom: '20px' }}>{editMode ? 'Edit Session' : 'Create New Session'}</h2>
+            <h2 style={{ color: '#fff', marginTop: 0, marginBottom: '20px' }}>{editMode ? (isZh ? '編輯場次' : 'Edit Session') : (isZh ? '新增場次' : 'Create New Session')}</h2>
 
             <div style={{ display: 'grid', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Session ID</label>
+                <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '場次 ID' : 'Session ID'}</label>
                 <input 
                   type="text" 
                   value={formId} 
@@ -281,18 +285,18 @@ export default function SessionsTab() {
               </div>
 
               <div>
-                <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Event Name</label>
+                <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '活動名稱' : 'Event Name'}</label>
                 <input 
                   type="text" 
                   value={formName} 
                   onChange={e => setFormName(e.target.value)} 
-                  placeholder="Summer Party 2026" 
+                  placeholder="夏日派對 2026" 
                   style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} 
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '6px' }}>Allowed Styles</label>
+                <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '6px' }}>{isZh ? '允許的風格' : 'Allowed Styles'}</label>
                 <div style={{ maxHeight: '160px', overflowY: 'auto', background: '#0d0d1a', padding: '12px', borderRadius: '8px', border: '1px solid #333', display: 'grid', gap: '8px' }}>
                   {styles.map(style => (
                     <label key={style.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#ddd', fontSize: '14px' }}>
@@ -308,6 +312,8 @@ export default function SessionsTab() {
                           }
                         }} 
                       />
+                      {/* FIXED THUMBNAIL SRC HERE TOO */}
+                      <img src={style.thumbnail} style={{ width: '28px', height: '28px', objectFit: 'cover', borderRadius: '4px' }} alt="" />
                       <span>{style.name} ({style.id})</span>
                     </label>
                   ))}
@@ -316,39 +322,39 @@ export default function SessionsTab() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Auto Print</label>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '自動列印' : 'Auto Print'}</label>
                   <select value={formPrint} onChange={e => setFormPrint(parseInt(e.target.value))} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
-                    <option value={1}>Enabled</option>
-                    <option value={0}>Disabled</option>
+                    <option value={1}>{isZh ? '啟用' : 'Enabled'}</option>
+                    <option value={0}>{isZh ? '停用' : 'Disabled'}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Frame Cap (0 = Unlimited)</label>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '張數上限 (0 = 無限制)' : 'Frame Cap (0 = Unlimited)'}</label>
                   <input type="number" value={formCap} onChange={e => setFormCap(parseInt(e.target.value) || 0)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Expiration Date</label>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '到期日期' : 'Expiration Date'}</label>
                   <input type="date" value={formExpire} onChange={e => setFormExpire(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Retake Limit</label>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '重拍次數上限' : 'Retake Limit'}</label>
                   <input type="number" value={formRetakes} onChange={e => setFormRetakes(parseInt(e.target.value) || 0)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>QR Code Background</label>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? 'QR Code 背景顏色' : 'QR Code Background'}</label>
                   <input type="color" value={formQrBg} onChange={e => setFormQrBg(e.target.value)} style={{ width: '100%', height: '40px', padding: '2px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', cursor: 'pointer' }} />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>QR Code Foreground</label>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? 'QR Code 前景顏色' : 'QR Code Foreground'}</label>
                   <input type="color" value={formQrFg} onChange={e => setFormQrFg(e.target.value)} style={{ width: '100%', height: '40px', padding: '2px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', cursor: 'pointer' }} />
                 </div>
               </div>
@@ -358,11 +364,11 @@ export default function SessionsTab() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#0d0d1a', padding: '12px', borderRadius: '8px' }}>
                     {logoPreview && <img src={logoPreview} style={{ width: '40px', height: '40px', objectFit: 'contain' }} alt="Logo" />}
                     <div style={{ flexGrow: 1 }}>
-                      <div style={{ fontSize: '13px', color: '#fff' }}>Event Logo</div>
+                      <div style={{ fontSize: '13px', color: '#fff' }}>{isZh ? '活動 Logo' : 'Event Logo'}</div>
                       <div style={{ fontSize: '12px', color: '#888' }}>{logoStatus}</div>
                     </div>
                     <label className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}>
-                      Upload Logo
+                      {isZh ? '上傳 Logo' : 'Upload Logo'}
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleFileUpload('logo', e)} />
                     </label>
                   </div>
@@ -370,11 +376,11 @@ export default function SessionsTab() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#0d0d1a', padding: '12px', borderRadius: '8px' }}>
                     {framePreview && <img src={framePreview} style={{ width: '40px', height: '60px', objectFit: 'contain' }} alt="Frame" />}
                     <div style={{ flexGrow: 1 }}>
-                      <div style={{ fontSize: '13px', color: '#fff' }}>Custom Overlay Frame (PNG)</div>
+                      <div style={{ fontSize: '13px', color: '#fff' }}>{isZh ? '自訂邊框 overlay (PNG)' : 'Custom Overlay Frame (PNG)'}</div>
                       <div style={{ fontSize: '12px', color: '#888' }}>{frameStatus}</div>
                     </div>
                     <label className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}>
-                      Upload Frame
+                      {isZh ? '上傳邊框' : 'Upload Frame'}
                       <input type="file" accept="image/png" style={{ display: 'none' }} onChange={e => handleFileUpload('frame', e)} />
                     </label>
                   </div>
@@ -383,8 +389,8 @@ export default function SessionsTab() {
             </div>
 
             <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button className="btn-secondary" onClick={() => setShowForm(false)} style={{ padding: '8px 18px', borderRadius: '8px' }}>Cancel</button>
-              <button className="btn-primary" onClick={handleSave} style={{ padding: '8px 18px', borderRadius: '8px' }}>Save Session</button>
+              <button className="btn-secondary" onClick={() => setShowForm(false)} style={{ padding: '8px 18px', borderRadius: '8px' }}>{isZh ? '取消' : 'Cancel'}</button>
+              <button className="btn-primary" onClick={handleSave} style={{ padding: '8px 18px', borderRadius: '8px' }}>{isZh ? '儲存場次' : 'Save Session'}</button>
             </div>
           </div>
         </div>
@@ -392,8 +398,8 @@ export default function SessionsTab() {
 
       {/* Bulk action buttons */}
       <div style={{ marginBottom: '16px', display: 'flex', gap: '12px' }}>
-        <button onClick={handleBulkArchive} className="btn-secondary" style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '6px' }}>Archive Selected</button>
-        <button onClick={handleBulkDelete} style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '6px', background: '#8b2020', color: '#fff', border: 'none', cursor: 'pointer' }}>Delete Selected</button>
+        <button onClick={handleBulkArchive} className="btn-secondary" style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '6px' }}>{isZh ? '歸檔所選' : 'Archive Selected'}</button>
+        <button onClick={handleBulkDelete} style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '6px', background: '#8b2020', color: '#fff', border: 'none', cursor: 'pointer' }}>{isZh ? '刪除所選' : 'Delete Selected'}</button>
       </div>
 
       {/* Sessions List */}
@@ -404,10 +410,10 @@ export default function SessionsTab() {
             onChange={e => toggleSelectAll(e.target.checked)} 
             checked={sessions.length > 0 && selectedIds.length === sessions.filter(s => !s.archived).length} 
           />
-          <span>ID</span>
-          <span>Name</span>
-          <span>Generations (Cap)</span>
-          <span style={{ textAlign: 'right' }}>Actions</span>
+          <span>{isZh ? '場次 ID' : 'ID'}</span>
+          <span>{isZh ? '名稱' : 'Name'}</span>
+          <span>{isZh ? '生成張數 (上限)' : 'Generations (Cap)'}</span>
+          <span style={{ textAlign: 'right' }}>{isZh ? '操作' : 'Actions'}</span>
         </div>
 
         {sessions.filter(s => !s.archived).map(s => (
@@ -424,13 +430,13 @@ export default function SessionsTab() {
             <span style={{ color: '#ddd' }}>{s.name}</span>
             <span style={{ color: '#aaa' }}>{s.jobs_count} / {s.frame_cap > 0 ? s.frame_cap : '∞'}</span>
             <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-              <button className="btn-secondary" onClick={() => openEditForm(s)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>Edit</button>
-              <button className="btn-secondary" onClick={() => cloneSession(s)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>Clone</button>
+              <button className="btn-secondary" onClick={() => openEditForm(s)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>{isZh ? '編輯' : 'Edit'}</button>
+              <button className="btn-secondary" onClick={() => cloneSession(s)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>{isZh ? '複製' : 'Clone'}</button>
               <button className="btn-secondary" onClick={() => showQrModal(s.id)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>QR</button>
               {s.active ? (
-                <button onClick={() => handleToggleActive(s.id, false)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px', background: '#8b2020', color: '#fff', border: 'none', cursor: 'pointer' }}>Disable</button>
+                <button onClick={() => handleToggleActive(s.id, false)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px', background: '#8b2020', color: '#fff', border: 'none', cursor: 'pointer' }}>{isZh ? '停用' : 'Disable'}</button>
               ) : (
-                <button className="btn-primary" onClick={() => handleToggleActive(s.id, true)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>Enable</button>
+                <button className="btn-primary" onClick={() => handleToggleActive(s.id, true)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>{isZh ? '啟用' : 'Enable'}</button>
               )}
             </div>
           </div>
@@ -442,7 +448,7 @@ export default function SessionsTab() {
         <div onClick={() => setQrModalUrl(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, cursor: 'pointer' }}>
           <div style={{ background: '#fff', padding: '24px', borderRadius: '16px', textAlign: 'center' }}>
             <img src={qrModalUrl} style={{ width: '280px', height: '280px' }} alt="Session QR" />
-            <div style={{ color: '#333', fontSize: '14px', marginTop: '12px', fontWeight: 600 }}>Scan to Access Event Session</div>
+            <div style={{ color: '#333', fontSize: '14px', marginTop: '12px', fontWeight: 600 }}>{isZh ? '掃碼進入活動場次' : 'Scan to Access Event Session'}</div>
           </div>
         </div>
       )}

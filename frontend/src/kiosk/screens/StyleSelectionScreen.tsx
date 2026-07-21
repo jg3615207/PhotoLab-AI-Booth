@@ -9,7 +9,9 @@ interface StyleData {
 }
 
 export default function StyleSelectionScreen() {
-  const { setScreen, session, setSelectedStyleId } = useKiosk();
+  const { setScreen, session, setSelectedStyleId, lang } = useKiosk();
+  const isZh = lang === 'zh-Hant';
+
   const [styles, setStyles] = useState<StyleData[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,9 +27,9 @@ export default function StyleSelectionScreen() {
       })
       .catch(err => {
         console.error(err);
-        setError('Could not load styles');
+        setError(isZh ? '無法載入風格' : 'Could not load styles');
       });
-  }, [session]);
+  }, [session, isZh]);
 
   const handleSelectStyle = (id: string) => {
     setSelectedStyleId(id);
@@ -36,7 +38,7 @@ export default function StyleSelectionScreen() {
 
   return (
     <div className="screen active" style={{ display: 'flex' }}>
-      <h2>Choose Your Style</h2>
+      <h2>{isZh ? '選擇風格' : 'Choose Your Style'}</h2>
       {error && <p>{error}</p>}
       <div className="style-grid">
         {styles.map(s => (
@@ -48,16 +50,19 @@ export default function StyleSelectionScreen() {
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';
-                target.parentElement!.innerHTML = `<div class='style-thumb' style='background:#2a2a4e;display:flex;align-items:center;justify-content:center;color:#666'>${s.name[0]}</div>` + target.parentElement!.innerHTML;
               }}
             />
             <div className="style-name">{s.name}</div>
-            <div className="style-badge">{s.max_people > 1 ? `Up to ${s.max_people} people` : 'Solo (1 person)'}</div>
+            <div className="style-badge">
+              {s.max_people > 1 
+                ? (isZh ? `最多 ${s.max_people} 人` : `Up to ${s.max_people} people`) 
+                : (isZh ? '單人' : 'Solo (1 person)')}
+            </div>
           </div>
         ))}
       </div>
       <button className="btn-back" onClick={() => setScreen('attract')} style={{ marginTop: '20px' }}>
-        Back
+        {isZh ? '返回' : 'Back'}
       </button>
     </div>
   );

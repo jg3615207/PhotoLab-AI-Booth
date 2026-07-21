@@ -2,18 +2,18 @@ import React from 'react';
 import { useKiosk } from '../context/KioskContext';
 
 export default function PreviewScreen() {
-  const { setScreen, capturedImage, selectedStyleId, session, setJobData } = useKiosk();
+  const { setScreen, capturedImage, selectedStyleId, session, setJobData, lang } = useKiosk();
+  const isZh = lang === 'zh-Hant';
 
   const handleConfirm = async () => {
     if (!capturedImage || !selectedStyleId) {
-      alert("Missing image or style selection.");
+      alert(isZh ? "缺少照片或未選擇風格" : "Missing image or style selection.");
       return;
     }
 
     setScreen('processing');
 
     try {
-      // Convert Data URL to Blob
       const res = await fetch(capturedImage);
       const blob = await res.blob();
       
@@ -28,35 +28,34 @@ export default function PreviewScreen() {
       const data = await r.json();
       
       if (data.error) {
-        alert(data.error + "\n\nPlease try again.");
+        alert((isZh ? "失敗: " : "Error: ") + data.error + "\n\n" + (isZh ? "請重試。" : "Please try again."));
         setScreen('preview');
         return;
       }
       
       setJobData({ jobId: data.job_id });
-      // The ProcessingScreen will handle the WebSocket polling
       
     } catch (err) {
       console.error(err);
-      alert('Upload failed. Please try again.');
+      alert(isZh ? "上傳失敗，請重試。" : "Upload failed. Please try again.");
       setScreen('preview');
     }
   };
 
   return (
     <div className="screen active" style={{ display: 'flex' }}>
-      <h2>Review Your Photo</h2>
+      <h2>{isZh ? '確認你的照片' : 'Review Your Photo'}</h2>
       {capturedImage ? (
         <img src={capturedImage} className="preview-img" alt="Preview" />
       ) : (
-        <p>No image captured</p>
+        <p>{isZh ? '無擷取照片' : 'No image captured'}</p>
       )}
       <div className="preview-controls">
         <button className="btn-primary" onClick={handleConfirm}>
-          Use This
+          {isZh ? '使用這張' : 'Use This'}
         </button>
         <button className="btn-secondary" onClick={() => setScreen('capture')}>
-          Retake
+          {isZh ? '重拍' : 'Retake'}
         </button>
       </div>
     </div>

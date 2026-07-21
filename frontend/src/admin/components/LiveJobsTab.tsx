@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAdminLang } from '../context/AdminLangContext';
 
 interface JobItem {
   job_id: string;
@@ -8,6 +9,9 @@ interface JobItem {
 }
 
 export default function LiveJobsTab() {
+  const { lang } = useAdminLang();
+  const isZh = lang === 'zh-Hant';
+
   const [jobs, setJobs] = useState<JobItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,13 +54,13 @@ export default function LiveJobsTab() {
 
   return (
     <div>
-      <h1 style={{ color: '#fff', marginBottom: '24px' }}>⚙️ Live Jobs Monitor</h1>
+      <h1 style={{ color: '#fff', marginBottom: '24px' }}>⚙️ {isZh ? '即時任務監控' : 'Live Jobs Monitor'}</h1>
       
       {loading ? (
-        <div style={{ color: '#888', padding: '24px', textAlign: 'center' }}>Loading live jobs...</div>
+        <div style={{ color: '#888', padding: '24px', textAlign: 'center' }}>{isZh ? '載入即時任務中...' : 'Loading live jobs...'}</div>
       ) : jobs.length === 0 ? (
         <div style={{ background: 'rgba(26, 26, 46, 0.6)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)', padding: '32px', borderRadius: '16px', color: '#888', textAlign: 'center' }}>
-          No active jobs currently processing.
+          {isZh ? '目前沒有正在處理的任務。' : 'No active jobs currently processing.'}
         </div>
       ) : (
         <div style={{ display: 'grid', gap: '12px' }}>
@@ -69,9 +73,9 @@ export default function LiveJobsTab() {
                 alt="Upload preview" 
               />
               <div style={{ flexGrow: 1 }}>
-                <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#fff', marginBottom: '4px' }}>Job {j.job_id}</div>
+                <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#fff', marginBottom: '4px' }}>{isZh ? '任務' : 'Job'} {j.job_id}</div>
                 <div style={{ fontSize: '13px', color: '#aaa' }}>
-                  Session: <strong style={{ color: '#ddd' }}>{j.event_id || 'default'}</strong> | Style: <strong style={{ color: '#667eea' }}>{j.style_id}</strong>
+                  {isZh ? '場次:' : 'Session:'} <strong style={{ color: '#ddd' }}>{j.event_id || 'default'}</strong> | {isZh ? '風格:' : 'Style:'} <strong style={{ color: '#667eea' }}>{j.style_id}</strong>
                 </div>
               </div>
               <div>

@@ -3,19 +3,24 @@ import { useKiosk } from '../context/KioskContext';
 import confetti from 'canvas-confetti';
 
 export default function ProcessingScreen() {
-  const { jobData, setJobData, setScreen } = useKiosk();
-  const [tip, setTip] = useState('Applying artistic style');
+  const { jobData, setJobData, setScreen, lang } = useKiosk();
+  const isZh = lang === 'zh-Hant';
+
+  const tipsZh = ['正在套用藝術風格...', '加入 AI 魔法效果...', '快要完成了...'];
+  const tipsEn = ['Applying artistic style...', 'Adding some AI magic...', 'Almost there...'];
+  const tips = isZh ? tipsZh : tipsEn;
+
+  const [tip, setTip] = useState(tips[0]);
   const wsRef = useRef<WebSocket | null>(null);
   
   useEffect(() => {
-    const tips = ['Applying artistic style', 'Adding some AI magic', 'Almost there...'];
     let tipIdx = 0;
     const interval = setInterval(() => {
       tipIdx++;
       setTip(tips[tipIdx % tips.length]);
     }, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [tips]);
 
   useEffect(() => {
     if (!jobData?.jobId) return;
@@ -32,12 +37,11 @@ export default function ProcessingScreen() {
       if (job.status === 'done') {
         ws.close();
         setJobData({ ...jobData, result: job });
-        // Handle Reveal Effect
-        startReveal(job);
+        startReveal();
       } else if (job.status === 'failed') {
         ws.close();
-        const errMsg = job.error_message || "Processing failed.";
-        if (window.confirm(`${errMsg}\n\nWould you like to try again?`)) {
+        const errMsg = job.error_message || (isZh ? "處理失敗。" : "Processing failed.");
+        if (window.confirm(`${errMsg}\n\n${isZh ? '要再試一次嗎？' : 'Would you like to try again?'}`)) {
           setScreen('capture');
         } else {
           setScreen('attract');
@@ -50,9 +54,9 @@ export default function ProcessingScreen() {
         ws.close();
       }
     };
-  }, [jobData?.jobId, setJobData, setScreen]);
+  }, [jobData?.jobId, setJobData, setScreen, isZh]);
 
-  const startReveal = (job: any) => {
+  const startReveal = () => {
     confetti({
       particleCount: 150,
       spread: 100,
@@ -66,7 +70,7 @@ export default function ProcessingScreen() {
     <div className="screen active" style={{ display: 'flex' }}>
       <div className="processing-content">
         <div className="spinner"></div>
-        <h2>Creating Your Masterpiece...</h2>
+        <h2>{isZh ? 'AI 創作中...' : 'Creating Your Masterpiece...'}</h2>
         <p id="processing-tip">{tip}</p>
       </div>
     </div>

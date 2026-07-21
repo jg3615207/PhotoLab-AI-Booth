@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAdminLang } from '../context/AdminLangContext';
 
 interface AnalyticsData {
   total: number;
@@ -7,6 +8,9 @@ interface AnalyticsData {
 }
 
 export default function AnalyticsTab() {
+  const { lang } = useAdminLang();
+  const isZh = lang === 'zh-Hant';
+
   const [stats, setStats] = useState<AnalyticsData>({ total: 0, today: 0, hourly: [] });
   const [loading, setLoading] = useState(true);
 
@@ -37,21 +41,21 @@ export default function AnalyticsTab() {
 
   return (
     <div>
-      <h1 style={{ color: '#fff', marginBottom: '24px' }}>📊 Analytics & Cost Dashboard</h1>
+      <h1 style={{ color: '#fff', marginBottom: '24px' }}>📊 {isZh ? '數據分析與成本儀表板' : 'Analytics & Cost Dashboard'}</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
         <div style={{ background: 'rgba(26, 26, 46, 0.8)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ color: '#aaa', fontSize: '14px', fontWeight: 500 }}>Total All-Time Generations</div>
+          <div style={{ color: '#aaa', fontSize: '14px', fontWeight: 500 }}>{isZh ? '歷史總生成張數' : 'Total All-Time Generations'}</div>
           <div style={{ fontSize: '36px', fontWeight: 800, color: '#fff', marginTop: '8px' }}>{stats.total}</div>
         </div>
 
         <div style={{ background: 'rgba(26, 26, 46, 0.8)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ color: '#aaa', fontSize: '14px', fontWeight: 500 }}>Today's Generations</div>
+          <div style={{ color: '#aaa', fontSize: '14px', fontWeight: 500 }}>{isZh ? '今日生成張數' : "Today's Generations"}</div>
           <div style={{ fontSize: '36px', fontWeight: 800, color: '#4f4', marginTop: '8px' }}>{stats.today}</div>
         </div>
 
         <div style={{ background: 'rgba(26, 26, 46, 0.8)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ color: '#aaa', fontSize: '14px', fontWeight: 500 }}>Est. API Cost (Today)</div>
+          <div style={{ color: '#aaa', fontSize: '14px', fontWeight: 500 }}>{isZh ? '今日預估 API 費用' : 'Est. API Cost (Today)'}</div>
           <div style={{ fontSize: '36px', fontWeight: 800, color: '#667eea', marginTop: '8px' }}>
             ${(stats.today * 0.03).toFixed(2)}
           </div>
@@ -59,10 +63,10 @@ export default function AnalyticsTab() {
       </div>
 
       <div style={{ background: 'rgba(26, 26, 46, 0.8)', padding: '28px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <h2 style={{ color: '#fff', fontSize: '18px', marginBottom: '20px' }}>Hourly Generation Activity Today</h2>
+        <h2 style={{ color: '#fff', fontSize: '18px', marginBottom: '20px' }}>{isZh ? '今日每小時生成量活動圖' : 'Hourly Generation Activity Today'}</h2>
         
         {loading ? (
-          <div style={{ color: '#888', textAlign: 'center', padding: '40px' }}>Loading analytics graph...</div>
+          <div style={{ color: '#888', textAlign: 'center', padding: '40px' }}>{isZh ? '載入分析圖表中...' : 'Loading analytics graph...'}</div>
         ) : (
           <div style={{ width: '100%', height: '240px', display: 'flex', alignItems: 'flex-end', gap: '8px', paddingTop: '20px' }}>
             {hourlyCounts.map((count, hour) => {

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useAdminLang } from '../context/AdminLangContext';
 
 interface StyleItem {
   id: string;
@@ -28,6 +29,9 @@ interface V2Model {
 }
 
 export default function StylesTab() {
+  const { lang } = useAdminLang();
+  const isZh = lang === 'zh-Hant';
+
   const [styles, setStyles] = useState<StyleItem[]>([]);
   const [v2Models, setV2Models] = useState<V2Model[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +94,7 @@ export default function StylesTab() {
 
   const handleCreateStyle = async () => {
     if (!fId.trim() || !fName.trim()) {
-      alert("Style ID and Display Name are required.");
+      alert(isZh ? "請輸入風格 ID 和顯示名稱" : "Style ID and Display Name are required.");
       return;
     }
 
@@ -121,7 +125,7 @@ export default function StylesTab() {
       loadStyles();
     } else {
       const err = await r.json();
-      alert("Create style failed: " + (err.detail || 'Error'));
+      alert((isZh ? "建立風格失敗: " : "Create style failed: ") + (err.detail || 'Error'));
     }
   };
 
@@ -198,7 +202,7 @@ export default function StylesTab() {
       loadStyles();
     } else {
       const err = await r.json();
-      alert("Save style failed: " + (err.detail || 'Error'));
+      alert((isZh ? "儲存失敗: " : "Save style failed: ") + (err.detail || 'Error'));
     }
   };
 
@@ -210,7 +214,7 @@ export default function StylesTab() {
   };
 
   const handleOptimizePrompt = async () => {
-    if (!fPrompt.trim()) return alert("Enter a prompt first.");
+    if (!fPrompt.trim()) return alert(isZh ? "請先輸入提示詞" : "Enter a prompt first.");
     setOptimizing(true);
     try {
       const form = new FormData();
@@ -221,7 +225,7 @@ export default function StylesTab() {
         setPreviousPrompt(fPrompt);
         setFPrompt(data.optimized_prompt);
       } else {
-        alert("Optimization failed: " + data.detail);
+        alert(isZh ? "優化失敗: " + data.detail : "Optimization failed: " + data.detail);
       }
     } catch (e: any) {
       alert("Error: " + e.message);
@@ -241,7 +245,7 @@ export default function StylesTab() {
     }
 
     if (!fileToUse) {
-      alert("Select a reference image first.");
+      alert(isZh ? "請先選取參考圖片" : "Select a reference image first.");
       return;
     }
 
@@ -255,7 +259,7 @@ export default function StylesTab() {
         setPreviousPrompt(fPrompt);
         setFPrompt(data.optimized_prompt);
       } else {
-        alert("Vision analysis failed: " + data.detail);
+        alert(isZh ? "視覺分析失敗: " + data.detail : "Vision analysis failed: " + data.detail);
       }
     } catch (e: any) {
       alert("Error: " + e.message);
@@ -289,7 +293,7 @@ export default function StylesTab() {
       form.append('image', input.files[0]);
       const r = await fetch(`/api/styles/${styleId}/frame`, { method: 'POST', body: form });
       if (r.ok) {
-        alert("Overlay Frame uploaded successfully!");
+        alert(isZh ? "相框 PNG 已上傳成功！" : "Overlay Frame uploaded successfully!");
         loadStyles();
       }
     };
@@ -319,7 +323,7 @@ export default function StylesTab() {
         testVideoRef.current.srcObject = stream;
       }
     } catch (e: any) {
-      alert("Camera error: " + e.message);
+      alert(isZh ? "相機錯誤: " + e.message : "Camera error: " + e.message);
       setTestTab('upload');
     }
   };
@@ -352,7 +356,7 @@ export default function StylesTab() {
   };
 
   const handleRunTest = async () => {
-    if (!testImageBlob || !testStyle) return alert("Select or capture a test photo first.");
+    if (!testImageBlob || !testStyle) return alert(isZh ? "請先拍攝或選擇測試照片" : "Select or capture a test photo first.");
 
     testModels.forEach(async (modelId, index) => {
       if (!modelId) return;
@@ -403,9 +407,9 @@ export default function StylesTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1 style={{ color: '#fff', margin: 0 }}>🎨 Style Library</h1>
+        <h1 style={{ color: '#fff', margin: 0 }}>🎨 {isZh ? '風格庫管理' : 'Style Library'}</h1>
         <button className="btn-primary" onClick={() => { resetForm(); setShowAddForm(true); }} style={{ padding: '10px 20px', borderRadius: '8px' }}>
-          + New Style
+          + {isZh ? '新增風格' : 'New Style'}
         </button>
       </div>
 
@@ -413,55 +417,57 @@ export default function StylesTab() {
       {(showAddForm || editingStyle) && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: '#151525', padding: '28px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', width: '640px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ color: '#fff', marginTop: 0, marginBottom: '20px' }}>{editingStyle ? 'Edit Style' : 'Create New Style'}</h2>
+            <h2 style={{ color: '#fff', marginTop: 0, marginBottom: '20px' }}>
+              {editingStyle ? (isZh ? '編輯風格' : 'Edit Style') : (isZh ? '新增風格' : 'Create New Style')}
+            </h2>
 
             <div style={{ display: 'grid', gap: '14px' }}>
               {!editingStyle && (
                 <div>
-                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Style ID</label>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '風格 ID' : 'Style ID'}</label>
                   <input type="text" value={fId} onChange={e => setFId(e.target.value)} placeholder="ghibli-dream" style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} />
                 </div>
               )}
 
               <div>
-                <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Display Name</label>
-                <input type="text" value={fName} onChange={e => setFName(e.target.value)} placeholder="Ghibli Dream" style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} />
+                <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '顯示名稱' : 'Display Name'}</label>
+                <input type="text" value={fName} onChange={e => setFName(e.target.value)} placeholder="吉卜力夢幻" style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} />
               </div>
 
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label style={{ color: '#aaa', fontSize: '13px' }}>Prompt Template</label>
+                  <label style={{ color: '#aaa', fontSize: '13px' }}>{isZh ? '提示詞模板' : 'Prompt Template'}</label>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     {previousPrompt !== null && (
-                      <button className="btn-secondary" onClick={handleUndoPrompt} style={{ padding: '4px 8px', fontSize: '11px' }}>↩ Undo</button>
+                      <button className="btn-secondary" onClick={handleUndoPrompt} style={{ padding: '4px 8px', fontSize: '11px' }}>↩ {isZh ? '復原' : 'Undo'}</button>
                     )}
-                    <button className="btn-secondary" onClick={handleVisionOptimize} disabled={optimizing} style={{ padding: '4px 8px', fontSize: '11px' }}>📷 Vision Ref AI</button>
-                    <button className="btn-primary" onClick={handleOptimizePrompt} disabled={optimizing} style={{ padding: '4px 8px', fontSize: '11px' }}>✨ Optimize Prompt</button>
+                    <button className="btn-secondary" onClick={handleVisionOptimize} disabled={optimizing} style={{ padding: '4px 8px', fontSize: '11px' }}>📷 {isZh ? '視覺參考圖 AI' : 'Vision Ref AI'}</button>
+                    <button className="btn-primary" onClick={handleOptimizePrompt} disabled={optimizing} style={{ padding: '4px 8px', fontSize: '11px' }}>✨ {isZh ? '優化提示詞' : 'Optimize Prompt'}</button>
                   </div>
                 </div>
-                <textarea value={fPrompt} onChange={e => setFPrompt(e.target.value)} rows={4} placeholder="Studio Ghibli style, keep face identical..." style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', fontFamily: 'inherit' }} />
+                <textarea value={fPrompt} onChange={e => setFPrompt(e.target.value)} rows={4} placeholder="吉卜力動漫風格，保留臉部特徵..." style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', fontFamily: 'inherit' }} />
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#0d0d1a', padding: '12px', borderRadius: '8px' }}>
                 {refPreviewUrl && <img src={refPreviewUrl} style={{ width: '40px', height: '60px', objectFit: 'cover', borderRadius: '4px' }} alt="Ref" />}
                 <div style={{ flexGrow: 1 }}>
-                  <div style={{ fontSize: '13px', color: '#fff' }}>Reference Image</div>
-                  <div style={{ fontSize: '12px', color: '#888' }}>{refFile ? refFile.name : (refPreviewUrl ? 'Active reference set' : 'No reference image')}</div>
+                  <div style={{ fontSize: '13px', color: '#fff' }}>{isZh ? '參考圖片' : 'Reference Image'}</div>
+                  <div style={{ fontSize: '12px', color: '#888' }}>{refFile ? refFile.name : (refPreviewUrl ? (isZh ? '已設定參考圖' : 'Active reference set') : (isZh ? '未選取參考圖片' : 'No reference image'))}</div>
                 </div>
                 <label className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}>
-                  Upload Ref
+                  {isZh ? '上傳參考圖' : 'Upload Ref'}
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleRefUpload} />
                 </label>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Max People</label>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '最多人數' : 'Max People'}</label>
                   <input type="number" value={fMaxPeople} min={1} max={20} onChange={e => setFMaxPeople(parseInt(e.target.value) || 1)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Aspect Ratio</label>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '畫面比例' : 'Aspect Ratio'}</label>
                   <select value={fAspect} onChange={e => setFAspect(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
                     <option value="1:1">1:1</option>
                     <option value="2:3">2:3</option>
@@ -472,7 +478,7 @@ export default function StylesTab() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Resolution</label>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '解析度' : 'Resolution'}</label>
                   <select value={fResolution} onChange={e => setFResolution(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
                     <option value="2k">2k</option>
                     <option value="1k">1k</option>
@@ -483,7 +489,7 @@ export default function StylesTab() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>V2 AI Model</label>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? 'AI 模型' : 'V2 AI Model'}</label>
                   <select value={fV2Model} onChange={e => setFV2Model(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
                     <option value="nb2-cheap">Nano Banana 2 — ~$0.027/2k</option>
                     <option value="nb-pro">Nano Banana Pro — ~$0.035/2k</option>
@@ -493,22 +499,22 @@ export default function StylesTab() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Reveal Transition</label>
+                  <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '揭曉動畫' : 'Reveal Transition'}</label>
                   <select value={fTransition} onChange={e => setFTransition(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
-                    <option value="glitch">Glitch</option>
-                    <option value="flash">Flash & Burn</option>
-                    <option value="swipe">Laser Swipe</option>
-                    <option value="random">Random</option>
-                    <option value="none">None</option>
+                    <option value="glitch">Glitch (故障風)</option>
+                    <option value="flash">Flash & Burn (閃光)</option>
+                    <option value="swipe">Laser Swipe (雷射)</option>
+                    <option value="random">Random (隨機)</option>
+                    <option value="none">None (無)</option>
                   </select>
                 </div>
               </div>
             </div>
 
             <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button className="btn-secondary" onClick={() => { setShowAddForm(false); setEditingStyle(null); }} style={{ padding: '8px 18px', borderRadius: '8px' }}>Cancel</button>
+              <button className="btn-secondary" onClick={() => { setShowAddForm(false); setEditingStyle(null); }} style={{ padding: '8px 18px', borderRadius: '8px' }}>{isZh ? '取消' : 'Cancel'}</button>
               <button className="btn-primary" onClick={editingStyle ? handleSaveEdit : handleCreateStyle} style={{ padding: '8px 18px', borderRadius: '8px' }}>
-                {editingStyle ? 'Save Changes' : 'Create Style'}
+                {editingStyle ? (isZh ? '儲存變更' : 'Save Changes') : (isZh ? '建立風格' : 'Create Style')}
               </button>
             </div>
           </div>
@@ -520,26 +526,26 @@ export default function StylesTab() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
           <div style={{ background: '#151525', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', width: '760px', maxHeight: '95vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ color: '#fff', margin: 0, fontSize: '20px' }}>🧪 Test Style: {testStyle.name}</h2>
+              <h2 style={{ color: '#fff', margin: 0, fontSize: '20px' }}>🧪 {isZh ? '測試風格' : 'Test Style'}: {testStyle.name}</h2>
               <button onClick={() => { stopCamera(); setTestStyle(null); }} style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer' }}>×</button>
             </div>
 
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <button className={`btn-secondary ${testTab === 'upload' ? 'btn-primary' : ''}`} onClick={() => { stopCamera(); setTestTab('upload'); }} style={{ padding: '6px 16px', fontSize: '13px' }}>Upload Test Photo</button>
-              <button className={`btn-secondary ${testTab === 'camera' ? 'btn-primary' : ''}`} onClick={() => { setTestTab('camera'); startCamera(); }} style={{ padding: '6px 16px', fontSize: '13px' }}>Webcam Capture</button>
+              <button className={`btn-secondary ${testTab === 'upload' ? 'btn-primary' : ''}`} onClick={() => { stopCamera(); setTestTab('upload'); }} style={{ padding: '6px 16px', fontSize: '13px' }}>📁 {isZh ? '上傳測試照片' : 'Upload Test Photo'}</button>
+              <button className={`btn-secondary ${testTab === 'camera' ? 'btn-primary' : ''}`} onClick={() => { setTestTab('camera'); startCamera(); }} style={{ padding: '6px 16px', fontSize: '13px' }}>📷 {isZh ? '相機拍攝' : 'Webcam Capture'}</button>
             </div>
 
             <div style={{ width: '100%', height: '200px', background: '#0d0d1a', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', overflow: 'hidden', position: 'relative' }}>
               {testTab === 'camera' ? (
                 <>
                   <video ref={testVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <button className="btn-primary" onClick={capturePhoto} style={{ position: 'absolute', bottom: '12px', padding: '8px 20px', borderRadius: '20px' }}>Take Photo</button>
+                  <button className="btn-primary" onClick={capturePhoto} style={{ position: 'absolute', bottom: '12px', padding: '8px 20px', borderRadius: '20px' }}>📸 {isZh ? '拍攝' : 'Take Photo'}</button>
                 </>
               ) : testPreviewUrl ? (
                 <img src={testPreviewUrl} style={{ maxHeight: '100%', objectFit: 'contain' }} alt="Test input" />
               ) : (
                 <label className="btn-secondary" style={{ cursor: 'pointer' }}>
-                  Choose Image
+                  {isZh ? '選擇圖片' : 'Choose Image'}
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
                     if (e.target.files?.[0]) {
                       setTestImageBlob(e.target.files[0]);
@@ -563,7 +569,7 @@ export default function StylesTab() {
                     }}
                     style={{ fontSize: '11px', padding: '4px', background: '#1a1a2e', border: '1px solid #333', color: '#fff', borderRadius: '4px', marginBottom: '8px' }}
                   >
-                    <option value="">(None)</option>
+                    <option value="">({isZh ? '無' : 'None'})</option>
                     <option value="nb2-cheap">Nano Banana 2</option>
                     <option value="nb-pro">Nano Banana Pro</option>
                     <option value="gpt2-official">GPT Image 2 Official</option>
@@ -572,7 +578,7 @@ export default function StylesTab() {
 
                   <div style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {testResults[slotIdx]?.loading ? (
-                      <span style={{ color: '#667eea', fontSize: '12px' }}>Running...</span>
+                      <span style={{ color: '#667eea', fontSize: '12px' }}>{isZh ? '運行中...' : 'Running...'}</span>
                     ) : testResults[slotIdx]?.error ? (
                       <span style={{ color: '#f44', fontSize: '11px' }}>{testResults[slotIdx].error}</span>
                     ) : testResults[slotIdx]?.url ? (
@@ -583,7 +589,7 @@ export default function StylesTab() {
                         alt="Test output" 
                       />
                     ) : (
-                      <span style={{ color: '#555', fontSize: '11px' }}>Empty Slot</span>
+                      <span style={{ color: '#555', fontSize: '11px' }}>{isZh ? '空位' : 'Empty Slot'}</span>
                     )}
                   </div>
                 </div>
@@ -591,7 +597,7 @@ export default function StylesTab() {
             </div>
 
             <button className="btn-primary" onClick={handleRunTest} style={{ width: '100%', padding: '10px' }}>
-              🚀 Run Multi-Model Comparison Test
+              🚀 {isZh ? '開始多模型比較測試' : 'Run Multi-Model Comparison Test'}
             </button>
           </div>
         </div>
@@ -599,14 +605,15 @@ export default function StylesTab() {
 
       {/* Styles List */}
       {loading ? (
-        <div style={{ color: '#888', padding: '32px', textAlign: 'center' }}>Loading styles...</div>
+        <div style={{ color: '#888', padding: '32px', textAlign: 'center' }}>{isZh ? '載入風格中...' : 'Loading styles...'}</div>
       ) : (
         <div style={{ display: 'grid', gap: '12px' }}>
           {styles.map(s => (
             <div key={s.id} style={{ background: 'rgba(26, 26, 46, 0.8)', padding: '16px', borderRadius: '12px', display: 'grid', gridTemplateColumns: '80px 1.5fr 2fr 1fr 1fr auto', alignItems: 'center', gap: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              {/* FIXED THUMBNAIL SRC - NO EXTRA /api PREPENDED */}
               <img 
-                src={`/api${s.thumbnail}`} 
-                onClick={() => setLightboxUrl(`/api${s.thumbnail}`)} 
+                src={s.thumbnail} 
+                onClick={() => setLightboxUrl(s.thumbnail)} 
                 onError={(e) => { (e.target as HTMLElement).style.background = '#2a2a4e'; }} 
                 style={{ width: '60px', height: '90px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer' }} 
                 alt={s.name} 
@@ -619,34 +626,34 @@ export default function StylesTab() {
 
               <div>
                 <div style={{ fontSize: '13px', color: '#bbb', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
-                  {s.prompt_template || <i>No prompt template</i>}
+                  {s.prompt_template || <i>{isZh ? '無提示詞' : 'No prompt template'}</i>}
                 </div>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <span className={`status ${s.rh_ref_file ? 'status-active' : 'status-inactive'}`} style={{ fontSize: '11px' }}>
-                    ref {s.rh_ref_file ? 'OK' : 'None'}
+                    ref {s.rh_ref_file ? 'OK' : (isZh ? '無' : 'None')}
                   </span>
                 </div>
               </div>
 
               <div style={{ fontSize: '12px', color: '#aaa' }}>
-                <div>Max: {s.max_people}</div>
+                <div>{isZh ? '最多' : 'Max'}: {s.max_people}</div>
                 <div>{s.aspect_ratio} ({s.resolution})</div>
               </div>
 
               <div>
                 <span className={`status ${s.active ? 'status-active' : 'status-inactive'}`}>
-                  {s.active ? 'Active' : 'Hidden'}
+                  {s.active ? (isZh ? '啟用' : 'Active') : (isZh ? '隱藏' : 'Hidden')}
                 </span>
               </div>
 
               <div style={{ display: 'flex', gap: '6px' }}>
-                <button className="btn-secondary" onClick={() => handleUploadFrame(s.id)} style={{ padding: '6px 10px', fontSize: '12px' }}>Frame PNG</button>
-                <button className="btn-primary" onClick={() => openEditModal(s)} style={{ padding: '6px 12px', fontSize: '12px' }}>Edit</button>
-                <button className="btn-secondary" onClick={() => openTestModal(s)} style={{ padding: '6px 12px', fontSize: '12px' }}>Test</button>
+                <button className="btn-secondary" onClick={() => handleUploadFrame(s.id)} style={{ padding: '6px 10px', fontSize: '12px' }}>{isZh ? '邊框 PNG' : 'Frame PNG'}</button>
+                <button className="btn-primary" onClick={() => openEditModal(s)} style={{ padding: '6px 12px', fontSize: '12px' }}>{isZh ? '編輯' : 'Edit'}</button>
+                <button className="btn-secondary" onClick={() => openTestModal(s)} style={{ padding: '6px 12px', fontSize: '12px' }}>{isZh ? '測試' : 'Test'}</button>
                 {s.active ? (
-                  <button onClick={() => handleToggleActive(s.id, false)} style={{ padding: '6px 10px', fontSize: '12px', background: '#8b2020', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Hide</button>
+                  <button onClick={() => handleToggleActive(s.id, false)} style={{ padding: '6px 10px', fontSize: '12px', background: '#8b2020', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>{isZh ? '隱藏' : 'Hide'}</button>
                 ) : (
-                  <button className="btn-primary" onClick={() => handleToggleActive(s.id, true)} style={{ padding: '6px 10px', fontSize: '12px' }}>Show</button>
+                  <button className="btn-primary" onClick={() => handleToggleActive(s.id, true)} style={{ padding: '6px 10px', fontSize: '12px' }}>{isZh ? '顯示' : 'Show'}</button>
                 )}
               </div>
             </div>

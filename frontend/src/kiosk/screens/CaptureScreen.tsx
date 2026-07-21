@@ -5,13 +5,15 @@ import { useHandsTracker } from '../hooks/useHandsTracker';
 import { useFaceDetection } from '../hooks/useFaceDetection';
 
 export default function CaptureScreen() {
-  const { setScreen, setCapturedImage } = useKiosk();
+  const { setScreen, setCapturedImage, lang } = useKiosk();
+  const isZh = lang === 'zh-Hant';
+
   const { videoRef, error, isMirrored, startCamera, stopCamera, toggleMirror } = useCamera();
   const [countdown, setCountdown] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
-  const { showWarning } = useFaceDetection(videoRef.current, 2); // Default 2 max people for now
+  const { showWarning } = useFaceDetection(videoRef.current, 2);
 
   useHandsTracker(videoRef.current, isMirrored, (gesture) => {
     if (countdown === null && !error) {
@@ -77,16 +79,16 @@ export default function CaptureScreen() {
       
       <div className="capture-container">
         {showWarning && (
-          <div style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,0,0,0.8)', color: 'white', padding: '10px 20px', borderRadius: '8px', zIndex: 20, fontWeight: 'bold' }}>
-            Too many people!
+          <div style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,0,0,0.85)', color: 'white', padding: '10px 20px', borderRadius: '8px', zIndex: 20, fontWeight: 'bold' }}>
+            {isZh ? '人數過多！請退後' : 'Too many people! Please step back.'}
           </div>
         )}
         
         {error ? (
           <div className="no-camera-msg">
             <div className="upload-icon">📷</div>
-            <p>No camera detected</p>
-            <p className="sub">Use "Upload Photo" below</p>
+            <p>{isZh ? '未檢測到相機' : 'No camera detected'}</p>
+            <p className="sub">{isZh ? '請使用下方「上傳照片」' : 'Use "Upload Photo" below'}</p>
           </div>
         ) : (
           <video 
@@ -101,7 +103,7 @@ export default function CaptureScreen() {
           onClick={toggleMirror} 
           style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 10, background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer' }}
         >
-          Mirror ⇄
+          {isZh ? '鏡像 ⇄' : 'Mirror ⇄'}
         </button>
         
         {countdown !== null && (
@@ -115,14 +117,14 @@ export default function CaptureScreen() {
 
       <div className="capture-controls">
         <button className="btn-primary" onClick={startCountdown} disabled={countdown !== null || !!error}>
-          Take Photo
+          {isZh ? '📸 拍照' : 'Take Photo'}
         </button>
         <label className="btn-secondary" style={{ cursor: 'pointer', display: 'inline-block', lineHeight: '24px' }}>
-          Upload Photo
+          {isZh ? '📁 上傳照片' : 'Upload Photo'}
           <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
         </label>
         <button className="btn-back" onClick={() => setScreen('styles')} disabled={countdown !== null}>
-          Back
+          {isZh ? '返回' : 'Back'}
         </button>
       </div>
     </div>

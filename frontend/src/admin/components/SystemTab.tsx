@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useAdminLang } from '../context/AdminLangContext';
 
 export default function SystemTab() {
+  const { lang } = useAdminLang();
+  const isZh = lang === 'zh-Hant';
+
   const [apiBase, setApiBase] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
@@ -23,11 +27,11 @@ export default function SystemTab() {
 
   const handleTest = async () => {
     if (!apiBase || !apiKey || !model) {
-      alert("Please fill in all settings fields.");
+      alert(isZh ? "請填寫所有設定欄位" : "Please fill in all settings fields.");
       return;
     }
     setTesting(true);
-    setStatusMsg({ text: 'Testing connection...', color: '#667eea' });
+    setStatusMsg({ text: isZh ? '測試連線中...' : 'Testing connection...', color: '#667eea' });
     try {
       const form = new FormData();
       form.append('api_key', apiKey);
@@ -38,9 +42,9 @@ export default function SystemTab() {
       const data = await r.json();
       if (!r.ok) throw new Error(data.detail || 'Test failed');
 
-      setStatusMsg({ text: `Connection successful! Response: "${data.response}"`, color: '#4f4' });
+      setStatusMsg({ text: (isZh ? '連線測試成功！回應: ' : 'Connection successful! Response: ') + `"${data.response}"`, color: '#4f4' });
     } catch (e: any) {
-      setStatusMsg({ text: `Connection test failed: ${e.message}`, color: '#f44' });
+      setStatusMsg({ text: (isZh ? '連線測試失敗: ' : 'Connection test failed: ') + e.message, color: '#f44' });
     } finally {
       setTesting(false);
     }
@@ -48,11 +52,11 @@ export default function SystemTab() {
 
   const handleSave = async () => {
     if (!apiBase || !apiKey || !model) {
-      alert("Please fill in all settings fields.");
+      alert(isZh ? "請填寫所有設定欄位" : "Please fill in all settings fields.");
       return;
     }
     setSaving(true);
-    setStatusMsg({ text: 'Saving settings...', color: '#667eea' });
+    setStatusMsg({ text: isZh ? '儲存設定中...' : 'Saving settings...', color: '#667eea' });
     try {
       const form = new FormData();
       form.append('api_key', apiKey);
@@ -64,21 +68,21 @@ export default function SystemTab() {
       const data = await r.json();
       if (!r.ok) throw new Error(data.detail || 'Save failed');
 
-      setStatusMsg({ text: 'Settings saved successfully!', color: '#4f4' });
+      setStatusMsg({ text: isZh ? '設定已成功儲存！' : 'Settings saved successfully!', color: '#4f4' });
     } catch (e: any) {
-      setStatusMsg({ text: `Save failed: ${e.message}`, color: '#f44' });
+      setStatusMsg({ text: (isZh ? '儲存失敗: ' : 'Save failed: ') + e.message, color: '#f44' });
     } finally {
       setSaving(false);
     }
   };
 
   const handleClearCache = async () => {
-    if (!confirm("Are you sure you want to clear all uploads and cached images?")) return;
+    if (!confirm(isZh ? "確定要清理所有上傳與快取的臨時相片嗎？" : "Are you sure you want to clear all uploads and cached images?")) return;
     try {
       const r = await fetch('/api/admin/maintenance/clear-cache', { method: 'POST' });
       const data = await r.json();
       if (r.ok) {
-        alert(`Cache cleared successfully! Deleted ${data.cleared_files} files.`);
+        alert(isZh ? `快取清理成功！共刪除 ${data.cleared_files} 個檔案。` : `Cache cleared successfully! Deleted ${data.cleared_files} files.`);
       } else {
         alert(`Failed: ${data.detail}`);
       }
@@ -93,7 +97,7 @@ export default function SystemTab() {
 
   return (
     <div style={{ background: 'rgba(26, 26, 46, 0.8)', padding: '32px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-      <h1 style={{ fontSize: '28px', color: '#fff', marginBottom: '24px' }}>⚙️ Global AI Settings & Maintenance</h1>
+      <h1 style={{ fontSize: '28px', color: '#fff', marginBottom: '24px' }}>⚙️ {isZh ? '全域 AI 設定與系統維護' : 'Global AI Settings & Maintenance'}</h1>
 
       {statusMsg && (
         <div style={{ padding: '12px 16px', borderRadius: '8px', background: 'rgba(0,0,0,0.4)', color: statusMsg.color, marginBottom: '20px', fontWeight: 500 }}>
@@ -103,7 +107,7 @@ export default function SystemTab() {
 
       <div style={{ display: 'grid', gap: '16px', marginBottom: '28px' }}>
         <div>
-          <label style={{ display: 'block', color: '#aaa', fontSize: '14px', marginBottom: '6px' }}>Vision AI / LLM Base URL</label>
+          <label style={{ display: 'block', color: '#aaa', fontSize: '14px', marginBottom: '6px' }}>{isZh ? '視覺 AI / LLM 基礎網址 (Base URL)' : 'Vision AI / LLM Base URL'}</label>
           <input 
             type="text" 
             value={apiBase} 
@@ -114,7 +118,7 @@ export default function SystemTab() {
         </div>
 
         <div>
-          <label style={{ display: 'block', color: '#aaa', fontSize: '14px', marginBottom: '6px' }}>Vision AI / LLM API Key</label>
+          <label style={{ display: 'block', color: '#aaa', fontSize: '14px', marginBottom: '6px' }}>{isZh ? '視覺 AI / LLM API 金鑰 (API Key)' : 'Vision AI / LLM API Key'}</label>
           <input 
             type="password" 
             value={apiKey} 
@@ -125,7 +129,7 @@ export default function SystemTab() {
         </div>
 
         <div>
-          <label style={{ display: 'block', color: '#aaa', fontSize: '14px', marginBottom: '6px' }}>Multimodal Model Name</label>
+          <label style={{ display: 'block', color: '#aaa', fontSize: '14px', marginBottom: '6px' }}>{isZh ? '多模態模型名稱' : 'Multimodal Model Name'}</label>
           <input 
             type="text" 
             value={model} 
@@ -136,7 +140,7 @@ export default function SystemTab() {
         </div>
 
         <div>
-          <label style={{ display: 'block', color: '#aaa', fontSize: '14px', marginBottom: '6px' }}>Custom Kiosk CSS Overrides</label>
+          <label style={{ display: 'block', color: '#aaa', fontSize: '14px', marginBottom: '6px' }}>{isZh ? '自訂照相亭 CSS 覆寫' : 'Custom Kiosk CSS Overrides'}</label>
           <textarea 
             value={customCss} 
             onChange={e => setCustomCss(e.target.value)} 
@@ -154,7 +158,7 @@ export default function SystemTab() {
           className="btn-secondary" 
           style={{ padding: '10px 24px', borderRadius: '8px', cursor: 'pointer' }}
         >
-          {testing ? 'Testing...' : '🧪 Test Connection'}
+          {testing ? (isZh ? '測試中...' : 'Testing...') : (isZh ? '🧪 測試連線' : '🧪 Test Connection')}
         </button>
         <button 
           onClick={handleSave} 
@@ -162,12 +166,12 @@ export default function SystemTab() {
           className="btn-primary" 
           style={{ padding: '10px 24px', borderRadius: '8px', cursor: 'pointer' }}
         >
-          {saving ? 'Saving...' : '💾 Save Settings'}
+          {saving ? (isZh ? '儲存中...' : 'Saving...') : (isZh ? '💾 儲存設定' : '💾 Save Settings')}
         </button>
       </div>
 
       <h2 style={{ fontSize: '20px', color: '#fff', marginBottom: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '24px' }}>
-        🛠️ System Maintenance
+        🛠️ {isZh ? '系統維護' : 'System Maintenance'}
       </h2>
       <div style={{ display: 'flex', gap: '16px' }}>
         <button 
@@ -175,13 +179,13 @@ export default function SystemTab() {
           className="btn-secondary" 
           style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}
         >
-          💾 Backup System Info
+          💾 {isZh ? '備份系統資訊' : 'Backup System Info'}
         </button>
         <button 
           onClick={handleClearCache} 
           style={{ padding: '10px 20px', borderRadius: '8px', background: '#8b2020', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}
         >
-          🗑️ Clear Cache & Uploads
+          🗑️ {isZh ? '清理快取與上傳檔案' : 'Clear Cache & Uploads'}
         </button>
       </div>
     </div>

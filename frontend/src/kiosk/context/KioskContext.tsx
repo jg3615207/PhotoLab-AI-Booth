@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type Screen = 'join' | 'attract' | 'styles' | 'capture' | 'preview' | 'processing' | 'reveal' | 'result';
+export type KioskLang = 'en' | 'zh-Hant';
 
 interface SessionData {
   id: string;
@@ -21,6 +22,8 @@ interface KioskContextType {
   setCapturedImage: (image: string | null) => void;
   jobData: any | null;
   setJobData: (data: any | null) => void;
+  lang: KioskLang;
+  toggleLang: () => void;
 }
 
 const KioskContext = createContext<KioskContextType | undefined>(undefined);
@@ -31,6 +34,11 @@ export function KioskProvider({ children }: { children: ReactNode }) {
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [jobData, setJobData] = useState<any | null>(null);
+  const [lang, setLang] = useState<KioskLang>('zh-Hant'); // Default to zh-Hant or toggleable
+
+  const toggleLang = () => {
+    setLang(prev => (prev === 'en' ? 'zh-Hant' : 'en'));
+  };
 
   return (
     <KioskContext.Provider
@@ -45,6 +53,8 @@ export function KioskProvider({ children }: { children: ReactNode }) {
         setCapturedImage,
         jobData,
         setJobData,
+        lang,
+        toggleLang,
       }}
     >
       {children}
