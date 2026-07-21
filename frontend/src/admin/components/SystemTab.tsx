@@ -81,9 +81,14 @@ export default function SystemTab() {
 
       const r = await fetch('/api/styles/settings/save', { method: 'POST', body: form });
       const data = await r.json();
-      if (!r.ok) throw new Error(data.detail || 'Save failed');
-
-      setStatusMsg({ text: isZh ? '設定已成功儲存！' : 'Settings saved successfully!', color: '#4f4' });
+      if (data.status === 'warning') {
+        setStatusMsg({ 
+          text: (isZh ? '設定已儲存，但 LLM 連線測試失敗: ' : 'Settings saved, but LLM connection check failed: ') + data.detail, 
+          color: '#ffa500' 
+        });
+      } else {
+        setStatusMsg({ text: isZh ? '設定已成功儲存！' : 'Settings saved successfully!', color: '#4f4' });
+      }
     } catch (e: any) {
       setStatusMsg({ text: (isZh ? '儲存失敗: ' : 'Save failed: ') + e.message, color: '#f44' });
     } finally {

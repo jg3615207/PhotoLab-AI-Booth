@@ -527,23 +527,27 @@ def save_settings_endpoint(
     else:
         actual_key = api_key
 
-    if not actual_key:
-        raise HTTPException(400, "API Key is required")
-
-    try:
-        test_openai_connection(actual_key, base_url, model)
-    except Exception as e:
-        raise HTTPException(400, f"Cannot save settings. Connection test failed: {str(e)}")
-
+    # Save values first
+    if not is_masked:
+        set_setting("openai_api_key", actual_key)
     set_setting("openai_base_url", base_url)
     set_setting("openai_model", model)
     set_setting("custom_css", custom_css)
     set_setting("local_save_dir", local_save_dir)
-    
-    if not is_masked:
-        set_setting("openai_api_key", api_key)
 
-    return {"status": "saved"}
+    # Perform connection test as a warning check
+    test_warning = None
+    if actual_key:
+        try:
+            test_openai_connection(actual_key, base_url, model)
+        except Exception as e:
+            test_warning = f"Connection check warning: {str(e)}"
+    else:
+        test_warning = "No API Key configured"
+
+    if test_warning:
+        return {"status": "warning", "detail": test_warning}
+    return {"status": "ok"}
 
 
 @router.post("/analyze-vision")
