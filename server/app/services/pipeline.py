@@ -298,19 +298,29 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
             target_dir.mkdir(parents=True, exist_ok=True)
             
             timestamp = datetime.now(timezone.utc).astimezone().strftime("%Y%m%d_%H%M%S")
-            target_filename = f"{timestamp}_{style_id}_{job_id}.jpg"
-            target_path = target_dir / target_filename
+            target_filename_jpg = f"{timestamp}_{style_id}_{job_id}.jpg"
+            target_path_jpg = target_dir / target_filename_jpg
             
-            # Save the raw AI image to preserve the style's exact aspect ratio (16:9, 1:1, 9:16, 3:2, 2:3, etc.)
+            # 1. Save high-quality JPEG in main session folder (preserves style's true aspect ratio)
             save_source = raw_path if (raw_path and os.path.exists(raw_path)) else (framed_path if os.path.exists(framed_path) else print_path)
             
             if save_source.endswith(".png"):
                 img_raw = Image.open(save_source).convert("RGB")
-                img_raw.save(target_path, "JPEG", quality=95)
+                img_raw.save(target_path_jpg, "JPEG", quality=95)
             else:
                 import shutil
-                shutil.copy2(save_source, target_path)
-            print(f"Successfully saved local copy to {target_path} (source: {save_source})")
+                shutil.copy2(save_source, target_path_jpg)
+            print(f"Successfully saved local JPG copy to {target_path_jpg}")
+
+            # 2. Save untouched RAW PNG into RAW/ subfolder next to JPGs
+            if raw_path and os.path.exists(raw_path):
+                raw_dir = target_dir / "RAW"
+                raw_dir.mkdir(parents=True, exist_ok=True)
+                raw_filename_png = f"{timestamp}_{style_id}_{job_id}.png"
+                raw_target_path = raw_dir / raw_filename_png
+                import shutil
+                shutil.copy2(raw_path, raw_target_path)
+                print(f"Successfully saved local RAW PNG copy to {raw_target_path}")
     except Exception as e:
         print(f"Failed to save copy to local directory: {e}")
 
