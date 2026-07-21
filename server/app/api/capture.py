@@ -21,6 +21,7 @@ async def capture(
     aspect_override: str = Form(None),
     seed_override: str = Form(None),
     event_id: str = Form(None),
+    capture_source: str = Form("webcam"),
 ):
     if event_id:
         from datetime import date
@@ -63,9 +64,11 @@ async def capture(
             f.write(ref_content)
 
     with get_db() as db:
+        st_row = db.execute("SELECT v2_model FROM styles WHERE id=?", (style_id,)).fetchone()
+        used_model = model_override or (st_row["v2_model"] if st_row and st_row["v2_model"] else "nb2-cheap")
         db.execute(
-            "INSERT INTO sessions (job_id, style_id, capture_source, input_image, ref_image, status, event_id) VALUES (?,?,?,?,?,?,?)",
-            (job_id, style_id, "webcam", img_path, ref_path, "created", event_id),
+            "INSERT INTO sessions (job_id, style_id, capture_source, input_image, ref_image, status, event_id, v2_model) VALUES (?,?,?,?,?,?,?,?)",
+            (job_id, style_id, capture_source, img_path, ref_path, "created", event_id, used_model),
         )
 
     face_count = check_faces(img_path)

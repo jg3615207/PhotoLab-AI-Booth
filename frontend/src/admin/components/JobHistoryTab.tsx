@@ -9,6 +9,7 @@ interface JobRecord {
   style_name: string;
   status: string;
   capture_source: string;
+  v2_model: string;
   input_image: string;
   output_image: string;
   print_image: string;
@@ -22,6 +23,17 @@ interface JobRecord {
   created_at: string;
   updated_at: string;
   printed_at: string;
+}
+
+interface LiveJob {
+  job_id: string;
+  session_id: string;
+  style_id: string;
+  status: string;
+  progress: number;
+  created_at: string;
+  error?: string;
+  output_url?: string;
 }
 
 interface RefGenRecord {
@@ -44,8 +56,13 @@ export default function JobHistoryTab() {
   const { lang } = useAdminLang();
   const isZh = lang === 'zh-Hant';
 
-  const [activeSubTab, setActiveSubTab] = useState<'photo_jobs' | 'ref_gens'>('photo_jobs');
+  // Sub-Tab state: 'live_jobs' is DEFAULT!
+  const [activeSubTab, setActiveSubTab] = useState<'live_jobs' | 'photo_jobs' | 'ref_gens'>('live_jobs');
   
+  // Live Jobs states
+  const [liveJobs, setLiveJobs] = useState<LiveJob[]>([]);
+  const [loadingLive, setLoadingLive] = useState(true);
+
   // Photo Jobs states
   const [jobs, setJobs] = useState<JobRecord[]>([]);
   const [events, setEvents] = useState<any[]>([]);
@@ -61,8 +78,22 @@ export default function JobHistoryTab() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const loadData = async () => {
-    setLoading(true);
+  // Auto-refresh counter
+  const [lastRefreshed, setLastRefreshed] = useState<string>('');
+
+  const loadLiveJobs = async () => {
+    try {
+      const res = await fetch('/api/admin/maintenance/live-jobs');
+      const data = await res.json();
+      setLiveJobs(data.jobs || []);
+    } catch (err) {
+      console.error("Failed to fetch live jobs", err);
+    } finally {
+      setLoadingLive(false);
+    }
+  };
+
+  const loadPhotoJobs = async () => {
     try {
       const [resJobs, resEvents] = await Promise.all([
         fetch(`/api/admin/job-history?event_id=${selectedEvent}&status=${selectedStatus}`),
@@ -74,14 +105,13 @@ export default function JobHistoryTab() {
       setJobs(dataJobs || []);
       setEvents(dataEvents || []);
     } catch (err) {
-      console.error("Failed to fetch job history", err);
+      console.error("Failed to fetch photo jobs history", err);
     } finally {
       setLoading(false);
     }
   };
 
   const loadRefLogs = async () => {
-    setLoadingRefs(true);
     try {
       const res = await fetch('/api/admin/ref-gen-history');
       const data = await res.json();
@@ -93,12 +123,21 @@ export default function JobHistoryTab() {
     }
   };
 
+  // Master refresh trigger
+  const refreshActiveTab = () => {
+    setLastRefreshed(new Date().toLocaleTimeString());
+    if (activeSubTab === 'live_jobs') loadLiveJobs();
+    else if (activeSubTab === 'photo_jobs') loadPhotoJobs();
+    else if (activeSubTab === 'ref_gens') loadRefLogs();
+  };
+
+  // Auto Refresh Interval (every 3 seconds)
   useEffect(() => {
-    if (activeSubTab === 'photo_jobs') {
-      loadData();
-    } else {
-      loadRefLogs();
-    }
+    refreshActiveTab();
+    const interval = setInterval(() => {
+      refreshActiveTab();
+    }, 3000);
+    return () => clearInterval(interval);
   }, [activeSubTab, selectedEvent, selectedStatus]);
 
   const handleReprint = async (jobId: string) => {
@@ -106,7 +145,7 @@ export default function JobHistoryTab() {
       const r = await fetch(`/api/capture/reprint/${jobId}`, { method: 'POST' });
       if (r.ok) {
         alert(isZh ? "已成功重新加入列印隊列！" : "Successfully queued reprint!");
-        loadData();
+        loadPhotoJobs();
       } else {
         alert(isZh ? "加入列印隊列失敗" : "Failed to queue print");
       }
@@ -125,7 +164,8 @@ export default function JobHistoryTab() {
     return j.job_id.toLowerCase().includes(term) ||
       (j.style_name && j.style_name.toLowerCase().includes(term)) ||
       (j.event_name && j.event_name.toLowerCase().includes(term)) ||
-      (j.file_name && j.file_name.toLowerCase().includes(term));
+      (j.file_name && j.file_name.toLowerCase().includes(term)) ||
+      (j.v2_model && j.v2_model.toLowerCase().includes(term));
   });
 
   // Stats
@@ -141,20 +181,52 @@ export default function JobHistoryTab() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '22px', color: '#fff', fontWeight: 700 }}>
-            📋 {isZh ? '任務歷史與活動日誌' : 'Job History & Activity Logs'}
+            ⚙️ {isZh ? '任務管理 (Jobs Center)' : 'Jobs Manager'}
           </h2>
           <p style={{ margin: '4px 0 0 0', color: '#aaa', fontSize: '13px' }}>
-            {isZh ? '追蹤相片生成任務來源、測試標籤、檔案記錄、下載次數與 AI 參考圖生成歷程' : 'Track photo generations, test sources, file sizes, download counts & AI reference generation history'}
+            {isZh ? '即時任務監控、歷史相片紀錄、AI 模型標籤與參考圖生成日誌' : 'Live task monitor, photo job logs, AI model badges & reference image generation history'}
           </p>
         </div>
 
-        <button onClick={activeSubTab === 'photo_jobs' ? loadData : loadRefLogs} className="btn-secondary" style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px' }}>
-          🔄 {isZh ? '刷新紀錄' : 'Refresh'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '12px', background: 'rgba(56,239,125,0.15)', color: '#38ef7d', border: '1px solid rgba(56,239,125,0.3)', padding: '4px 10px', borderRadius: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38ef7d', animation: 'pulse 1.5s infinite' }}></span>
+            {isZh ? `自動更新中 (${lastRefreshed})` : `Auto-Refreshing (${lastRefreshed})`}
+          </span>
+
+          <button onClick={refreshActiveTab} className="btn-secondary" style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px' }}>
+            🔄 {isZh ? '立即刷新' : 'Refresh Now'}
+          </button>
+        </div>
       </div>
 
-      {/* Sub-Tab Navigation Bar */}
+      {/* Sub-Tab Navigation Bar (Live Jobs IS FIRST & DEFAULT) */}
       <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px', marginBottom: '24px' }}>
+        <button
+          onClick={() => setActiveSubTab('live_jobs')}
+          style={{
+            padding: '10px 20px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            border: 'none',
+            background: activeSubTab === 'live_jobs' ? 'linear-gradient(135deg, #38ef7d, #11998e)' : 'rgba(255,255,255,0.05)',
+            color: activeSubTab === 'live_jobs' ? '#000' : '#aaa',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          ⚡ {isZh ? '即時任務 (Live Jobs)' : 'Live Jobs'} 
+          {liveJobs.length > 0 && (
+            <span style={{ background: '#000', color: '#38ef7d', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700 }}>
+              {liveJobs.length}
+            </span>
+          )}
+        </button>
+
         <button
           onClick={() => setActiveSubTab('photo_jobs')}
           style={{
@@ -169,7 +241,7 @@ export default function JobHistoryTab() {
             transition: 'all 0.2s'
           }}
         >
-          📸 {isZh ? '相片生成任務 (Photo Jobs)' : 'Photo Jobs'} ({totalJobs})
+          📸 {isZh ? '相片歷程 (Photo Jobs)' : 'Photo Jobs'} ({totalJobs})
         </button>
 
         <button
@@ -190,7 +262,51 @@ export default function JobHistoryTab() {
         </button>
       </div>
 
-      {/* PHOTO JOBS SUB-TAB */}
+      {/* 1. LIVE JOBS SUB-TAB (DEFAULT) */}
+      {activeSubTab === 'live_jobs' && (
+        <>
+          {loadingLive ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#aaa' }}>{isZh ? '讀取即時任務中...' : 'Loading live jobs...'}</div>
+          ) : liveJobs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '50px', background: 'rgba(255,255,255,0.02)', border: '1px border-dashed rgba(255,255,255,0.1)', borderRadius: '12px', color: '#aaa' }}>
+              <div style={{ fontSize: '36px', marginBottom: '10px' }}>🟢</div>
+              <div style={{ fontSize: '16px', color: '#fff', fontWeight: 600 }}>{isZh ? '目前沒有正在進行中的 AI 拍照任務' : 'No Live Jobs In Progress'}</div>
+              <div style={{ fontSize: '13px', color: '#777', marginTop: '4px' }}>{isZh ? '當訪客在機台拍照或後台進行測試時，會即時顯示於此' : 'Active generation tasks will stream live here automatically.'}</div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+              {liveJobs.map((lj) => (
+                <div key={lj.job_id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(102,126,234,0.3)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#667eea', fontSize: '14px' }}>#{lj.job_id}</span>
+                    <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', background: 'rgba(56,239,125,0.2)', color: '#38ef7d', fontWeight: 600 }}>
+                      {lj.status.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#ddd', fontWeight: 600 }}>{isZh ? '風格' : 'Style'}: {lj.style_id}</div>
+                    <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{lj.created_at}</div>
+                  </div>
+
+                  {/* Progress Meter */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>
+                      <span>{isZh ? '生成進度' : 'Progress'}</span>
+                      <span style={{ color: '#38ef7d', fontWeight: 700 }}>{lj.progress || 50}%</span>
+                    </div>
+                    <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{ width: `${lj.progress || 50}%`, height: '100%', background: 'linear-gradient(90deg, #667eea, #38ef7d)', transition: 'width 0.3s' }}></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* 2. PHOTO JOBS SUB-TAB */}
       {activeSubTab === 'photo_jobs' && (
         <>
           {/* Summary Stats Bar */}
@@ -264,7 +380,7 @@ export default function JobHistoryTab() {
               <label style={{ display: 'block', color: '#aaa', fontSize: '12px', marginBottom: '4px' }}>{isZh ? '搜尋關鍵字' : 'Search'}</label>
               <input 
                 type="text" 
-                placeholder={isZh ? '搜尋 Job ID, 風格, 檔名...' : 'Search Job ID, style, filename...'}
+                placeholder={isZh ? '搜尋 Job ID, 風格, 模型, 檔名...' : 'Search Job ID, style, model, filename...'}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 style={{ width: '100%', padding: '8px 12px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', fontSize: '13px' }}
@@ -281,17 +397,18 @@ export default function JobHistoryTab() {
             </div>
           ) : (
             <div style={{ overflowX: 'auto', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', minWidth: '950px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', minWidth: '1000px' }}>
                 <thead>
                   <tr style={{ background: 'rgba(255,255,255,0.05)', color: '#aaa', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                    <th style={{ padding: '16px 18px', width: '220px' }}>{isZh ? '預覽 / Job ID' : 'Thumb / Job ID'}</th>
-                    <th style={{ padding: '16px 18px', width: '180px' }}>{isZh ? '場次與來源' : 'Session & Source'}</th>
-                    <th style={{ padding: '16px 18px', width: '160px' }}>{isZh ? '風格名稱' : 'Style'}</th>
-                    <th style={{ padding: '16px 18px', width: '160px' }}>{isZh ? '檔案詳細' : 'File Info'}</th>
-                    <th style={{ padding: '16px 18px', width: '140px' }}>{isZh ? '下載狀態' : 'Downloaded?'}</th>
-                    <th style={{ padding: '16px 18px', width: '140px' }}>{isZh ? '列印狀態' : 'Print Status'}</th>
+                    <th style={{ padding: '16px 18px', width: '210px' }}>{isZh ? '預覽 / Job ID' : 'Thumb / Job ID'}</th>
+                    <th style={{ padding: '16px 18px', width: '190px', whiteSpace: 'nowrap' }}>{isZh ? '場次與來源' : 'Session & Source'}</th>
+                    <th style={{ padding: '16px 18px', width: '150px' }}>{isZh ? '風格名稱' : 'Style'}</th>
+                    <th style={{ padding: '16px 18px', width: '130px' }}>{isZh ? 'AI 使用模型' : 'AI Model'}</th>
+                    <th style={{ padding: '16px 18px', width: '150px' }}>{isZh ? '檔案詳細' : 'File Info'}</th>
+                    <th style={{ padding: '16px 18px', width: '130px' }}>{isZh ? '下載狀態' : 'Downloaded?'}</th>
+                    <th style={{ padding: '16px 18px', width: '130px' }}>{isZh ? '列印狀態' : 'Print Status'}</th>
                     <th style={{ padding: '16px 18px', width: '120px' }}>{isZh ? '耗時與費用' : 'Time & Cost'}</th>
-                    <th style={{ padding: '16px 18px', textAlign: 'right', width: '180px' }}>{isZh ? '操作' : 'Actions'}</th>
+                    <th style={{ padding: '16px 18px', textAlign: 'right', width: '170px' }}>{isZh ? '操作' : 'Actions'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -317,14 +434,14 @@ export default function JobHistoryTab() {
                           </div>
                         </td>
                         
-                        <td style={{ padding: '14px 18px' }}>
+                        <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
                           <div style={{ fontWeight: 600, color: '#fff', fontSize: '13px', marginBottom: '4px' }}>{j.event_name}</div>
                           {isTest ? (
-                            <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(155,89,182,0.25)', color: '#d5a6bd', border: '1px solid rgba(155,89,182,0.4)', fontWeight: 600 }}>
+                            <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '10px', background: 'rgba(155,89,182,0.25)', color: '#d5a6bd', border: '1px solid rgba(155,89,182,0.4)', fontWeight: 600, display: 'inline-block', whiteSpace: 'nowrap' }}>
                               🧪 {isZh ? '後台測試' : 'Admin Test'}
                             </span>
                           ) : (
-                            <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(56,239,125,0.15)', color: '#38ef7d', border: '1px solid rgba(56,239,125,0.3)', fontWeight: 600 }}>
+                            <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '10px', background: 'rgba(56,239,125,0.15)', color: '#38ef7d', border: '1px solid rgba(56,239,125,0.3)', fontWeight: 600, display: 'inline-block', whiteSpace: 'nowrap' }}>
                               📸 {isZh ? '機台拍照' : 'Kiosk Booth'}
                             </span>
                           )}
@@ -335,17 +452,23 @@ export default function JobHistoryTab() {
                         </td>
 
                         <td style={{ padding: '14px 18px' }}>
+                          <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '8px', background: 'rgba(102,126,234,0.15)', color: '#a3b8ff', border: '1px solid rgba(102,126,234,0.3)', fontWeight: 600, fontFamily: 'monospace' }}>
+                            {j.v2_model || 'nb2-cheap'}
+                          </span>
+                        </td>
+
+                        <td style={{ padding: '14px 18px' }}>
                           <div style={{ fontSize: '12px', color: '#ddd', fontWeight: 500 }}>{j.file_name}</div>
                           <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{j.file_size_formatted}</div>
                         </td>
 
                         <td style={{ padding: '14px 18px' }}>
                           {j.download_count > 0 ? (
-                            <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '12px', background: 'rgba(56,239,125,0.15)', color: '#38ef7d', fontWeight: 700, border: '1px solid rgba(56,239,125,0.3)', display: 'inline-block' }}>
+                            <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '12px', background: 'rgba(56,239,125,0.15)', color: '#38ef7d', fontWeight: 700, border: '1px solid rgba(56,239,125,0.3)', display: 'inline-block', whiteSpace: 'nowrap' }}>
                               ✓ {isZh ? `已下載 (${j.download_count}次)` : `Downloaded (${j.download_count}x)`}
                             </span>
                           ) : (
-                            <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', color: '#777', display: 'inline-block' }}>
+                            <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', color: '#777', display: 'inline-block', whiteSpace: 'nowrap' }}>
                               {isZh ? '未下載' : 'Not Downloaded'}
                             </span>
                           )}
@@ -415,7 +538,7 @@ export default function JobHistoryTab() {
         </>
       )}
 
-      {/* REF GENS SUB-TAB */}
+      {/* 3. REF GENS SUB-TAB */}
       {activeSubTab === 'ref_gens' && (
         <>
           {loadingRefs ? (

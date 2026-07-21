@@ -181,6 +181,10 @@ def init_db():
     except sqlite3.OperationalError:
         pass
     try:
+        conn.execute("ALTER TABLE sessions ADD COLUMN v2_model TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+    try:
         conn.execute("ALTER TABLE print_queue ADD COLUMN printed_at TEXT DEFAULT ''")
     except sqlite3.OperationalError:
         pass

@@ -481,6 +481,7 @@ export default function StylesTab() {
       const form = new FormData();
       form.append('image', testImageBlob, 'test.jpg');
       form.append('style_id', testStyle.id);
+      form.append('capture_source', 'test');
       if (fPrompt) form.append('prompt_override', fPrompt);
       if (modelId) form.append('model_override', modelId);
       if (fResolution) form.append('resolution_override', fResolution);

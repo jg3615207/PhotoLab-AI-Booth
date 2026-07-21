@@ -35,6 +35,7 @@ def get_job_history(
                 s.print_image,
                 s.print_status,
                 s.capture_source,
+                COALESCE(NULLIF(s.v2_model, ''), st.v2_model, st.provider, 'nb2-cheap') as v2_model,
                 COALESCE(s.download_count, 0) as download_count,
                 s.cost_time,
                 s.cost_money,
