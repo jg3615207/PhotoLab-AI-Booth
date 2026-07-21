@@ -148,8 +148,14 @@ def patch_style(style_id: str, body: StylePatch):
 
 @router.delete("/{style_id}")
 def delete_style(style_id: str):
+    import shutil
     with get_db() as db:
-        db.execute("UPDATE styles SET active=0 WHERE id=?", (style_id,))
+        db.execute("DELETE FROM styles WHERE id=?", (style_id,))
+    
+    style_dir = STYLES_DIR / style_id
+    if style_dir.exists():
+        shutil.rmtree(style_dir, ignore_errors=True)
+        
     return {"status": "deleted"}
 
 @router.post("/{style_id}/ref-image")

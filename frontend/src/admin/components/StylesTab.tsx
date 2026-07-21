@@ -235,6 +235,30 @@ export default function StylesTab() {
     loadStyles();
   };
 
+  const handleDeleteStyle = async (id: string) => {
+    if (!window.confirm(isZh ? "您確定要永久刪除此風格嗎？此動作無法復原！" : "Are you sure you want to permanently delete this style? This action cannot be undone!")) {
+      return;
+    }
+    const r = await fetch(`/api/styles/${id}`, { method: 'DELETE' });
+    if (r.ok) {
+      loadStyles();
+    } else {
+      let errMsg = 'Error';
+      try {
+        const text = await r.text();
+        try {
+          const err = JSON.parse(text);
+          errMsg = err.detail || JSON.stringify(err);
+        } catch (e) {
+          errMsg = text;
+        }
+      } catch (e) {
+        errMsg = r.statusText || 'Error';
+      }
+      alert((isZh ? "刪除風格失敗: " : "Delete style failed: ") + errMsg);
+    }
+  };
+
   const handleOptimizePrompt = async () => {
     if (!fPrompt.trim()) return alert(isZh ? "請先輸入提示詞" : "Enter a prompt first.");
     setOptimizing(true);
@@ -677,6 +701,7 @@ export default function StylesTab() {
                 ) : (
                   <button className="btn-primary" onClick={() => handleToggleActive(s.id, true)} style={{ padding: '6px 10px', fontSize: '12px' }}>{isZh ? '顯示' : 'Show'}</button>
                 )}
+                <button onClick={() => handleDeleteStyle(s.id)} style={{ padding: '6px 10px', fontSize: '12px', background: '#d32f2f', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>{isZh ? '刪除' : 'Delete'}</button>
               </div>
             </div>
           ))}
