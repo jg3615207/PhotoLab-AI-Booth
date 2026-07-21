@@ -510,6 +510,8 @@ def test_settings_endpoint(
         res = test_openai_connection(actual_key, base_url, model)
         return {"status": "ok", "response": res}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(400, f"Connection test failed: {str(e)}")
 
 
@@ -557,7 +559,9 @@ def analyze_vision(
     """Analyze a style reference image using Multimodal Vision AI (mimo-v2.5-free)."""
     api_key = get_setting("openai_api_key", settings.openai_api_key)
     base_url = get_setting("openai_base_url", settings.openai_base_url)
-    model = "mimo-v2.5-free"
+    model = get_setting("openai_model", "mimo-v2.5-free")
+    if not model or model.strip() == "":
+        model = "mimo-v2.5-free"
     
     if not api_key:
         raise HTTPException(500, "OpenAI API Key not configured")
@@ -636,6 +640,8 @@ def analyze_vision(
             
         return {"optimized_prompt": description}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(500, f"Vision API analysis failed: {str(e)}")
 
 
