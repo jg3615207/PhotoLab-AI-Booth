@@ -4,9 +4,28 @@ from pydantic import BaseModel
 from app.config import settings
 from app.db import get_db
 from pathlib import Path
-import shutil
+import shutil, json
 
 router = APIRouter(prefix="/api/admin/maintenance", tags=["admin"])
+
+@router.get("/watchdog/status")
+def get_watchdog_status():
+    with get_db() as db:
+        row = db.execute("SELECT value FROM app_settings WHERE key='watchdog_status'").fetchone()
+        if row:
+            try:
+                return json.loads(row[0])
+            except:
+                pass
+        return {
+            "status": "unknown",
+            "pid": 0,
+            "memory_mb": 0.0,
+            "limit_mb": 2048.0,
+            "last_check_time": "Never",
+            "last_restart_time": "Never",
+            "last_restart_reason": "None"
+        }
 
 @router.get("/backup-db")
 def backup_db():
