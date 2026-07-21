@@ -180,15 +180,19 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
 
     # Find event custom frame or style default frame
     frame_img = None
+    allow_auto_print = 1
     with get_db() as db:
         sess = db.execute("SELECT event_id FROM sessions WHERE job_id=?", (job_id,)).fetchone()
         event_id = sess["event_id"] if sess else None
         
     if event_id:
         with get_db() as db:
-            event = db.execute("SELECT frame_path FROM events WHERE id=?", (event_id,)).fetchone()
-            if event and event["frame_path"] and os.path.exists(event["frame_path"]):
-                frame_img = event["frame_path"]
+            event = db.execute("SELECT frame_path, allow_auto_print FROM events WHERE id=?", (event_id,)).fetchone()
+            if event:
+                if event["frame_path"] and os.path.exists(event["frame_path"]):
+                    frame_img = event["frame_path"]
+                if "allow_auto_print" in event.keys() and event["allow_auto_print"] is not None:
+                    allow_auto_print = int(event["allow_auto_print"])
                 
     if not frame_img:
         style_frame = str(Path(settings.upload_dir).parent.parent / "styles" / style_id / "frame.png")
@@ -213,8 +217,12 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
         )
     broadcast_job_update(job_id, "done", output_image=raw_path)
 
-    from app.services.printing import enqueue_print
-    enqueue_print(print_path, copies=1, session_id=job_id)
+    if allow_auto_print:
+        from app.services.printing import enqueue_print
+        enqueue_print(print_path, copies=1, session_id=job_id)
+        print(f"[pipeline] Auto-print is ON. Enqueued print job for session {job_id}.")
+    else:
+        print(f"[pipeline] Auto-print is OFF (allow_auto_print=0) for session {job_id}. Skipping automatic print spooling.")
 
     # Save a copy locally if configured by admin (session-based folder structure)
     try:
@@ -230,9 +238,12 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
             target_filename = f"{timestamp}_{style_id}_{job_id}.jpg"
             target_path = target_dir / target_filename
             
+            # If auto-print is OFF, save the generated photo (raw_path / framed_path) instead of the 4x6 print frame layout
+            save_source = print_path if allow_auto_print else (framed_path if os.path.exists(framed_path) else raw_path)
+            
             import shutil
-            shutil.copy2(print_path, target_path)
-            print(f"Successfully saved print-ready copy locally to {target_path}")
+            shutil.copy2(save_source, target_path)
+            print(f"Successfully saved local copy to {target_path} (source: {save_source})")
     except Exception as e:
         print(f"Failed to save copy to local directory: {e}")
 
