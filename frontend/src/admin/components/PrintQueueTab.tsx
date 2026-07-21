@@ -56,7 +56,7 @@ export default function PrintQueueTab() {
   };
 
   const handleClearCompleted = async () => {
-    if (!confirm(isZh ? "確定清除所有已完成及失敗的列印紀錄？" : "Clear completed & failed print jobs?")) return;
+    if (!confirm(isZh ? "確定清除所有已完成、已取消及失敗的列印紀錄？" : "Clear completed, cancelled & failed print jobs?")) return;
     try {
       await fetch('/api/admin/print-queue/clear', { method: 'POST' });
       fetchQueue();
@@ -75,7 +75,7 @@ export default function PrintQueueTab() {
   };
 
   const handleCancel = async (id: number) => {
-    if (!confirm(isZh ? "確定要取消此列印任務嗎？" : "Cancel this print task?")) return;
+    if (!confirm(isZh ? "確定要取消此列印任務嗎？取消後該記錄將移至「列印歷史紀錄」。" : "Cancel print task? It will be moved to Print History.")) return;
     try {
       await fetch(`/api/admin/print-queue/${id}/cancel`, { method: 'POST' });
       fetchQueue();
@@ -93,13 +93,14 @@ export default function PrintQueueTab() {
     }
   };
 
-  // Filter queues
+  // Filter queue groups
   const liveQueueItems = queue.filter(q => q.status === 'queued' || q.status === 'printing');
-  const historyQueueItems = queue.filter(q => q.status === 'completed' || q.status === 'failed');
+  const historyQueueItems = queue.filter(q => q.status === 'completed' || q.status === 'failed' || q.status === 'cancelled');
 
   const queuedCount = queue.filter(q => q.status === 'queued').length;
   const printingCount = queue.filter(q => q.status === 'printing').length;
   const completedCount = queue.filter(q => q.status === 'completed').length;
+  const cancelledCount = queue.filter(q => q.status === 'cancelled').length;
   const failedCount = queue.filter(q => q.status === 'failed').length;
 
   return (
@@ -111,7 +112,7 @@ export default function PrintQueueTab() {
             🖨️ {isZh ? '列印隊列與歷史紀錄' : 'Print Queue & Print History'}
           </h2>
           <p style={{ margin: '4px 0 0 0', color: '#aaa', fontSize: '13px' }}>
-            {isZh ? '即時列印監控、取消隊列任務、暫停/恢復印表機與列印完成歷程' : 'Real-time print spooler, task cancellation, pause/resume & print activity history'}
+            {isZh ? '即時列印監控、取消隊列任務、暫停/恢復印表機與列印歷史歷程' : 'Real-time print spooler, task cancellation, pause/resume & print history'}
           </p>
         </div>
 
@@ -142,7 +143,7 @@ export default function PrintQueueTab() {
             className="btn-secondary" 
             style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px' }}
           >
-            🧹 {isZh ? '清理完成/失敗項目' : 'Clear Completed'}
+            🧹 {isZh ? '清理歷史紀錄' : 'Clear History'}
           </button>
 
           <button 
@@ -209,7 +210,7 @@ export default function PrintQueueTab() {
       </div>
 
       {/* Stats Summary Bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '24px' }}>
         <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
           <span style={{ color: '#aaa', fontSize: '12px', display: 'block', marginBottom: '4px' }}>{isZh ? '排隊等待中' : 'Queued Jobs'}</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#ffaa00' }}>{queuedCount}</span>
@@ -219,11 +220,15 @@ export default function PrintQueueTab() {
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#667eea' }}>{printingCount}</span>
         </div>
         <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
-          <span style={{ color: '#aaa', fontSize: '12px', display: 'block', marginBottom: '4px' }}>{isZh ? '成功列印總數' : 'Completed'}</span>
+          <span style={{ color: '#aaa', fontSize: '12px', display: 'block', marginBottom: '4px' }}>{isZh ? '成功列印數' : 'Completed'}</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#38ef7d' }}>{completedCount}</span>
         </div>
         <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
-          <span style={{ color: '#aaa', fontSize: '12px', display: 'block', marginBottom: '4px' }}>{isZh ? '列印失敗總數' : 'Failed'}</span>
+          <span style={{ color: '#aaa', fontSize: '12px', display: 'block', marginBottom: '4px' }}>{isZh ? '取消列印數' : 'Cancelled'}</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#ff77bc' }}>{cancelledCount}</span>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
+          <span style={{ color: '#aaa', fontSize: '12px', display: 'block', marginBottom: '4px' }}>{isZh ? '列印失敗數' : 'Failed'}</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#ff4f4f' }}>{failedCount}</span>
         </div>
       </div>
@@ -300,7 +305,7 @@ export default function PrintQueueTab() {
                         {item.created_at}
                       </td>
 
-                      {/* CANCEL & ACTION BUTTONS */}
+                      {/* CANCEL BUTTON */}
                       <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                           <button 
@@ -337,7 +342,7 @@ export default function PrintQueueTab() {
         <>
           {historyQueueItems.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: '#aaa', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
-              {isZh ? '尚無完成或失敗的列印歷史紀錄' : 'No print history records found.'}
+              {isZh ? '尚無列印歷史紀錄' : 'No print history records found.'}
             </div>
           ) : (
             <div style={{ overflowX: 'auto', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px' }}>
@@ -348,7 +353,7 @@ export default function PrintQueueTab() {
                     <th style={{ padding: '14px 18px', width: '220px' }}>{isZh ? '預覽 / Job ID' : 'Preview / Job ID'}</th>
                     <th style={{ padding: '14px 18px', width: '160px' }}>{isZh ? '列印檔案與份數' : 'File & Copies'}</th>
                     <th style={{ padding: '14px 18px', width: '140px' }}>{isZh ? '結果狀態' : 'Status'}</th>
-                    <th style={{ padding: '14px 18px', width: '180px' }}>{isZh ? '列印完成時間' : 'Printed At'}</th>
+                    <th style={{ padding: '14px 18px', width: '180px' }}>{isZh ? '紀錄時間' : 'Timestamp'}</th>
                     <th style={{ padding: '14px 18px', textAlign: 'right', width: '180px' }}>{isZh ? '操作' : 'Actions'}</th>
                   </tr>
                 </thead>
@@ -390,6 +395,11 @@ export default function PrintQueueTab() {
                             ✓ {isZh ? '已完成列印' : 'Completed'}
                           </span>
                         )}
+                        {item.status === 'cancelled' && (
+                          <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '12px', background: 'rgba(255,119,188,0.15)', color: '#ff77bc', fontWeight: 700, border: '1px solid rgba(255,119,188,0.3)', display: 'inline-block' }}>
+                            ❌ {isZh ? '已取消列印' : 'Cancelled'}
+                          </span>
+                        )}
                         {item.status === 'failed' && (
                           <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '12px', background: 'rgba(255,79,79,0.15)', color: '#ff4f4f', fontWeight: 700, border: '1px solid rgba(255,79,79,0.3)', display: 'inline-block' }}>
                             ❌ {isZh ? '列印失敗' : 'Failed'}
@@ -398,7 +408,7 @@ export default function PrintQueueTab() {
                       </td>
 
                       <td style={{ padding: '14px 18px' }}>
-                        <div style={{ fontSize: '12px', color: '#38ef7d', fontWeight: 600 }}>{item.printed_at || item.created_at}</div>
+                        <div style={{ fontSize: '12px', color: '#aaa' }}>{item.printed_at || item.created_at}</div>
                       </td>
 
                       <td style={{ padding: '14px 18px', textAlign: 'right' }}>
