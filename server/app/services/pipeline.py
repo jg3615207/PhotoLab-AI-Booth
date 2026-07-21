@@ -218,6 +218,12 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
     broadcast_job_update(job_id, "done", output_image=raw_path)
 
     if allow_auto_print:
+        with get_db() as db:
+            sess_check = db.execute("SELECT capture_source FROM sessions WHERE job_id=?", (job_id,)).fetchone()
+            if sess_check and sess_check["capture_source"] == "test":
+                allow_auto_print = 0
+
+    if allow_auto_print:
         from app.services.printing import enqueue_print
         enqueue_print(print_path, copies=1, session_id=job_id)
         print(f"[pipeline] Auto-print is ON. Enqueued print job for session {job_id}.")

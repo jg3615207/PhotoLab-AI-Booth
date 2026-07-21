@@ -514,7 +514,7 @@ export default function StylesTab() {
         if (job.status === 'done') {
           clearInterval(iv);
           const fn = job.print_image ? job.print_image.split(/[/\\]/).slice(-2).join('/') : job.output_image;
-          setTestResults(prev => ({ ...prev, [index]: { url: `/api/images/${fn}`, loading: false } }));
+          setTestResults(prev => ({ ...prev, [index]: { url: `/api/images/${fn}`, job_id: jobId, loading: false } }));
         } else if (job.status === 'failed') {
           clearInterval(iv);
           setTestResults(prev => ({ ...prev, [index]: { error: job.error_message || 'Failed', loading: false } }));
@@ -738,7 +738,36 @@ export default function StylesTab() {
                   <button className="btn-primary" onClick={capturePhoto} style={{ position: 'absolute', bottom: '12px', padding: '8px 20px', borderRadius: '20px' }}>📸 {isZh ? '拍攝' : 'Take Photo'}</button>
                 </>
               ) : testPreviewUrl ? (
-                <img src={testPreviewUrl} style={{ maxHeight: '100%', objectFit: 'contain' }} alt="Test input" />
+                <div style={{ position: 'relative', display: 'inline-block', maxHeight: '100%' }}>
+                  <img src={testPreviewUrl} style={{ maxHeight: '140px', objectFit: 'contain', borderRadius: '8px' }} alt="Test input" />
+                  <button 
+                    onClick={() => {
+                      setTestImageBlob(null);
+                      setTestPreviewUrl(null);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '-8px',
+                      right: '-8px',
+                      background: '#ff4f4f',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '24px',
+                      height: '24px',
+                      fontWeight: 'bold',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title={isZh ? "清除所選照片" : "Clear selected photo"}
+                  >
+                    ✖
+                  </button>
+                </div>
               ) : (
                 <label className="btn-secondary" style={{ cursor: 'pointer' }}>
                   {isZh ? '選擇圖片' : 'Choose Image'}
@@ -772,18 +801,47 @@ export default function StylesTab() {
                     <option value="gpt2-cheap">GPT Image 2 Cheap</option>
                   </select>
 
-                  <div style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                     {testResults[slotIdx]?.loading ? (
                       <span style={{ color: '#667eea', fontSize: '12px' }}>{isZh ? '運行中...' : 'Running...'}</span>
                     ) : testResults[slotIdx]?.error ? (
                       <span style={{ color: '#f44', fontSize: '11px' }}>{testResults[slotIdx].error}</span>
                     ) : testResults[slotIdx]?.url ? (
-                      <img 
-                        src={testResults[slotIdx].url} 
-                        style={{ maxWidth: '100%', maxHeight: '140px', objectFit: 'contain', borderRadius: '4px', cursor: 'pointer' }} 
-                        onClick={() => setLightboxUrl(testResults[slotIdx].url!)} 
-                        alt="Test output" 
-                      />
+                      <>
+                        <img 
+                          src={testResults[slotIdx].url} 
+                          style={{ maxWidth: '100%', maxHeight: '110px', objectFit: 'contain', borderRadius: '4px', cursor: 'pointer' }} 
+                          onClick={() => setLightboxUrl(testResults[slotIdx].url!)} 
+                          alt="Test output" 
+                        />
+                        <button
+                          onClick={async () => {
+                            const jid = testResults[slotIdx]?.job_id;
+                            if (!jid) return;
+                            try {
+                              const r = await fetch(`/api/capture/reprint/${jid}`, { method: 'POST' });
+                              if (r.ok) alert(isZh ? "已將此測試照片加入列印隊列！" : "Sent to printer queue!");
+                              else alert(isZh ? "加入列印隊列失敗" : "Failed to queue print");
+                            } catch (e: any) {
+                              alert(e.message);
+                            }
+                          }}
+                          style={{
+                            marginTop: '6px',
+                            padding: '4px 8px',
+                            fontSize: '11px',
+                            borderRadius: '6px',
+                            background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                            color: '#fff',
+                            border: 'none',
+                            cursor: 'pointer',
+                            width: '100%',
+                            fontWeight: 600
+                          }}
+                        >
+                          🖨️ {isZh ? '列印測試圖' : 'Print Test'}
+                        </button>
+                      </>
                     ) : (
                       <span style={{ color: '#555', fontSize: '11px' }}>{isZh ? '空位' : 'Empty Slot'}</span>
                     )}
