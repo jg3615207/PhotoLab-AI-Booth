@@ -165,16 +165,23 @@ export default function TransitionsTab() {
       // Wait for transition duration
       setTimeout(() => {
         setSimStep('result');
-        // Confetti explosion
+        
+        // Multi-angle Confetti explosion
+        confetti({
+          particleCount: 80,
+          spread: 60,
+          origin: { x: 0.1, y: 0.6 }
+        });
+        confetti({
+          particleCount: 80,
+          spread: 60,
+          origin: { x: 0.9, y: 0.6 }
+        });
         confetti({
           particleCount: 120,
           spread: 80,
-          origin: { y: 0.6 }
+          origin: { x: 0.5, y: 0.4 }
         });
-        // Auto end simulation after 3.5 seconds
-        setTimeout(() => {
-          endSimulation();
-        }, 3500);
       }, item.duration);
     }, 5000);
   };
@@ -465,9 +472,16 @@ export default function TransitionsTab() {
                   <h3 style={{ color: '#fff', margin: '0 0 6px 0', fontSize: '20px', fontWeight: 700 }}>
                     {isZh ? 'AI 肖像繪製完成！' : 'AI Portrait Ready!'}
                   </h3>
-                  <p style={{ color: '#aaa', fontSize: '13px', margin: 0, textAlign: 'center' }}>
+                  <p style={{ color: '#aaa', fontSize: '13px', margin: '0 0 16px 0', textAlign: 'center' }}>
                     {isZh ? '掃描 QR Code 取得高畫質影像' : 'Scan QR code to get your picture'}
                   </p>
+                  <button 
+                    onClick={endSimulation} 
+                    className="btn-primary" 
+                    style={{ padding: '8px 24px', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}
+                  >
+                    {isZh ? '結束測試' : 'Dismiss'}
+                  </button>
                 </div>
               )}
             </div>
