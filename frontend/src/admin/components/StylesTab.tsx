@@ -120,6 +120,54 @@ export default function StylesTab() {
     }
   };
 
+  // Ref URL states
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [pastedRefUrl, setPastedRefUrl] = useState('');
+  const [downloadingUrl, setDownloadingUrl] = useState(false);
+
+  const handleDownloadRefUrl = async () => {
+    if (!pastedRefUrl.trim()) return alert(isZh ? "請先輸入圖片 URL" : "Enter an image URL first.");
+    const targetId = editingStyle ? editingStyle.id : fId.trim();
+    setDownloadingUrl(true);
+    try {
+      if (targetId) {
+        const r = await fetch(`/api/styles/${targetId}/ref-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: pastedRefUrl.trim() })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Download failed');
+        setRefPreviewUrl(`${data.ref_image}?t=${Date.now()}`);
+        setRefFile(null);
+        setPastedRefUrl('');
+        setShowUrlInput(false);
+        alert(isZh ? "圖片已成功下載並設為風格參考圖！" : "Downloaded & set as style reference image!");
+      } else {
+        const r = await fetch('/api/styles/fetch-ref-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: pastedRefUrl.trim() })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Fetch failed');
+        
+        const resBlob = await fetch(data.data_url);
+        const blob = await resBlob.blob();
+        const file = new File([blob], 'ref_from_url.jpg', { type: 'image/jpeg' });
+        setRefFile(file);
+        setRefPreviewUrl(data.data_url);
+        setPastedRefUrl('');
+        setShowUrlInput(false);
+        alert(isZh ? "圖片已成功載入！" : "Image loaded successfully!");
+      }
+    } catch (e: any) {
+      alert((isZh ? "下載圖片失敗: " : "Failed to download image: ") + e.message);
+    } finally {
+      setDownloadingUrl(false);
+    }
+  };
+
   const handleDiscardAiRef = async () => {
     const targetId = editingStyle ? editingStyle.id : (fId.trim() || 'temp_style');
     try {
@@ -583,7 +631,7 @@ export default function StylesTab() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button 
                       type="button" 
                       className="btn-primary" 
@@ -594,12 +642,43 @@ export default function StylesTab() {
                       {generatingRef ? (isZh ? '⌛ AI 生成中...' : '⌛ Generating...') : (isZh ? '✨ AI 生成參考圖' : '✨ AI Gen Ref')}
                     </button>
 
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setShowUrlInput(!showUrlInput)}
+                      style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '6px' }}
+                    >
+                      🔗 {isZh ? '貼上圖片 URL' : 'Paste URL'}
+                    </button>
+
                     <label className="btn-secondary" style={{ padding: '6px 14px', fontSize: '12px', cursor: 'pointer', borderRadius: '6px' }}>
                       📁 {isZh ? '上傳參考圖' : 'Upload Ref'}
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleRefUpload} />
                     </label>
                   </div>
                 </div>
+
+                {/* Paste URL Input Drawer */}
+                {showUrlInput && (
+                  <div style={{ marginTop: '6px', padding: '10px', background: '#151528', borderRadius: '6px', border: '1px solid #334', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input 
+                      type="text" 
+                      value={pastedRefUrl} 
+                      onChange={e => setPastedRefUrl(e.target.value)} 
+                      placeholder={isZh ? "請貼上圖片網址 (https://.../image.jpg)" : "Paste picture URL (https://.../image.jpg)"} 
+                      style={{ flex: 1, padding: '8px 12px', background: '#0d0d1a', border: '1px solid #444', borderRadius: '6px', color: '#fff', fontSize: '12px' }} 
+                    />
+                    <button 
+                      type="button" 
+                      className="btn-primary" 
+                      onClick={handleDownloadRefUrl} 
+                      disabled={downloadingUrl} 
+                      style={{ padding: '8px 14px', fontSize: '12px', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                    >
+                      {downloadingUrl ? (isZh ? '⌛ 下載中...' : '⌛ Downloading...') : (isZh ? '📥 下載並設為參考圖' : '📥 Download & Set')}
+                    </button>
+                  </div>
+                )}
 
                 {/* AI Generated Preview Panel */}
                 {aiRefPreview && (

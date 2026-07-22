@@ -165,14 +165,7 @@ def delete_style(style_id: str):
         
     return {"status": "deleted"}
 
-@router.post("/{style_id}/ref-image")
-def upload_ref_image(style_id: str, image: UploadFile = File(...)):
-    with get_db() as db:
-        row = db.execute("SELECT id FROM styles WHERE id=?", (style_id,)).fetchone()
-        if not row:
-            raise HTTPException(404)
-
-    content = image.file.read()
+def _process_and_save_ref_image(style_id: str, content: bytes) -> dict:
     pil = Image.open(io.BytesIO(content)).convert("RGB")
     max_dim = 2048
     if max(pil.size) > max_dim:
@@ -196,7 +189,7 @@ def upload_ref_image(style_id: str, image: UploadFile = File(...)):
         buf = io.BytesIO()
         pil.save(buf, format="JPEG", quality=92)
         buf.seek(0)
-        # v1 upload (internal fileName for workflow API)
+        # v1 upload
         r = httpx.post(
             f"{settings.rh_base_url}/task/openapi/upload",
             data={"apiKey": settings.api_key},
@@ -211,7 +204,7 @@ def upload_ref_image(style_id: str, image: UploadFile = File(...)):
 
     try:
         buf.seek(0)
-        # v2 upload (public URL for model API)
+        # v2 upload
         r2 = httpx.post(
             f"{settings.rh_base_url}/openapi/v2/media/upload/binary",
             headers={"Authorization": f"Bearer {settings.api_key}"},
@@ -237,6 +230,52 @@ def upload_ref_image(style_id: str, image: UploadFile = File(...)):
         "rh_ref_file": rh_file_name,
         "rh_ref_url": rh_url,
     }
+
+class RefUrlRequest(BaseModel):
+    url: str
+
+@router.post("/fetch-ref-url")
+def fetch_ref_url(req: RefUrlRequest):
+    if not req.url or not req.url.startswith(("http://", "https://")):
+        raise HTTPException(400, "Invalid image URL. Must start with http:// or https://")
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    try:
+        r = httpx.get(req.url.strip(), headers=headers, follow_redirects=True, timeout=30.0)
+        r.raise_for_status()
+        content = r.content
+        pil = Image.open(io.BytesIO(content)).convert("RGB")
+        buf = io.BytesIO()
+        pil.save(buf, format="JPEG", quality=90)
+        b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+        return {"status": "ok", "data_url": f"data:image/jpeg;base64,{b64}"}
+    except Exception as e:
+        raise HTTPException(400, f"Failed to fetch image URL: {str(e)}")
+
+@router.post("/{style_id}/ref-image")
+def upload_ref_image(style_id: str, image: UploadFile = File(...)):
+    content = image.file.read()
+    try:
+        return _process_and_save_ref_image(style_id, content)
+    except Exception as e:
+        raise HTTPException(400, f"Failed to process uploaded image: {str(e)}")
+
+@router.post("/{style_id}/ref-url")
+def set_ref_url(style_id: str, req: RefUrlRequest):
+    if not req.url or not req.url.startswith(("http://", "https://")):
+        raise HTTPException(400, "Invalid image URL. Must start with http:// or https://")
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    try:
+        r = httpx.get(req.url.strip(), headers=headers, follow_redirects=True, timeout=30.0)
+        r.raise_for_status()
+        content = r.content
+    except Exception as e:
+        raise HTTPException(400, f"Failed to download image from URL: {str(e)}")
+
+    try:
+        return _process_and_save_ref_image(style_id, content)
+    except Exception as e:
+        raise HTTPException(400, f"Invalid image file at URL: {str(e)}")
+
 
 @router.post("/{style_id}/frame")
 def upload_frame(style_id: str, image: UploadFile = File(...)):
