@@ -199,6 +199,34 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
 
     import asyncio
     asyncio.run(download_image(result.image_url, raw_path))
+
+    # Embed final prompt & complete JSON metadata into the raw PNG file
+    try:
+        from PIL.PngImagePlugin import PngInfo
+        meta_dict = {
+            "job_id": job_id,
+            "style_id": style_id,
+            "prompt": prompt,
+            "aspect_ratio": aspect,
+            "resolution": resolution,
+            "seed": seed_val,
+            "provider": "v2" if use_v2 else "v1",
+            "v2_model": v2_model if use_v2 else None,
+            "v2_quality": v2_quality if use_v2 else None,
+            "cost_time_ms": result.cost_time,
+            "cost_money_usd": result.cost_money,
+            "created_at": datetime.now(timezone.utc).astimezone().isoformat()
+        }
+        raw_img = Image.open(raw_path)
+        png_info = PngInfo()
+        png_info.add_text("prompt", prompt)
+        png_info.add_text("parameters", f"Prompt: {prompt}\nSeed: {seed_val or -1}")
+        png_info.add_text("json", json.dumps(meta_dict, ensure_ascii=False, indent=2))
+        raw_img.save(raw_path, pnginfo=png_info)
+        print(f"[pipeline] Embedded prompt & full JSON metadata into raw PNG: {raw_path}")
+    except Exception as e:
+        print(f"[pipeline] Failed to embed metadata in PNG: {e}")
+
     upscale_image(raw_path, upscaled_path, target_size=(1200, 1800))
 
     # Find event custom frame or style default frame
