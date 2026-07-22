@@ -30,6 +30,7 @@ def get_dynamic_prompt(image_path: str) -> str:
     from app.db import get_setting
     api_key = get_setting("openai_api_key", settings.openai_api_key)
     base_url = get_setting("openai_base_url", settings.openai_base_url)
+    model = get_setting("openai_model", settings.openai_model) or "mimo-v2.5-free"
     if not api_key:
         return ""
     try:
@@ -50,7 +51,7 @@ def get_dynamic_prompt(image_path: str) -> str:
             f"{base_url.rstrip('/')}/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
-                "model": "mimo-v2.5-free",
+                "model": model,
                 "messages": [
                     {"role": "user", "content": [
                         {"type": "text", "text": vision_prompt},
@@ -63,9 +64,11 @@ def get_dynamic_prompt(image_path: str) -> str:
             timeout=15.0
         )
         if r.status_code == 200:
-            return r.json()["choices"][0]["message"]["content"].strip()
+            res_text = r.json()["choices"][0]["message"]["content"].strip()
+            print(f"[pipeline] Vision API output: {res_text}")
+            return res_text
     except Exception as e:
-        print(f"Vision API error: {e}")
+        print(f"[pipeline] Vision API error: {e}")
     return ""
 
 def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: str | None = None,
@@ -116,19 +119,18 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
             v2_model = model_override
         v2_quality = row["v2_quality"] or None
         
-        dynamic_prompt = row.keys() and "dynamic_prompt_enabled" in row.keys() and row["dynamic_prompt_enabled"] == 1
-        # In sqlite.Row, checking keys might be tricky. Let's just use try-except or check.
+        dynamic_prompt = False
         try:
-            dynamic_prompt = row["dynamic_prompt_enabled"] == 1
-        except:
+            dynamic_prompt = int(row["dynamic_prompt_enabled"] or 0) == 1
+        except Exception:
             dynamic_prompt = False
             
-        if dynamic_prompt and not prompt_override:
+        if dynamic_prompt:
             broadcast_job_update(job_id, "processing", error_message="Analyzing guest posture for dynamic prompt...")
             dynamic_desc = get_dynamic_prompt(image_path)
             if dynamic_desc:
-                prompt = f"{prompt}, wearing {dynamic_desc}"
-                print(f"Dynamically injected prompt: {prompt}")
+                prompt = f"{dynamic_desc}, {prompt}"
+                print(f"[pipeline] Dynamically injected vision prompt: {prompt}")
 
         if quality_override:
             v2_quality = quality_override
