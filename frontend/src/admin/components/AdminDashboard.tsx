@@ -7,6 +7,7 @@ import SystemTab from './SystemTab';
 import TransitionsTab from './TransitionsTab';
 import JobHistoryTab from './JobHistoryTab';
 import PrintQueueTab from './PrintQueueTab';
+import ToolsTab from './ToolsTab';
 import { AdminLangProvider, useAdminLang } from '../context/AdminLangContext';
 
 function DashboardContent() {
@@ -63,6 +64,9 @@ function DashboardContent() {
           <div className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
             📊 {isZh ? '數據分析' : 'Analytics'}
           </div>
+          <div className={`nav-item ${activeTab === 'tools' ? 'active' : ''}`} onClick={() => setActiveTab('tools')}>
+            🛠️ {isZh ? '工具與資源' : 'Tools & Links'}
+          </div>
           <div className={`nav-item ${activeTab === 'wiki' ? 'active' : ''}`} onClick={() => setActiveTab('wiki')}>
             📖 {isZh ? '使用手冊與維基' : 'User Guide & Wiki'}
           </div>
@@ -79,6 +83,7 @@ function DashboardContent() {
         {activeTab === 'print_queue' && <PrintQueueTab />}
         {activeTab === 'transitions' && <TransitionsTab />}
         {activeTab === 'analytics' && <AnalyticsTab />}
+        {activeTab === 'tools' && <ToolsTab />}
         {activeTab === 'wiki' && <WikiTab />}
         {activeTab === 'system' && <SystemTab />}
       </div>
