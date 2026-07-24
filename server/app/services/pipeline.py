@@ -239,13 +239,18 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
             "cost_money_usd": result.cost_money,
             "created_at": datetime.now(timezone.utc).astimezone().isoformat()
         }
+        # Save meta.json file in output directory
+        meta_file = output_dir / "meta.json"
+        with open(meta_file, "w", encoding="utf-8") as f:
+            json.dump(meta_dict, f, ensure_ascii=False, indent=2)
+
         raw_img = Image.open(raw_path)
         png_info = PngInfo()
         png_info.add_text("prompt", prompt)
         png_info.add_text("parameters", f"Prompt: {prompt}\nSeed: {seed_val or -1}")
         png_info.add_text("json", json.dumps(meta_dict, ensure_ascii=False, indent=2))
         raw_img.save(raw_path, pnginfo=png_info)
-        print(f"[pipeline] Embedded prompt & full JSON metadata into raw PNG: {raw_path}")
+        print(f"[pipeline] Saved meta.json & embedded metadata into raw PNG: {raw_path}")
     except Exception as e:
         print(f"[pipeline] Failed to embed metadata in PNG: {e}")
 

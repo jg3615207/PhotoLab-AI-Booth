@@ -85,6 +85,26 @@ export default function JobHistoryTab() {
   // Auto-refresh timestamp
   const [lastRefreshed, setLastRefreshed] = useState<string>('');
 
+  // Job Detail Modal states
+  const [selectedJobDetail, setSelectedJobDetail] = useState<any | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [copiedJson, setCopiedJson] = useState(false);
+  const [previewJobId, setPreviewJobId] = useState<string | null>(null);
+
+  const openJobDetail = async (jobId: string) => {
+    setLoadingDetail(true);
+    try {
+      const res = await fetch(`/api/admin/job-detail/${jobId}`);
+      if (!res.ok) throw new Error("Failed to fetch job detail");
+      const data = await res.json();
+      setSelectedJobDetail(data);
+    } catch (err: any) {
+      alert((isZh ? "載入任務詳細資料失敗: " : "Failed to load job detail: ") + err.message);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
   const loadLiveJobs = async () => {
     try {
       const res = await fetch('/api/admin/maintenance/live-jobs');
@@ -584,10 +604,32 @@ export default function JobHistoryTab() {
                                 e.target.src = `/api/images/${j.job_id}/output.jpg`;
                               }}
                               alt="thumb" 
-                              style={{ width: '44px', height: '58px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', flexShrink: 0 }} 
+                              onClick={() => setPreviewJobId(j.job_id)}
+                              title={isZh ? "點擊預覽照片大圖" : "Click to preview image"}
+                              style={{ width: '44px', height: '58px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', flexShrink: 0, cursor: 'pointer' }} 
                             />
                             <div>
-                              <div style={{ fontWeight: 700, color: '#667eea', fontFamily: 'monospace', fontSize: '13px' }}>{j.job_id}</div>
+                              <div 
+                                onClick={() => openJobDetail(j.job_id)}
+                                title={isZh ? "點擊查看完整 AI 提示詞與 JSON 詳細資訊" : "Click to view full AI prompt & JSON details"}
+                                style={{ 
+                                  fontWeight: 700, 
+                                  color: '#00d2ff', 
+                                  fontFamily: 'monospace', 
+                                  fontSize: '13px', 
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  background: 'rgba(0, 210, 255, 0.1)',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  border: '1px solid rgba(0, 210, 255, 0.25)',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                🔍 {j.job_id}
+                              </div>
                               <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{j.created_at}</div>
                             </div>
                           </div>
@@ -775,6 +817,197 @@ export default function JobHistoryTab() {
             </div>
           )}
         </>
+      )}
+
+    {/* 4. IMAGE LIGHTBOX POPUP MODAL */}
+      {previewJobId && (
+        <div 
+          onClick={() => setPreviewJobId(null)} 
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 250, padding: '20px' }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ background: '#121222', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', position: 'relative' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#00d2ff', fontFamily: 'monospace' }}>#{previewJobId}</span>
+                <span style={{ fontSize: '12px', color: '#aaa' }}>{isZh ? '相片預覽' : 'Image Preview'}</span>
+              </div>
+              <button onClick={() => setPreviewJobId(null)} style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer' }}>×</button>
+            </div>
+
+            <img 
+              src={`/api/images/${previewJobId}/print_ready.jpg`} 
+              onError={(e: any) => { e.target.src = `/api/images/${previewJobId}/output.jpg`; }} 
+              style={{ maxHeight: '65vh', maxWidth: '100%', objectFit: 'contain', borderRadius: '10px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
+              alt="preview" 
+            />
+
+            <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => {
+                  const jid = previewJobId;
+                  setPreviewJobId(null);
+                  openJobDetail(jid);
+                }}
+                className="btn-primary"
+                style={{ padding: '8px 16px', fontSize: '13px', background: 'linear-gradient(135deg, #00d2ff, #0072ff)', borderRadius: '8px' }}
+              >
+                🔍 {isZh ? '查看 AI JSON 傳送內容' : 'View AI Request JSON'}
+              </button>
+
+              <button
+                onClick={() => handleReprint(previewJobId)}
+                className="btn-primary"
+                style={{ padding: '8px 16px', fontSize: '13px', background: 'linear-gradient(135deg, #667eea, #764ba2)', borderRadius: '8px' }}
+              >
+                🖨️ {isZh ? '補印此照片' : 'Reprint'}
+              </button>
+
+              <a
+                href={`/api/images/${previewJobId}/download`}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-secondary"
+                style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '8px', textDecoration: 'none', display: 'inline-block' }}
+              >
+                ⬇️ {isZh ? '下載照片' : 'Download'}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. JOB DETAIL & AI JSON PAYLOAD MODAL */}
+      {selectedJobDetail && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '20px' }}>
+          <div style={{ background: '#121222', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px', padding: '24px', width: '840px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }}>
+            
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <h3 style={{ margin: 0, color: '#fff', fontSize: '20px', fontWeight: 700 }}>🔍 {isZh ? '任務詳細資訊 & AI JSON 參數' : 'Job Detail & AI Request JSON'}</h3>
+                  <span style={{ fontSize: '12px', background: 'rgba(0,210,255,0.2)', color: '#00d2ff', border: '1px solid rgba(0,210,255,0.4)', padding: '2px 10px', borderRadius: '12px', fontFamily: 'monospace', fontWeight: 700 }}>
+                    #{selectedJobDetail.job_id}
+                  </span>
+                </div>
+                <p style={{ margin: '4px 0 0 0', color: '#888', fontSize: '12px' }}>
+                  {selectedJobDetail.created_at} | {selectedJobDetail.event_name} ({selectedJobDetail.capture_source === 'test' ? (isZh ? '後台測試' : 'Admin Test') : (isZh ? '機台拍照' : 'Kiosk')})
+                </p>
+              </div>
+              <button onClick={() => setSelectedJobDetail(null)} style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '26px', cursor: 'pointer' }}>×</button>
+            </div>
+
+            {/* Metrics Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: '11px', color: '#aaa' }}>{isZh ? '風格名稱' : 'Style Name'}</div>
+                <div style={{ fontSize: '14px', color: '#fff', fontWeight: 700, marginTop: '2px' }}>{selectedJobDetail.style_name}</div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: '11px', color: '#aaa' }}>{isZh ? 'AI 模型' : 'AI Model'}</div>
+                <div style={{ fontSize: '13px', color: '#a3b8ff', fontFamily: 'monospace', fontWeight: 700, marginTop: '2px' }}>{selectedJobDetail.v2_model}</div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: '11px', color: '#aaa' }}>{isZh ? '生成耗時' : 'Gen Duration'}</div>
+                <div style={{ fontSize: '14px', color: '#00d2ff', fontWeight: 700, marginTop: '2px' }}>⚡ {selectedJobDetail.cost_time ? (selectedJobDetail.cost_time / 1000).toFixed(1) : 0}s</div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: '11px', color: '#aaa' }}>{isZh ? 'API 費用' : 'API Cost'}</div>
+                <div style={{ fontSize: '14px', color: '#ff77bc', fontWeight: 700, marginTop: '2px' }}>${selectedJobDetail.cost_money ? selectedJobDetail.cost_money.toFixed(4) : '0'}</div>
+              </div>
+            </div>
+
+            {/* Image Preview Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ textAlign: 'center', background: '#090914', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '6px' }}>📷 {isZh ? '訪客照片 (Input)' : 'Guest Input'}</div>
+                <img src={`/api/images/${selectedJobDetail.job_id}/input.jpg`} onError={(e: any) => { e.target.style.display = 'none'; }} style={{ maxHeight: '140px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px', margin: '0 auto', display: 'block' }} alt="input" />
+              </div>
+              <div style={{ textAlign: 'center', background: '#090914', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '6px' }}>🎨 {isZh ? 'AI 原始產圖 (RAW PNG)' : 'Raw AI PNG'}</div>
+                <img src={`/api/images/${selectedJobDetail.job_id}/raw.png`} onError={(e: any) => { e.target.src = `/api/images/${selectedJobDetail.job_id}/output.jpg`; }} style={{ maxHeight: '140px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px', margin: '0 auto', display: 'block' }} alt="raw" />
+              </div>
+              <div style={{ textAlign: 'center', background: '#090914', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '6px' }}>🖨️ {isZh ? '相框列印成品 (Print Layout)' : 'Print Ready'}</div>
+                <img src={`/api/images/${selectedJobDetail.job_id}/print_ready.jpg`} onError={(e: any) => { e.target.src = `/api/images/${selectedJobDetail.job_id}/output.jpg`; }} style={{ maxHeight: '140px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px', margin: '0 auto', display: 'block' }} alt="print" />
+              </div>
+            </div>
+
+            {/* Final Prompt Banner */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '13px', color: '#4ecdc4', fontWeight: 700, marginBottom: '6px' }}>
+                📝 {isZh ? '送出給 AI 生成的完整提示詞 (Final Prompt):' : 'Final Prompt Sent to AI:'}
+              </div>
+              <div style={{ background: 'rgba(78,205,196,0.08)', border: '1px solid rgba(78,205,196,0.25)', padding: '12px 16px', borderRadius: '8px', color: '#e0f7f5', fontSize: '13px', lineHeight: '1.5', fontFamily: 'monospace', maxHeight: '100px', overflowY: 'auto' }}>
+                {selectedJobDetail.meta_json?.prompt || selectedJobDetail.prompt_template || '(No prompt available)'}
+              </div>
+            </div>
+
+            {/* Exact JSON Code Viewer */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <div style={{ fontSize: '13px', color: '#38ef7d', fontWeight: 700 }}>
+                  📦 {isZh ? 'AI 生成完整 JSON 傳送參數 (Exact Request JSON Payload):' : 'Exact AI Generation JSON Payload:'}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(JSON.stringify(selectedJobDetail.meta_json, null, 2));
+                    setCopiedJson(true);
+                    setTimeout(() => setCopiedJson(false), 2000);
+                  }}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: copiedJson ? '#38ef7d' : 'rgba(255,255,255,0.1)',
+                    color: copiedJson ? '#000' : '#fff',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {copiedJson ? (isZh ? '✓ 已複製 JSON' : '✓ Copied!') : (isZh ? '📋 複製 JSON 內容' : '📋 Copy JSON')}
+                </button>
+              </div>
+              <pre style={{ background: '#090914', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', borderRadius: '10px', color: '#38ef7d', fontSize: '12px', lineHeight: '1.45', fontFamily: 'Consolas, Monaco, monospace', maxHeight: '240px', overflowY: 'auto', margin: 0 }}>
+                {JSON.stringify(selectedJobDetail.meta_json, null, 2)}
+              </pre>
+            </div>
+
+            {/* Action Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <button
+                onClick={() => handleReprint(selectedJobDetail.job_id)}
+                className="btn-primary"
+                style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', background: 'linear-gradient(135deg, #667eea, #764ba2)' }}
+              >
+                🖨️ {isZh ? '重新列印照片' : 'Reprint Photo'}
+              </button>
+
+              <a
+                href={`/api/images/${selectedJobDetail.job_id}/download`}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-secondary"
+                style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', textDecoration: 'none', display: 'inline-block' }}
+              >
+                ⬇️ {isZh ? '下載相片' : 'Download Photo'}
+              </a>
+
+              <button
+                onClick={() => setSelectedJobDetail(null)}
+                className="btn-secondary"
+                style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px' }}
+              >
+                {isZh ? '關閉' : 'Close'}
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
     </div>
   );

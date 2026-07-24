@@ -91,6 +91,95 @@ def get_job_history(
             
         return result
 
+@router.get("/job-detail/{job_id}")
+def get_job_detail(job_id: str):
+    import json
+    from app.config import settings
+    with get_db() as db:
+        query = """
+            SELECT 
+                s.job_id,
+                s.event_id,
+                COALESCE(e.name, 'Default Session') as event_name,
+                s.style_id,
+                COALESCE(st.name, s.style_id) as style_name,
+                s.status,
+                s.input_image,
+                s.output_image,
+                s.print_image,
+                s.print_status,
+                s.capture_source,
+                COALESCE(NULLIF(s.v2_model, ''), st.v2_model, st.provider, 'nb2-cheap') as v2_model,
+                st.prompt_template,
+                st.aspect_ratio,
+                st.resolution,
+                COALESCE(s.download_count, 0) as download_count,
+                s.cost_time,
+                s.cost_money,
+                s.created_at,
+                s.updated_at,
+                s.printed_at
+            FROM sessions s
+            LEFT JOIN events e ON s.event_id = e.id
+            LEFT JOIN styles st ON s.style_id = st.id
+            WHERE s.job_id = ?
+        """
+        row = db.execute(query, (job_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Job not found")
+
+        data = dict(row)
+
+        # File metadata
+        out_path = data.get("print_image") or data.get("output_image")
+        file_size_str = "N/A"
+        if out_path and os.path.exists(out_path):
+            try:
+                file_size_str = format_file_size(os.path.getsize(out_path))
+            except Exception:
+                pass
+        data["file_size_formatted"] = file_size_str
+
+        # Try reading meta.json from output dir if exists
+        meta_json = {}
+        out_dir = Path(settings.output_dir) / job_id
+        meta_file = out_dir / "meta.json"
+        if meta_file.exists():
+            try:
+                with open(meta_file, "r", encoding="utf-8") as f:
+                    meta_json = json.load(f)
+            except Exception as e:
+                print(f"[get_job_detail] Failed to parse meta.json for {job_id}: {e}")
+
+        # Also attempt to extract embedded PNG metadata if meta.json is absent
+        if not meta_json:
+            raw_png = out_dir / "raw.png"
+            if raw_png.exists():
+                try:
+                    from PIL import Image
+                    img = Image.open(str(raw_png))
+                    if hasattr(img, 'text') and 'json' in img.text:
+                        meta_json = json.loads(img.text['json'])
+                    elif hasattr(img, 'info') and 'json' in img.info:
+                        meta_json = json.loads(img.info['json'])
+                except Exception as e:
+                    print(f"[get_job_detail] Failed to extract PNG metadata for {job_id}: {e}")
+
+        exact_json = meta_json or {
+            "job_id": job_id,
+            "style_id": data["style_id"],
+            "prompt": data.get("prompt_template", ""),
+            "v2_model": data["v2_model"],
+            "aspect_ratio": data.get("aspect_ratio", "2:3"),
+            "resolution": data.get("resolution", "2k"),
+            "cost_time_ms": data.get("cost_time", 0),
+            "cost_money_usd": data.get("cost_money", 0),
+            "created_at": data.get("created_at")
+        }
+
+        data["meta_json"] = exact_json
+        return data
+
 @router.get("/ref-gen-history")
 def get_ref_gen_history(limit: int = Query(100)):
     with get_db() as db:
