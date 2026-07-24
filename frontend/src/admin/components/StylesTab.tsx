@@ -182,6 +182,10 @@ export default function StylesTab() {
   const [testTab, setTestTab] = useState<'upload' | 'camera'>('upload');
   const [testModels, setTestModels] = useState<string[]>(['nb2-cheap', '', '', '']);
   const [testResults, setTestResults] = useState<{ [key: number]: { url?: string; error?: string; loading?: boolean } }>({});
+  const [testMode, setTestMode] = useState<'models' | 'photos'>('models');
+  const [slotBlobs, setSlotBlobs] = useState<(Blob | null)[]>([null, null, null, null]);
+  const [slotPreviewUrls, setSlotPreviewUrls] = useState<(string | null)[]>([null, null, null, null]);
+  const [selectedSingleModel, setSelectedSingleModel] = useState<string>('nb2-cheap');
   const testVideoRef = useRef<HTMLVideoElement>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
 
@@ -474,11 +478,60 @@ export default function StylesTab() {
     setFV2Quality(s.v2_quality || 'medium');
     setFAspect(s.aspect_ratio || '2:3');
     setFSeed(s.seed || '');
-    setTestModels([s.v2_model || 'nb2-cheap', '', '', '']);
+    setTestModels([s.v2_model || 'nb2-cheap', 'nb-pro', 'gpt2-official', 'gpt2-cheap']);
+    setSelectedSingleModel(s.v2_model || 'nb2-cheap');
     setTestResults({});
     setTestImageBlob(null);
     setTestPreviewUrl(null);
+    setSlotBlobs([null, null, null, null]);
+    setSlotPreviewUrls([null, null, null, null]);
+    setTestMode('models');
     setTestTab('upload');
+  };
+
+  const handleUploadSlotImage = (slotIdx: number, file: File) => {
+    const url = URL.createObjectURL(file);
+    setSlotBlobs(prev => {
+      const next = [...prev];
+      next[slotIdx] = file;
+      return next;
+    });
+    setSlotPreviewUrls(prev => {
+      const next = [...prev];
+      next[slotIdx] = url;
+      return next;
+    });
+  };
+
+  const handleClearSlotImage = (slotIdx: number) => {
+    setSlotBlobs(prev => {
+      const next = [...prev];
+      next[slotIdx] = null;
+      return next;
+    });
+    setSlotPreviewUrls(prev => {
+      const next = [...prev];
+      next[slotIdx] = null;
+      return next;
+    });
+  };
+
+  const handleBatchUploadSlotImages = (files: FileList) => {
+    const fileArray = Array.from(files).slice(0, 4);
+    setSlotBlobs(prev => {
+      const next = [...prev];
+      fileArray.forEach((file, idx) => {
+        next[idx] = file;
+      });
+      return next;
+    });
+    setSlotPreviewUrls(prev => {
+      const next = [...prev];
+      fileArray.forEach((file, idx) => {
+        next[idx] = URL.createObjectURL(file);
+      });
+      return next;
+    });
   };
 
   const startCamera = async () => {
@@ -522,17 +575,24 @@ export default function StylesTab() {
   };
 
   const handleRunTest = async () => {
-    if (!testImageBlob || !testStyle) return alert(isZh ? "請先拍攝或選擇測試照片" : "Select or capture a test photo first.");
+    if (!testStyle) return;
 
-    testModels.forEach(async (modelId, index) => {
+    const hasAnyPhoto = testImageBlob || slotBlobs.some(b => b !== null);
+    if (!hasAnyPhoto) return alert(isZh ? "請先拍攝或選擇測試照片" : "Select or capture at least one test photo first.");
+
+    [0, 1, 2, 3].forEach(async (index) => {
+      const modelId = testMode === 'models' ? testModels[index] : selectedSingleModel;
       if (!modelId) return;
+
+      const targetBlob = slotBlobs[index] || testImageBlob;
+      if (!targetBlob) return;
 
       setTestResults(prev => ({ ...prev, [index]: { loading: true } }));
 
       const targetAspect = testStyle.aspect_ratio || fAspect || '2:3';
 
       const form = new FormData();
-      form.append('image', testImageBlob, 'test.jpg');
+      form.append('image', targetBlob, `test_${index}.jpg`);
       form.append('style_id', testStyle.id);
       form.append('capture_source', 'test');
       if (fPrompt) form.append('prompt_override', fPrompt);
@@ -800,10 +860,10 @@ export default function StylesTab() {
         </div>
       )}
 
-      {/* Test Modal with 4 Grid Models Comparison */}
+      {/* Test Modal with Dual Modes (4 Models vs 4 Photos Prompt Stability) */}
       {testStyle && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
-          <div style={{ background: '#151525', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', width: '760px', maxHeight: '95vh', overflowY: 'auto' }}>
+          <div style={{ background: '#151525', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', width: '820px', maxHeight: '95vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <h2 style={{ color: '#fff', margin: 0, fontSize: '20px' }}>🧪 {isZh ? '測試風格' : 'Test Style'}: {testStyle.name}</h2>
@@ -814,12 +874,91 @@ export default function StylesTab() {
               <button onClick={() => { stopCamera(); setTestStyle(null); }} style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer' }}>×</button>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <button className={`btn-secondary ${testTab === 'upload' ? 'btn-primary' : ''}`} onClick={() => { stopCamera(); setTestTab('upload'); }} style={{ padding: '6px 16px', fontSize: '13px' }}>📁 {isZh ? '上傳測試照片' : 'Upload Test Photo'}</button>
-              <button className={`btn-secondary ${testTab === 'camera' ? 'btn-primary' : ''}`} onClick={() => { setTestTab('camera'); startCamera(); }} style={{ padding: '6px 16px', fontSize: '13px' }}>📷 {isZh ? '相機拍攝' : 'Webcam Capture'}</button>
+            {/* Mode Selector Toggle */}
+            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', padding: '4px', borderRadius: '10px', marginBottom: '16px', gap: '4px' }}>
+              <button
+                type="button"
+                onClick={() => setTestMode('models')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: testMode === 'models' ? 'linear-gradient(135deg, #667eea, #764ba2)' : 'transparent',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                🧪 {isZh ? '1 圖 vs 4 AI 模型比較' : '1 Photo vs 4 AI Models'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTestMode('photos')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: testMode === 'photos' ? 'linear-gradient(135deg, #4ecdc4, #556270)' : 'transparent',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                🎯 {isZh ? '4 圖 vs 1 AI 模型 (Prompt 穩定度測試)' : '4 Photos vs 1 Model (Prompt Stability)'}
+              </button>
             </div>
 
-            <div style={{ width: '100%', height: '200px', background: '#0d0d1a', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', overflow: 'hidden', position: 'relative' }}>
+            {/* Target Model Bar for Photos Mode */}
+            {testMode === 'photos' && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(78,205,196,0.1)', border: '1px solid rgba(78,205,196,0.3)', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', color: '#4ecdc4', fontWeight: 600 }}>
+                  ⚙️ {isZh ? '選擇要測試 prompt 穩定度的 AI 模型:' : 'Target AI Model for Prompt Stability:'}
+                </div>
+                <select
+                  value={selectedSingleModel}
+                  onChange={(e) => setSelectedSingleModel(e.target.value)}
+                  style={{ padding: '6px 12px', borderRadius: '6px', background: '#0d0d1a', border: '1px solid #444', color: '#fff', fontSize: '13px', fontWeight: 600 }}
+                >
+                  <option value="nb2-cheap">Nano Banana 2</option>
+                  <option value="nb-pro">Nano Banana Pro</option>
+                  <option value="gpt2-official">GPT Image 2 Official</option>
+                  <option value="gpt2-cheap">GPT Image 2 Cheap</option>
+                </select>
+              </div>
+            )}
+
+            {/* Main Photo Action / Batch Upload Bar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className={`btn-secondary ${testTab === 'upload' ? 'btn-primary' : ''}`} onClick={() => { stopCamera(); setTestTab('upload'); }} style={{ padding: '6px 16px', fontSize: '13px' }}>📁 {isZh ? '預設主測試圖' : 'Main Test Photo'}</button>
+                <button className={`btn-secondary ${testTab === 'camera' ? 'btn-primary' : ''}`} onClick={() => { setTestTab('camera'); startCamera(); }} style={{ padding: '6px 16px', fontSize: '13px' }}>📷 {isZh ? '相機拍攝主圖' : 'Webcam Capture'}</button>
+              </div>
+
+              {testMode === 'photos' && (
+                <label className="btn-secondary" style={{ padding: '6px 16px', fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(78,205,196,0.15)', borderColor: 'rgba(78,205,196,0.4)', color: '#4ecdc4', fontWeight: 600 }}>
+                  📁 {isZh ? '一次選擇最多 4 張照片' : 'Batch Upload 4 Photos'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        handleBatchUploadSlotImages(e.target.files);
+                      }
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* Main Photo Preview Box */}
+            <div style={{ width: '100%', height: '140px', background: '#0d0d1a', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', overflow: 'hidden', position: 'relative' }}>
               {testTab === 'camera' ? (
                 <>
                   <video ref={testVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -827,7 +966,7 @@ export default function StylesTab() {
                 </>
               ) : testPreviewUrl ? (
                 <div style={{ position: 'relative', display: 'inline-block', maxHeight: '100%' }}>
-                  <img src={testPreviewUrl} style={{ maxHeight: '140px', objectFit: 'contain', borderRadius: '8px' }} alt="Test input" />
+                  <img src={testPreviewUrl} style={{ maxHeight: '120px', objectFit: 'contain', borderRadius: '8px' }} alt="Test input" />
                   <button 
                     onClick={() => {
                       setTestImageBlob(null);
@@ -851,14 +990,14 @@ export default function StylesTab() {
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}
-                    title={isZh ? "清除所選照片" : "Clear selected photo"}
+                    title={isZh ? "清除主照片" : "Clear main photo"}
                   >
                     ✖
                   </button>
                 </div>
               ) : (
                 <label className="btn-secondary" style={{ cursor: 'pointer' }}>
-                  {isZh ? '選擇圖片' : 'Choose Image'}
+                  {isZh ? '選擇預設主照片' : 'Choose Main Photo'}
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
                     if (e.target.files?.[0]) {
                       setTestImageBlob(e.target.files[0]);
@@ -869,77 +1008,126 @@ export default function StylesTab() {
               )}
             </div>
 
-            {/* Model grid comparison slots */}
+            {/* 4 Grid Slots */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '16px' }}>
-              {[0, 1, 2, 3].map((slotIdx) => (
-                <div key={slotIdx} style={{ background: '#0d0d1a', padding: '10px', borderRadius: '8px', textAlign: 'center', minHeight: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <select 
-                    value={testModels[slotIdx]} 
-                    onChange={e => {
-                      const updated = [...testModels];
-                      updated[slotIdx] = e.target.value;
-                      setTestModels(updated);
-                    }}
-                    style={{ fontSize: '11px', padding: '4px', background: '#1a1a2e', border: '1px solid #333', color: '#fff', borderRadius: '4px', marginBottom: '8px' }}
-                  >
-                    <option value="">({isZh ? '無' : 'None'})</option>
-                    <option value="nb2-cheap">Nano Banana 2</option>
-                    <option value="nb-pro">Nano Banana Pro</option>
-                    <option value="gpt2-official">GPT Image 2 Official</option>
-                    <option value="gpt2-cheap">GPT Image 2 Cheap</option>
-                  </select>
+              {[0, 1, 2, 3].map((slotIdx) => {
+                const currentSlotUrl = slotPreviewUrls[slotIdx] || testPreviewUrl;
 
-                  <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    {testResults[slotIdx]?.loading ? (
-                      <span style={{ color: '#667eea', fontSize: '12px' }}>{isZh ? '運行中...' : 'Running...'}</span>
-                    ) : testResults[slotIdx]?.error ? (
-                      <span style={{ color: '#f44', fontSize: '11px' }}>{testResults[slotIdx].error}</span>
-                    ) : testResults[slotIdx]?.url ? (
-                      <>
-                        <img 
-                          src={testResults[slotIdx].url} 
-                          style={{ maxWidth: '100%', maxHeight: '110px', objectFit: 'contain', borderRadius: '4px', cursor: 'pointer' }} 
-                          onClick={() => setLightboxUrl(testResults[slotIdx].url!)} 
-                          alt="Test output" 
-                        />
-                        <button
-                          onClick={async () => {
-                            const jid = testResults[slotIdx]?.job_id;
-                            if (!jid) return;
-                            try {
-                              const r = await fetch(`/api/capture/reprint/${jid}`, { method: 'POST' });
-                              if (r.ok) alert(isZh ? "已將此測試照片加入列印隊列！" : "Sent to printer queue!");
-                              else alert(isZh ? "加入列印隊列失敗" : "Failed to queue print");
-                            } catch (e: any) {
-                              alert(e.message);
-                            }
-                          }}
-                          style={{
-                            marginTop: '6px',
-                            padding: '4px 8px',
-                            fontSize: '11px',
-                            borderRadius: '6px',
-                            background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                            color: '#fff',
-                            border: 'none',
-                            cursor: 'pointer',
-                            width: '100%',
-                            fontWeight: 600
-                          }}
-                        >
-                          🖨️ {isZh ? '列印測試圖' : 'Print Test'}
-                        </button>
-                      </>
+                return (
+                  <div key={slotIdx} style={{ background: '#0d0d1a', padding: '10px', borderRadius: '8px', textAlign: 'center', minHeight: '220px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: slotPreviewUrls[slotIdx] ? '1px solid rgba(78,205,196,0.4)' : '1px solid rgba(255,255,255,0.06)' }}>
+                    
+                    {/* Header: Model Selector (models mode) OR Slot Title (photos mode) */}
+                    {testMode === 'models' ? (
+                      <select 
+                        value={testModels[slotIdx]} 
+                        onChange={e => {
+                          const updated = [...testModels];
+                          updated[slotIdx] = e.target.value;
+                          setTestModels(updated);
+                        }}
+                        style={{ fontSize: '11px', padding: '4px', background: '#1a1a2e', border: '1px solid #333', color: '#fff', borderRadius: '4px', marginBottom: '6px' }}
+                      >
+                        <option value="">({isZh ? '無' : 'None'})</option>
+                        <option value="nb2-cheap">Nano Banana 2</option>
+                        <option value="nb-pro">Nano Banana Pro</option>
+                        <option value="gpt2-official">GPT Image 2 Official</option>
+                        <option value="gpt2-cheap">GPT Image 2 Cheap</option>
+                      </select>
                     ) : (
-                      <span style={{ color: '#555', fontSize: '11px' }}>{isZh ? '空位' : 'Empty Slot'}</span>
+                      <div style={{ fontSize: '12px', color: '#4ecdc4', fontWeight: 700, marginBottom: '6px' }}>
+                        📸 {isZh ? `照片 #${slotIdx + 1}` : `Photo #${slotIdx + 1}`}
+                      </div>
                     )}
+
+                    {/* Slot Input Photo Thumbnail & Action */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '6px', marginBottom: '8px' }}>
+                      {currentSlotUrl ? (
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <img src={currentSlotUrl} style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '4px', display: 'block', margin: '0 auto' }} alt={`Slot ${slotIdx}`} />
+                          {slotPreviewUrls[slotIdx] && (
+                            <button
+                              onClick={() => handleClearSlotImage(slotIdx)}
+                              style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#ff4f4f', color: '#fff', border: 'none', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              title={isZh ? "清除此張照片" : "Clear slot photo"}
+                            >
+                              ✖
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '10px', color: '#666' }}>{isZh ? '無照片' : 'No photo'}</span>
+                      )}
+
+                      <div style={{ marginTop: '4px' }}>
+                        <label style={{ fontSize: '10px', color: '#aaa', cursor: 'pointer', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px', display: 'inline-block' }}>
+                          {slotPreviewUrls[slotIdx] ? (isZh ? '換照片' : 'Change') : (isZh ? '上傳此位置' : 'Upload')}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) {
+                                handleUploadSlotImage(slotIdx, e.target.files[0]);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Slot Result Output */}
+                    <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                      {testResults[slotIdx]?.loading ? (
+                        <span style={{ color: '#667eea', fontSize: '12px' }}>{isZh ? '運行中...' : 'Running...'}</span>
+                      ) : testResults[slotIdx]?.error ? (
+                        <span style={{ color: '#f44', fontSize: '11px' }}>{testResults[slotIdx].error}</span>
+                      ) : testResults[slotIdx]?.url ? (
+                        <>
+                          <img 
+                            src={testResults[slotIdx].url} 
+                            style={{ maxWidth: '100%', maxHeight: '100px', objectFit: 'contain', borderRadius: '4px', cursor: 'pointer' }} 
+                            onClick={() => setLightboxUrl(testResults[slotIdx].url!)} 
+                            alt="Test output" 
+                          />
+                          <button
+                            onClick={async () => {
+                              const jid = testResults[slotIdx]?.job_id;
+                              if (!jid) return;
+                              try {
+                                const r = await fetch(`/api/capture/reprint/${jid}`, { method: 'POST' });
+                                if (r.ok) alert(isZh ? "已將此測試照片加入列印隊列！" : "Sent to printer queue!");
+                                else alert(isZh ? "加入列印隊列失敗" : "Failed to queue print");
+                              } catch (e: any) {
+                                alert(e.message);
+                              }
+                            }}
+                            style={{
+                              marginTop: '6px',
+                              padding: '4px 8px',
+                              fontSize: '11px',
+                              borderRadius: '6px',
+                              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                              color: '#fff',
+                              border: 'none',
+                              cursor: 'pointer',
+                              width: '100%',
+                              fontWeight: 600
+                            }}
+                          >
+                            🖨️ {isZh ? '列印測試圖' : 'Print Test'}
+                          </button>
+                        </>
+                      ) : (
+                        <span style={{ color: '#555', fontSize: '11px' }}>{isZh ? '空位' : 'Empty Slot'}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            <button className="btn-primary" onClick={handleRunTest} style={{ width: '100%', padding: '10px' }}>
-              🚀 {isZh ? '開始多模型比較測試' : 'Run Multi-Model Comparison Test'}
+            <button className="btn-primary" onClick={handleRunTest} style={{ width: '100%', padding: '12px', fontSize: '15px', fontWeight: 700 }}>
+              🚀 {testMode === 'models' ? (isZh ? '開始多模型比較測試 (1 圖 4 模型)' : 'Run Multi-Model Test (1 Photo vs 4 Models)') : (isZh ? '開始 Prompt 穩定度測試 (4 圖 1 模型)' : 'Run Prompt Stability Test (4 Photos vs 1 Model)')}
             </button>
           </div>
         </div>
