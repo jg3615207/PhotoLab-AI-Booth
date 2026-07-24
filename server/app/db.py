@@ -191,7 +191,8 @@ def init_db():
 
     for col in [
         "animated_thumbnail TEXT DEFAULT ''",
-        "dynamic_prompt_enabled INTEGER DEFAULT 0"
+        "dynamic_prompt_enabled INTEGER DEFAULT 0",
+        "multi_face_crop_enabled INTEGER DEFAULT 0"
     ]:
         try:
             conn.execute(f"ALTER TABLE styles ADD COLUMN {col}")

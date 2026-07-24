@@ -58,3 +58,69 @@ def check_faces(image_path: str) -> int:
     except Exception:
         pass
     return 0
+
+
+def detect_and_crop_user_faces(image_path: str, output_dir: str) -> list[dict]:
+    """
+    Detects faces in image_path using OpenCV, sorts them from left to right,
+    crops each face with padding, and saves as user1.jpg, user2.jpg, user3.jpg...
+    Returns a list of dicts: [{"name": "user1", "path": ".../user1.jpg"}, ...]
+    """
+    try:
+        import cv2
+        from pathlib import Path
+
+        out_path = Path(output_dir)
+        out_path.mkdir(parents=True, exist_ok=True)
+
+        img = cv2.imread(image_path)
+        if img is None:
+            return []
+
+        img_h, img_w = img.shape[:2]
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        face_cascade = cv2.CascadeClassifier(cascade_path)
+
+        faces = face_cascade.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=4,
+            minSize=(50, 50)
+        )
+
+        if len(faces) == 0:
+            return []
+
+        # Sort faces left to right by x-coordinate
+        sorted_faces = sorted(faces, key=lambda f: f[0])
+
+        cropped_users = []
+        for idx, (x, y, w, h) in enumerate(sorted_faces, start=1):
+            user_name = f"user{idx}"
+            
+            # Add generous margin padding around face
+            pad_w = int(w * 0.35)
+            pad_h = int(h * 0.40)
+            
+            x1 = max(0, x - pad_w)
+            y1 = max(0, y - pad_h)
+            x2 = min(img_w, x + w + pad_w)
+            y2 = min(img_h, y + h + pad_h)
+
+            face_crop = img[y1:y2, x1:x2]
+            crop_filename = f"{user_name}.jpg"
+            crop_filepath = str(out_path / crop_filename)
+
+            cv2.imwrite(crop_filepath, face_crop)
+            cropped_users.append({
+                "name": user_name,
+                "path": crop_filepath
+            })
+            print(f"[face_crop] Saved face crop for {user_name} (x={x}) to {crop_filepath}")
+
+        return cropped_users
+    except Exception as e:
+        print(f"[face_crop] Face cropping error: {e}")
+        return []

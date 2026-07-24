@@ -94,16 +94,23 @@ class RunningHubV2Provider(AIProvider):
         aspect_ratio: str = "2:3",
         v2_model: str = "nb2-cheap",
         v2_quality: str | None = None,
+        user_image_urls: list | None = None,
     ) -> GenerateResult:
         model = self._resolve_model(v2_model)
         endpoint = model["i2i_endpoint"]
         print(f"[v2.generate] model={v2_model} endpoint={endpoint}")
         
-        guest_url = self._upload(guest_image_path)
-        style_url = rh_ref_file
+        if user_image_urls and len(user_image_urls) > 0:
+            image_urls = list(user_image_urls)
+            if rh_ref_file:
+                image_urls.append(rh_ref_file)
+        else:
+            guest_url = self._upload(guest_image_path)
+            style_url = rh_ref_file
+            image_urls = [guest_url, style_url] if style_url else [guest_url]
 
         body = {
-            "imageUrls": [guest_url, style_url],
+            "imageUrls": image_urls,
             "prompt": prompt,
             "aspectRatio": aspect_ratio,
             "resolution": resolution,

@@ -105,7 +105,7 @@ export default function ToolsTab() {
                 border: '1px solid rgba(255, 255, 255, 0.08)',
                 display: 'flex',
                 flexDirection: 'column',
-                justify: 'space-between',
+                justifyContent: 'space-between',
                 transition: 'all 0.2s ease',
                 position: 'relative'
               }}

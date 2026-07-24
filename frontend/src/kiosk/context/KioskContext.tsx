@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 
 export type Screen = 'join' | 'attract' | 'styles' | 'capture' | 'preview' | 'processing' | 'reveal' | 'result';
 export type KioskLang = 'en' | 'zh-Hant';
@@ -11,6 +11,7 @@ interface SessionData {
   allowed_styles?: string[];
   retake_limit?: number;
   enable_filters?: number | boolean;
+  enable_gesture_capture?: number | boolean;
 }
 
 interface KioskContextType {
@@ -20,6 +21,8 @@ interface KioskContextType {
   setSession: (session: SessionData | null) => void;
   selectedStyleId: string | null;
   setSelectedStyleId: (id: string | null) => void;
+  selectedStyle: any | null;
+  setSelectedStyle: (style: any | null) => void;
   capturedImage: string | null; // Data URL
   setCapturedImage: (image: string | null) => void;
   jobData: any | null;
@@ -36,6 +39,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
   const [currentScreen, setScreen] = useState<Screen>('join');
   const [session, setSession] = useState<SessionData | null>(null);
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null);
+  const [selectedStyle, setSelectedStyle] = useState<any | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [jobData, setJobData] = useState<any | null>(null);
   const [lang, setLang] = useState<KioskLang>('zh-Hant'); // Default to zh-Hant or toggleable
@@ -54,6 +58,8 @@ export function KioskProvider({ children }: { children: ReactNode }) {
         setSession,
         selectedStyleId,
         setSelectedStyleId,
+        selectedStyle,
+        setSelectedStyle,
         capturedImage,
         setCapturedImage,
         jobData,

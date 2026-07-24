@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useKiosk } from '../context/KioskContext';
 import { useCamera } from '../hooks/useCamera';
 import { useHandsTracker } from '../hooks/useHandsTracker';
 import { useFaceDetection } from '../hooks/useFaceDetection';
 
 export default function CaptureScreen() {
-  const { setScreen, setCapturedImage, lang, session } = useKiosk();
+  const { setScreen, setCapturedImage, lang, session, selectedStyle } = useKiosk();
   const isZh = lang === 'zh-Hant';
 
   const { videoRef, error, isMirrored, startCamera, stopCamera, toggleMirror } = useCamera();
@@ -14,8 +14,12 @@ export default function CaptureScreen() {
   const [handDetected, setHandDetected] = useState(false);
   const [activeFilter, setActiveFilter] = useState('none');
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   
-  const { showWarning } = useFaceDetection(videoRef.current, 2);
+  const targetFaceCount = selectedStyle?.max_people || 1;
+  const multiCropEnabled = selectedStyle?.multi_face_crop_enabled === 1;
+
+  const { faceCount, faceBoxes, countMismatch } = useFaceDetection(videoRef.current, targetFaceCount, true);
 
   const filters = [
     { id: 'none', nameZh: '原始', nameEn: 'Normal', css: 'none' },
@@ -28,7 +32,7 @@ export default function CaptureScreen() {
   const showFilters = session?.enable_filters === 1 || session?.enable_filters === true;
   const gestureEnabled = session?.enable_gesture_capture !== 0;
 
-  useHandsTracker(videoRef.current, isMirrored, (gesture) => {
+  useHandsTracker(videoRef.current, isMirrored, () => {
     if (countdown === null && !error) {
       startCountdown();
     }
@@ -38,6 +42,75 @@ export default function CaptureScreen() {
     startCamera();
     return () => stopCamera();
   }, []);
+
+  // Live face tracking bounding box canvas overlay
+  useEffect(() => {
+    const canvas = overlayCanvasRef.current;
+    const video = videoRef.current;
+    if (!canvas || !video) return;
+
+    if (!faceBoxes || faceBoxes.length === 0) {
+      const ctx = canvas.getContext('2d');
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    canvas.width = video.clientWidth || 1080;
+    canvas.height = video.clientHeight || 1920;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const scaleX = canvas.width / (video.videoWidth || 1);
+    const scaleY = canvas.height / (video.videoHeight || 1);
+
+    faceBoxes.forEach((box) => {
+      let rx = box.x * scaleX;
+      if (isMirrored) {
+        rx = canvas.width - (box.x + box.width) * scaleX;
+      }
+      const ry = box.y * scaleY;
+      const rw = box.width * scaleX;
+      const rh = box.height * scaleY;
+
+      // Draw glowing cyan bounding box
+      ctx.strokeStyle = '#00f2fe';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(rx, ry, rw, rh, 8);
+      } else {
+        ctx.rect(rx, ry, rw, rh);
+      }
+      ctx.stroke();
+
+      // Corner accent markers
+      const lineLen = Math.min(18, rw / 4);
+      ctx.strokeStyle = '#38ef7d';
+      ctx.lineWidth = 4;
+      // Top-Left corner
+      ctx.beginPath();
+      ctx.moveTo(rx, ry + lineLen); ctx.lineTo(rx, ry); ctx.lineTo(rx + lineLen, ry);
+      ctx.stroke();
+      // Top-Right corner
+      ctx.beginPath();
+      ctx.moveTo(rx + rw - lineLen, ry); ctx.lineTo(rx + rw, ry); ctx.lineTo(rx + rw, ry + lineLen);
+      ctx.stroke();
+
+      // Label badge tag e.g. "👤 user1"
+      const labelText = `👤 ${box.label}`;
+      ctx.font = 'bold 13px sans-serif';
+      const tw = ctx.measureText(labelText).width;
+
+      const tagY = ry - 24 > 0 ? ry - 24 : ry;
+      ctx.fillStyle = 'rgba(0, 242, 254, 0.9)';
+      ctx.fillRect(rx, tagY, tw + 14, 22);
+
+      ctx.fillStyle = '#000';
+      ctx.fillText(labelText, rx + 7, tagY + 15);
+    });
+  }, [faceBoxes, isMirrored]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -93,10 +166,12 @@ export default function CaptureScreen() {
     <div className="screen active" style={{ display: 'flex' }}>
       {flash && <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'white', zIndex: 9999 }} />}
       
-      <div className="capture-container">
-        {showWarning && (
-          <div style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,0,0,0.85)', color: 'white', padding: '10px 20px', borderRadius: '8px', zIndex: 20, fontWeight: 'bold' }}>
-            {isZh ? '人數過多！請退後' : 'Too many people! Please step back.'}
+      <div className="capture-container" style={{ position: 'relative' }}>
+        {countMismatch && multiCropEnabled && (
+          <div style={{ position: 'absolute', top: '70px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,152,0,0.95)', color: '#000', padding: '10px 18px', borderRadius: '12px', zIndex: 30, fontWeight: 700, fontSize: '13px', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '90%', textAlign: 'center' }}>
+            ⚠️ {isZh 
+              ? `目前偵測到 ${faceCount} 人，但此風格預設需 ${targetFaceCount} 人（可能影響 AI 生成結果）` 
+              : `Detected ${faceCount} faces, but style expects ${targetFaceCount} (may affect generation accuracy).`}
           </div>
         )}
         
@@ -107,12 +182,26 @@ export default function CaptureScreen() {
             <p className="sub">{isZh ? '請使用下方「上傳照片」' : 'Use "Upload Photo" below'}</p>
           </div>
         ) : (
-          <video 
-            ref={videoRef} 
-            autoPlay 
-            playsInline 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: isMirrored ? 'scaleX(-1)' : 'scaleX(1)', filter: currentFilterCSS }} 
-          />
+          <>
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: isMirrored ? 'scaleX(-1)' : 'scaleX(1)', filter: currentFilterCSS }} 
+            />
+            <canvas
+              ref={overlayCanvasRef}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+                zIndex: 15
+              }}
+            />
+          </>
         )}
         
         <button 

@@ -74,14 +74,15 @@ def create_style(
     transition_type: str = Form("glitch"),
     animated_thumbnail: str = Form(""),
     dynamic_prompt_enabled: int = Form(0),
+    multi_face_crop_enabled: int = Form(0),
 ):
     with get_db() as db:
         existing = db.execute("SELECT id FROM styles WHERE id=?", (id,)).fetchone()
         if existing:
             raise HTTPException(400, "Style ID already exists")
         db.execute(
-            "INSERT INTO styles (id, name, max_people, aspect_ratio, prompt_template, resolution, seed, provider, v2_model, v2_quality, transition_type, animated_thumbnail, dynamic_prompt_enabled, active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
-            (id, name, max_people, aspect_ratio, prompt_template, resolution, seed or "", provider, v2_model, v2_quality or None, transition_type, animated_thumbnail, dynamic_prompt_enabled),
+            "INSERT INTO styles (id, name, max_people, aspect_ratio, prompt_template, resolution, seed, provider, v2_model, v2_quality, transition_type, animated_thumbnail, dynamic_prompt_enabled, multi_face_crop_enabled, active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
+            (id, name, max_people, aspect_ratio, prompt_template, resolution, seed or "", provider, v2_model, v2_quality or None, transition_type, animated_thumbnail, dynamic_prompt_enabled, multi_face_crop_enabled),
         )
     return {"status": "created", "id": id}
 
@@ -100,13 +101,14 @@ def update_style(
     transition_type: str = Form(None),
     animated_thumbnail: str = Form(None),
     dynamic_prompt_enabled: int = Form(None),
+    multi_face_crop_enabled: int = Form(None),
 ):
     with get_db() as db:
         row = db.execute("SELECT id FROM styles WHERE id=?", (style_id,)).fetchone()
         if not row:
             raise HTTPException(404)
         updates = {}
-        for k in ["name", "max_people", "aspect_ratio", "prompt_template", "resolution", "seed", "active", "v2_model", "v2_quality", "transition_type", "animated_thumbnail", "dynamic_prompt_enabled"]:
+        for k in ["name", "max_people", "aspect_ratio", "prompt_template", "resolution", "seed", "active", "v2_model", "v2_quality", "transition_type", "animated_thumbnail", "dynamic_prompt_enabled", "multi_face_crop_enabled"]:
             v = locals().get(k)
             if v is not None:
                 updates[k] = v
@@ -130,6 +132,7 @@ class StylePatch(BaseModel):
     transition_type: Optional[str] = None
     animated_thumbnail: Optional[str] = None
     dynamic_prompt_enabled: Optional[int] = None
+    multi_face_crop_enabled: Optional[int] = None
 
 
 class GenerateRefRequest(BaseModel):

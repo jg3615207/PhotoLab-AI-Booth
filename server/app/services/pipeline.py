@@ -92,7 +92,7 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
 
     with get_db() as db:
         row = db.execute(
-            "SELECT prompt_template, aspect_ratio, resolution, seed, rh_ref_file, rh_ref_url, provider, v2_model, v2_quality, dynamic_prompt_enabled FROM styles WHERE id=?",
+            "SELECT prompt_template, aspect_ratio, resolution, seed, rh_ref_file, rh_ref_url, provider, v2_model, v2_quality, dynamic_prompt_enabled, multi_face_crop_enabled FROM styles WHERE id=?",
             (style_id,),
         ).fetchone()
         if not row:
@@ -132,6 +132,25 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
                 prompt = f"{dynamic_desc}, {prompt}"
                 print(f"[pipeline] Dynamically injected vision prompt: {prompt}")
 
+        multi_face_crop = False
+        try:
+            multi_face_crop = int(row["multi_face_crop_enabled"] or 0) == 1
+        except Exception:
+            multi_face_crop = False
+
+        user_image_urls = None
+        if multi_face_crop:
+            from app.services.frames import detect_and_crop_user_faces
+            out_dir = Path(settings.output_dir) / job_id
+            user_crops = detect_and_crop_user_faces(image_path, str(out_dir))
+            if user_crops:
+                broadcast_job_update(job_id, "processing", error_message=f"Cropped {len(user_crops)} faces (user1, user2...). Uploading...")
+                user_image_urls = []
+                for crop in user_crops:
+                    u_url = provider_v2.upload_image(crop["path"])
+                    user_image_urls.append(u_url)
+                    print(f"[pipeline] Uploaded face crop for {crop['name']} (job {job_id}): {u_url}")
+
         if quality_override:
             v2_quality = quality_override
 
@@ -151,7 +170,7 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
         broadcast_job_update(job_id, "processing")
 
     try:
-        if use_v2 and rh_ref_url:
+        if use_v2 and (rh_ref_url or user_image_urls):
             result = provider_v2.generate(
                 guest_image_path=image_path,
                 rh_ref_file=rh_ref_url,  # v2 uses public URL
@@ -161,6 +180,7 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
                 aspect_ratio=aspect,
                 v2_model=v2_model,
                 v2_quality=v2_quality,
+                user_image_urls=user_image_urls,
             )
         elif use_v2:
             import logging

@@ -10,7 +10,7 @@ interface StyleData {
 }
 
 export default function StyleSelectionScreen() {
-  const { setScreen, session, setSelectedStyleId, lang } = useKiosk();
+  const { setScreen, session, setSelectedStyleId, setSelectedStyle, lang } = useKiosk();
   const isZh = lang === 'zh-Hant';
 
   const [styles, setStyles] = useState<StyleData[]>([]);
@@ -33,8 +33,9 @@ export default function StyleSelectionScreen() {
       });
   }, [session, isZh]);
 
-  const handleSelectStyle = (id: string) => {
-    setSelectedStyleId(id);
+  const handleSelectStyle = (styleObj: StyleData) => {
+    setSelectedStyleId(styleObj.id);
+    setSelectedStyle(styleObj);
     setScreen('capture');
   };
 
@@ -51,7 +52,7 @@ export default function StyleSelectionScreen() {
             <div 
               key={s.id} 
               className="style-card" 
-              onClick={() => handleSelectStyle(s.id)}
+              onClick={() => handleSelectStyle(s)}
               onMouseEnter={() => setHoveredStyleId(s.id)}
               onMouseLeave={() => setHoveredStyleId(null)}
             >

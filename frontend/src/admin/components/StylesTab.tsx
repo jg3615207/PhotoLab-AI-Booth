@@ -16,6 +16,7 @@ interface StyleItem {
   transition_type?: string;
   animated_thumbnail?: string;
   dynamic_prompt_enabled?: number;
+  multi_face_crop_enabled?: number;
   active: boolean;
   rh_ref_file?: string;
   rh_ref_url?: string;
@@ -33,7 +34,6 @@ export default function StylesTab() {
   const isZh = lang === 'zh-Hant';
 
   const [styles, setStyles] = useState<StyleItem[]>([]);
-  const [v2Models, setV2Models] = useState<V2Model[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingStyle, setEditingStyle] = useState<StyleItem | null>(null);
@@ -54,6 +54,7 @@ export default function StylesTab() {
   const [fTransition, setFTransition] = useState('glitch');
   const [fAnimatedThumb, setFAnimatedThumb] = useState('');
   const [fDynamicPrompt, setFDynamicPrompt] = useState(0);
+  const [fMultiFaceCrop, setFMultiFaceCrop] = useState(0);
   const [transitionsList, setTransitionsList] = useState<any[]>([]);
 
   // Undo prompt memory
@@ -181,7 +182,7 @@ export default function StylesTab() {
   const [testPreviewUrl, setTestPreviewUrl] = useState<string | null>(null);
   const [testTab, setTestTab] = useState<'upload' | 'camera'>('upload');
   const [testModels, setTestModels] = useState<string[]>(['nb2-cheap', '', '', '']);
-  const [testResults, setTestResults] = useState<{ [key: number]: { url?: string; error?: string; loading?: boolean } }>({});
+  const [testResults, setTestResults] = useState<{ [key: number]: { url?: string; job_id?: string; error?: string; loading?: boolean } }>({});
   const [testMode, setTestMode] = useState<'models' | 'photos'>('models');
   const [slotBlobs, setSlotBlobs] = useState<(Blob | null)[]>([null, null, null, null]);
   const [slotPreviewUrls, setSlotPreviewUrls] = useState<(string | null)[]>([null, null, null, null]);
@@ -194,10 +195,6 @@ export default function StylesTab() {
       const res = await fetch('/api/styles?admin=true');
       const data = await res.json();
       setStyles(data || []);
-
-      const resModels = await fetch('/api/styles/v2-models');
-      const dataModels = await resModels.json();
-      setV2Models(dataModels || []);
 
       const resTrans = await fetch('/api/transitions/list');
       const dataTrans = await resTrans.json();
@@ -233,6 +230,7 @@ export default function StylesTab() {
     form.append('transition_type', fTransition);
     form.append('animated_thumbnail', fAnimatedThumb);
     form.append('dynamic_prompt_enabled', fDynamicPrompt.toString());
+    form.append('multi_face_crop_enabled', fMultiFaceCrop.toString());
 
     const r = await fetch('/api/styles', { method: 'POST', body: form });
     if (r.ok) {
@@ -275,6 +273,7 @@ export default function StylesTab() {
     setFTransition('glitch');
     setFAnimatedThumb('');
     setFDynamicPrompt(0);
+    setFMultiFaceCrop(0);
     setRefFile(null);
     setRefPreviewUrl(null);
   };
@@ -294,6 +293,7 @@ export default function StylesTab() {
     setFTransition(s.transition_type || 'glitch');
     setFAnimatedThumb(s.animated_thumbnail || '');
     setFDynamicPrompt(s.dynamic_prompt_enabled || 0);
+    setFMultiFaceCrop(s.multi_face_crop_enabled || 0);
 
     if (s.rh_ref_file || s.rh_ref_url) {
       setRefPreviewUrl(`/api/styles/${s.id}/ref.jpg?t=${Date.now()}`);
@@ -321,6 +321,7 @@ export default function StylesTab() {
     form.append('transition_type', fTransition);
     form.append('animated_thumbnail', fAnimatedThumb);
     form.append('dynamic_prompt_enabled', fDynamicPrompt.toString());
+    form.append('multi_face_crop_enabled', fMultiFaceCrop.toString());
 
     const r = await fetch(`/api/styles/${editingStyle.id}`, { method: 'PUT', body: form });
     if (r.ok) {
@@ -349,11 +350,14 @@ export default function StylesTab() {
     }
   };
 
-  const handleToggleActive = async (id: string, active: boolean, dynamicPromptEnabled?: number) => {
+  const handleToggleActive = async (id: string, active: boolean, dynamicPromptEnabled?: number, multiFaceCropEnabled?: number) => {
     const f = new FormData();
     f.append('active', active ? '1' : '0');
     if (dynamicPromptEnabled !== undefined) {
       f.append('dynamic_prompt_enabled', dynamicPromptEnabled.toString());
+    }
+    if (multiFaceCropEnabled !== undefined) {
+      f.append('multi_face_crop_enabled', multiFaceCropEnabled.toString());
     }
     await fetch(`/api/styles/${id}`, { method: 'PUT', body: f });
     loadStyles();
@@ -836,7 +840,7 @@ export default function StylesTab() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', height: '100%', paddingTop: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', color: '#aaa', fontSize: '13px', cursor: 'pointer', gap: '8px' }}>
                     <input 
                       type="checkbox" 
@@ -844,7 +848,17 @@ export default function StylesTab() {
                       onChange={e => setFDynamicPrompt(e.target.checked ? 1 : 0)} 
                       style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
-                    {isZh ? '啟用視覺動態提示詞' : 'Enable Vision Dynamic Prompt'}
+                    {isZh ? '👁️ 啟用視覺動態提示詞' : '👁️ Enable Vision Dynamic Prompt'}
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', color: '#4ecdc4', fontSize: '13px', cursor: 'pointer', gap: '8px', fontWeight: 600 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={fMultiFaceCrop === 1} 
+                      onChange={e => setFMultiFaceCrop(e.target.checked ? 1 : 0)} 
+                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                    />
+                    {isZh ? '✂️ 啟用多面孔裁切與追蹤 (user1, user2...)' : '✂️ Enable Multi-Face Crop & Tracking (user1, user2...)'}
                   </label>
                 </div>
               </div>
@@ -1165,7 +1179,7 @@ export default function StylesTab() {
 
                   {/* VISION DYNAMIC PROMPT BADGE & TOGGLE */}
                   <span 
-                    onClick={() => handleToggleActive(s.id, s.active === 1, s.dynamic_prompt_enabled === 1 ? 0 : 1)}
+                    onClick={() => handleToggleActive(s.id, Boolean(s.active), s.dynamic_prompt_enabled === 1 ? 0 : 1, s.multi_face_crop_enabled)}
                     title={isZh ? '點擊切換視覺動態提示詞' : 'Click to toggle Vision Dynamic Prompt'}
                     style={{ 
                       fontSize: '11px', 
@@ -1181,7 +1195,28 @@ export default function StylesTab() {
                       gap: '4px'
                     }}
                   >
-                    👁️ {isZh ? (s.dynamic_prompt_enabled === 1 ? 'Vision動態: 開' : 'Vision動態: 關') : (s.dynamic_prompt_enabled === 1 ? 'Vision: ON' : 'Vision: OFF')}
+                    👁️ {isZh ? (s.dynamic_prompt_enabled === 1 ? 'Vision:開' : 'Vision:關') : (s.dynamic_prompt_enabled === 1 ? 'Vision:ON' : 'Vision:OFF')}
+                  </span>
+
+                  {/* MULTI-FACE CROP BADGE & TOGGLE */}
+                  <span 
+                    onClick={() => handleToggleActive(s.id, Boolean(s.active), s.dynamic_prompt_enabled, s.multi_face_crop_enabled === 1 ? 0 : 1)}
+                    title={isZh ? '點擊切換多面孔裁切 (user1, user2...)' : 'Click to toggle Multi-Face Crop'}
+                    style={{ 
+                      fontSize: '11px', 
+                      padding: '2px 8px', 
+                      borderRadius: '10px', 
+                      background: s.multi_face_crop_enabled === 1 ? 'rgba(78,205,196,0.2)' : 'rgba(255,255,255,0.05)', 
+                      color: s.multi_face_crop_enabled === 1 ? '#4ecdc4' : '#888', 
+                      border: s.multi_face_crop_enabled === 1 ? '1px solid rgba(78,205,196,0.4)' : '1px solid rgba(255,255,255,0.12)',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    ✂️ {isZh ? (s.multi_face_crop_enabled === 1 ? '裁切:開' : '裁切:關') : (s.multi_face_crop_enabled === 1 ? 'Crop:ON' : 'Crop:OFF')}
                   </span>
                 </div>
               </div>
