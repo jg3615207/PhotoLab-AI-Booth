@@ -936,6 +936,52 @@ export default function JobHistoryTab() {
               </div>
             </div>
 
+            {/* Multi-Face Crop Debugger Section */}
+            {(selectedJobDetail.user_crop_files?.length > 0 || selectedJobDetail.meta_json?.face_crops?.length > 0) && (
+              <div style={{ marginBottom: '20px', background: 'rgba(0,210,255,0.05)', border: '1px solid rgba(0,210,255,0.2)', padding: '14px', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ fontSize: '13px', color: '#00d2ff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    ✂️ {isZh ? '多臉裁切上傳除錯 (Multi-Face Crop & Uploaded Files Debugger)' : 'Multi-Face Crop & Uploaded Files Debugger'}
+                  </div>
+                  <span style={{ fontSize: '11px', background: 'rgba(0,210,255,0.15)', color: '#00d2ff', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
+                    {isZh ? `偵測到 ${selectedJobDetail.user_crop_files?.length || selectedJobDetail.meta_json?.face_crops?.length || 0} 張臉` : `Detected ${selectedJobDetail.user_crop_files?.length || selectedJobDetail.meta_json?.face_crops?.length || 0} Faces`}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '6px' }}>
+                  {selectedJobDetail.user_crop_files?.map((cf: any, idx: number) => {
+                    const fcMeta = selectedJobDetail.meta_json?.face_crops?.find((f: any) => f.name === cf.name) || {};
+                    return (
+                      <div key={cf.filename} style={{ background: '#090914', border: '1px solid rgba(255,255,255,0.1)', padding: '8px', borderRadius: '8px', flexShrink: 0, width: '130px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '11px', color: '#38ef7d', fontWeight: 700, marginBottom: '4px', fontFamily: 'monospace' }}>
+                          👤 {cf.name} ({idx + 1})
+                        </div>
+                        <img 
+                          src={cf.url} 
+                          alt={cf.name} 
+                          style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '6px', margin: '0 auto 6px auto', display: 'block', border: '1px solid #00d2ff' }} 
+                        />
+                        <div style={{ fontSize: '10px', color: '#aaa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cf.filename}>
+                          {cf.filename} ({cf.size_formatted})
+                        </div>
+                        {fcMeta.uploaded_url && (
+                          <a 
+                            href={fcMeta.uploaded_url} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            style={{ fontSize: '10px', color: '#00d2ff', textDecoration: 'underline', display: 'block', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            title={fcMeta.uploaded_url}
+                          >
+                            🔗 Remote URL
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Final Prompt Banner */}
             <div style={{ marginBottom: '20px' }}>
               <div style={{ fontSize: '13px', color: '#4ecdc4', fontWeight: 700, marginBottom: '6px' }}>

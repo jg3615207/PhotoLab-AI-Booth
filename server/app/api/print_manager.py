@@ -177,6 +177,18 @@ def get_job_detail(job_id: str):
             "created_at": data.get("created_at")
         }
 
+        # Check for local face crop files on disk (user1.jpg, user2.jpg, ...)
+        user_crop_files = []
+        if out_dir.exists():
+            for cf in sorted(out_dir.glob("user*.jpg")):
+                user_crop_files.append({
+                    "name": cf.stem,
+                    "filename": cf.name,
+                    "size_bytes": cf.stat().st_size,
+                    "size_formatted": format_file_size(cf.stat().st_size),
+                    "url": f"/api/images/{job_id}/{cf.name}"
+                })
+        data["user_crop_files"] = user_crop_files
         data["meta_json"] = exact_json
         return data
 

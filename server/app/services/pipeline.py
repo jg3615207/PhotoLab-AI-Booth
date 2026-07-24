@@ -139,6 +139,7 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
             multi_face_crop = False
 
         user_image_urls = None
+        face_crop_info = []
         if multi_face_crop:
             from app.services.frames import detect_and_crop_user_faces
             out_dir = Path(settings.output_dir) / job_id
@@ -149,6 +150,13 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
                 for crop in user_crops:
                     u_url = provider_v2.upload_image(crop["path"])
                     user_image_urls.append(u_url)
+                    face_crop_info.append({
+                        "name": crop["name"],
+                        "file_name": os.path.basename(crop["path"]),
+                        "uploaded_url": u_url,
+                        "box": crop.get("box"),
+                        "crop_bounds": crop.get("crop_bounds")
+                    })
                     print(f"[pipeline] Uploaded face crop for {crop['name']} (job {job_id}): {u_url}")
 
         if quality_override:
@@ -237,6 +245,11 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
             "v2_quality": v2_quality if use_v2 else None,
             "cost_time_ms": result.cost_time,
             "cost_money_usd": result.cost_money,
+            "multi_face_crop_enabled": bool(multi_face_crop),
+            "face_crops": face_crop_info,
+            "uploaded_user_image_urls": user_image_urls or [],
+            "rh_ref_url": rh_ref_url,
+            "exact_image_urls_payload": (user_image_urls or []) + ([rh_ref_url] if rh_ref_url else []),
             "created_at": datetime.now(timezone.utc).astimezone().isoformat()
         }
         # Save meta.json file in output directory

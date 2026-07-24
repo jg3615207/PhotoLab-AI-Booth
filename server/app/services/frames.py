@@ -116,7 +116,9 @@ def detect_and_crop_user_faces(image_path: str, output_dir: str) -> list[dict]:
             cv2.imwrite(crop_filepath, face_crop)
             cropped_users.append({
                 "name": user_name,
-                "path": crop_filepath
+                "path": crop_filepath,
+                "box": [int(x), int(y), int(w), int(h)],
+                "crop_bounds": [int(x1), int(y1), int(x2), int(y2)]
             })
             print(f"[face_crop] Saved face crop for {user_name} (x={x}) to {crop_filepath}")
 
