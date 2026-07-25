@@ -34,10 +34,23 @@ try:
 except ImportError:
     HAS_WIN32 = False
 
-# Determine project base directory
+# Determine project base directory & DB Path
 BASE_DIR = Path(__file__).resolve().parent
 SERVER_DIR = BASE_DIR / "server"
-DB_PATH = SERVER_DIR / "sqlite.db"
+
+def find_db_path():
+    candidates = [
+        SERVER_DIR / "data" / "booth.db",
+        BASE_DIR / "data" / "booth.db",
+        SERVER_DIR / "sqlite.db",
+        BASE_DIR / "sqlite.db",
+    ]
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    return str(candidates[0])
+
+DB_PATH = find_db_path()
 
 class PrintManagerApp(tk.Tk):
     def __init__(self):
@@ -48,13 +61,16 @@ class PrintManagerApp(tk.Tk):
         self.configure(bg="#0f0f1d")
 
         # Application state
-        self.db_path = str(DB_PATH)
+        self.db_path = find_db_path()
         self.is_paused = False
         self.auto_print = True
         self.current_printer = ""
         self.selected_job_id = None
         self.preview_photo = None
         self.worker_running = True
+
+        # Register external print manager active flag
+        self._register_app_active()
 
         # Configure styles
         self._init_styles()
@@ -568,6 +584,15 @@ class PrintManagerApp(tk.Tk):
             time.sleep(1)
             return True
 
+    def _register_app_active(self):
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('use_external_print_manager', '1')")
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            pass
+
     def _start_worker_thread(self):
         self.worker_thread = threading.Thread(target=self._print_worker_loop, daemon=True)
         self.worker_thread.start()
@@ -575,7 +600,7 @@ class PrintManagerApp(tk.Tk):
     def _print_worker_loop(self):
         """Background thread polling SQLite for queued jobs and spooling to printer."""
         while self.worker_running:
-            time.sleep(2)
+            time.sleep(1.5)
             if self.is_paused or not self.auto_print:
                 continue
 
@@ -601,20 +626,34 @@ class PrintManagerApp(tk.Tk):
 
                     self._log(f"Processing queued Job #{job_db_id} (Session: {session_id})...")
 
-                    # Spool to Windows printer
-                    success = self._spool_image_to_printer(img_path, copies=copies, printer_name=self.current_printer)
+                    # Image path fallback check
+                    if not img_path or not os.path.exists(img_path):
+                        out_dir = SERVER_DIR / "data" / "outputs" / str(session_id)
+                        for alt in [out_dir / "print_ready.jpg", out_dir / "framed.jpg", out_dir / "upscaled.jpg", out_dir / "raw.png"]:
+                            if alt.exists():
+                                img_path = str(alt)
+                                break
 
-                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    if success:
-                        conn.execute("UPDATE print_queue SET status='completed', printed_at=? WHERE id=?", (now_str, job_db_id))
-                        if session_id:
-                            conn.execute("UPDATE sessions SET print_status='completed', printed_at=? WHERE job_id=?", (now_str, session_id))
-                        self._log(f"✅ Job #{job_db_id} completed successfully!")
+                    if img_path and os.path.exists(img_path):
+                        # Spool to Windows printer
+                        success = self._spool_image_to_printer(img_path, copies=copies, printer_name=self.current_printer)
+
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        if success:
+                            conn.execute("UPDATE print_queue SET status='completed', printed_at=? WHERE id=?", (now_str, job_db_id))
+                            if session_id:
+                                conn.execute("UPDATE sessions SET print_status='completed', printed_at=? WHERE job_id=?", (now_str, session_id))
+                            self._log(f"✅ Job #{job_db_id} completed successfully!")
+                        else:
+                            conn.execute("UPDATE print_queue SET status='failed' WHERE id=?", (job_db_id,))
+                            if session_id:
+                                conn.execute("UPDATE sessions SET print_status='failed' WHERE job_id=?", (session_id,))
+                            self._log(f"❌ Job #{job_db_id} failed print spooling!")
                     else:
                         conn.execute("UPDATE print_queue SET status='failed' WHERE id=?", (job_db_id,))
                         if session_id:
                             conn.execute("UPDATE sessions SET print_status='failed' WHERE job_id=?", (session_id,))
-                        self._log(f"❌ Job #{job_db_id} failed print spooling!")
+                        self._log(f"⚠️ Job #{job_db_id} failed: Image file not found on disk ({img_path})")
 
                     conn.commit()
                 conn.close()
