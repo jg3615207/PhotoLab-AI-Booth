@@ -43,7 +43,7 @@ class PrintManagerApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("🖨️ PhotoLab Print Manager & Queuer v1.0")
-        self.geometry("1100 x 720")
+        self.geometry("1100x720")
         self.minsize(900, 600)
         self.configure(bg="#0f0f1d")
 
