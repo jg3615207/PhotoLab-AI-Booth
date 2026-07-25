@@ -357,3 +357,20 @@ def bulk_download(req: BulkActionRequest):
         raise HTTPException(404, "No valid image files found to package into zip")
 
     return FileResponse(tmp_zip_path, media_type="application/zip", filename="PhotoLab_Selected_Photos.zip")
+
+@router.post("/launch-print-app")
+def launch_print_app():
+    import subprocess
+    from app.config import settings
+    bat_path = Path(settings.base_dir).parent / "run_print_manager.bat"
+    if not bat_path.exists():
+        bat_path = Path(settings.base_dir) / "run_print_manager.bat"
+    
+    if bat_path.exists():
+        try:
+            subprocess.Popen(["cmd.exe", "/c", "start", "", str(bat_path)], shell=True, cwd=str(bat_path.parent))
+            return {"status": "launched", "path": str(bat_path)}
+        except Exception as e:
+            raise HTTPException(500, f"Failed to launch print app: {e}")
+    else:
+        raise HTTPException(404, "run_print_manager.bat script not found")

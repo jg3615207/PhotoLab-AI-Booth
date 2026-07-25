@@ -103,6 +103,19 @@ export default function PrintQueueTab() {
   const cancelledCount = queue.filter(q => q.status === 'cancelled').length;
   const failedCount = queue.filter(q => q.status === 'failed').length;
 
+  const handleLaunchPrintApp = async () => {
+    try {
+      const res = await fetch('/api/admin/launch-print-app', { method: 'POST' });
+      if (res.ok) {
+        alert(isZh ? "已成功在伺服器電腦啟動獨立 Python 列印管理程式！" : "Successfully launched Standalone Python Print Manager!");
+      } else {
+        alert(isZh ? "啟動獨立列印管理程式失敗" : "Failed to launch Standalone Print Manager");
+      }
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
   return (
     <div style={{ color: '#fff' }}>
       {/* Header */}
@@ -117,6 +130,25 @@ export default function PrintQueueTab() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={handleLaunchPrintApp}
+            className="btn-primary"
+            style={{
+              padding: '8px 16px',
+              fontSize: '13px',
+              background: 'linear-gradient(135deg, #00d2ff, #0072ff)',
+              borderRadius: '8px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              border: 'none',
+              boxShadow: '0 4px 12px rgba(0,210,255,0.3)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            💻 {isZh ? '開啟獨立 Python 列印 App' : 'Launch Standalone Python Print App'}
+          </button>
           <span style={{ fontSize: '12px', background: 'rgba(56,239,125,0.15)', color: '#38ef7d', border: '1px solid rgba(56,239,125,0.3)', padding: '4px 10px', borderRadius: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38ef7d', animation: 'pulse 1.5s infinite' }}></span>
             {isZh ? `自動更新中 (${lastRefreshed})` : `Auto-Refreshing (${lastRefreshed})`}

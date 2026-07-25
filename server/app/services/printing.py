@@ -109,7 +109,7 @@ def print_worker():
     from datetime import datetime, timezone
     while True:
         try:
-            if get_setting("print_queue_paused", "0") == "1":
+            if get_setting("print_queue_paused", "0") == "1" or get_setting("use_external_print_manager", "0") == "1":
                 time.sleep(2)
                 continue
 
