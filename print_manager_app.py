@@ -564,20 +564,79 @@ class PrintManagerApp(tk.Tk):
             messagebox.showerror("Error", str(e))
 
     def _spool_image_to_printer(self, image_path: str, copies: int = 1, printer_name: str = "") -> bool:
+        # Sanitize copies to integer
+        try:
+            copies = int(copies)
+            if copies <= 0:
+                copies = 1
+        except Exception:
+            copies = 1
+
         pname = printer_name or self.current_printer
         self._log(f"Spooling image: {Path(image_path).name} -> Printer: '{pname}' ({copies} copies)...")
 
+        if not os.path.exists(image_path):
+            self._log(f"Image file not found on disk: {image_path}")
+            return False
+
         if HAS_WIN32:
+            # 1. Try Direct GDI Printing via win32ui & win32print (High Quality, Fast, Direct Spool)
             try:
-                if not pname:
+                if not pname or pname == "No Printers Installed":
                     pname = win32print.GetDefaultPrinter()
 
+                im = Image.open(image_path).convert("RGB")
+                img_w, img_h = im.size
+
+                for copy_idx in range(copies):
+                    hprinter = win32print.OpenPrinter(pname)
+                    try:
+                        hdc = win32ui.CreateDC()
+                        hdc.CreatePrinterDC(pname)
+                        
+                        # Start document
+                        doc_name = f"PhotoLab_{Path(image_path).stem}"
+                        hdc.StartDoc(doc_name)
+                        hdc.StartPage()
+
+                        # Get printer device printable resolution
+                        prn_w = hdc.GetDeviceCaps(8)   # HORZRES
+                        prn_h = hdc.GetDeviceCaps(10)  # VERTRES
+
+                        # Calculate aspect-ratio scale & centering
+                        scale_x = prn_w / float(img_w)
+                        scale_y = prn_h / float(img_h)
+                        scale = min(scale_x, scale_y)
+
+                        dest_w = int(img_w * scale)
+                        dest_h = int(img_h * scale)
+                        offset_x = int((prn_w - dest_w) / 2)
+                        offset_y = int((prn_h - dest_h) / 2)
+
+                        # Draw image onto DC using PIL ImageWin
+                        from PIL import ImageWin
+                        dib = ImageWin.Dib(im)
+                        dib.draw(hdc.GetHandleOutput(), (offset_x, offset_y, offset_x + dest_w, offset_y + dest_h))
+
+                        hdc.EndPage()
+                        hdc.EndDoc()
+                        hdc.DeleteDC()
+                    finally:
+                        win32print.ClosePrinter(hprinter)
+
+                self._log(f"✅ Direct GDI Spooling successful to '{pname}'")
+                return True
+            except Exception as gdi_err:
+                self._log(f"GDI Spooling notice: {gdi_err}. Trying ShellExecute fallback...")
+
+            # 2. Fallback to ShellExecute if GDI fails
+            try:
                 for _ in range(copies):
                     win32api.ShellExecute(0, "printto", image_path, f'"{pname}"', ".", 0)
-                self._log(f"Successfully spooled to Windows Print Manager ({pname}).")
+                self._log(f"✅ ShellExecute command sent to '{pname}'")
                 return True
-            except Exception as e:
-                self._log(f"win32 ShellExecute error: {e}")
+            except Exception as shell_err:
+                self._log(f"ShellExecute error: {shell_err}")
                 return False
         else:
             self._log(f"[SIMULATION MODE] Simulated print for {image_path}")
