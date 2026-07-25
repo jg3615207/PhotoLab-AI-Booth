@@ -360,17 +360,25 @@ def bulk_download(req: BulkActionRequest):
 
 @router.post("/launch-print-app")
 def launch_print_app():
-    import subprocess
-    from app.config import settings
-    bat_path = Path(settings.base_dir).parent / "run_print_manager.bat"
+    import subprocess, sys
+    root_dir = Path(__file__).resolve().parent.parent.parent.parent
+    bat_path = root_dir / "run_print_manager.bat"
+    py_app_path = root_dir / "print_manager_app.py"
+
     if not bat_path.exists():
-        bat_path = Path(settings.base_dir) / "run_print_manager.bat"
-    
-    if bat_path.exists():
-        try:
-            subprocess.Popen(["cmd.exe", "/c", "start", "", str(bat_path)], shell=True, cwd=str(bat_path.parent))
-            return {"status": "launched", "path": str(bat_path)}
-        except Exception as e:
-            raise HTTPException(500, f"Failed to launch print app: {e}")
-    else:
-        raise HTTPException(404, "run_print_manager.bat script not found")
+        bat_path = root_dir / "server" / "run_print_manager.bat"
+        py_app_path = root_dir / "server" / "print_manager_app.py"
+
+    try:
+        if os.name == 'nt' and hasattr(os, 'startfile') and bat_path.exists():
+            os.startfile(str(bat_path))
+            return {"status": "launched", "method": "os.startfile", "path": str(bat_path)}
+        elif py_app_path.exists():
+            python_exe = sys.executable
+            subprocess.Popen([python_exe, str(py_app_path)], cwd=str(py_app_path.parent))
+            return {"status": "launched", "method": "subprocess", "path": str(py_app_path)}
+        else:
+            raise HTTPException(404, f"Print manager script not found at {bat_path}")
+    except Exception as e:
+        print(f"[launch_print_app] ERROR: {e}")
+        raise HTTPException(500, f"Failed to launch print app: {str(e)}")
