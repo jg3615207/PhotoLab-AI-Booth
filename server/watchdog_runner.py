@@ -73,7 +73,7 @@ def start_backend():
     if not os.path.exists(python_exe):
         python_exe = sys.executable  # Fallback to current interpreter
         
-    cmd = [python_exe, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8765"]
+    cmd = [python_exe, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8765", "--reload"]
     log_message(f"Starting backend: {' '.join(cmd)}")
     
     # Run uvicorn in a separate process group or shell to ensure signals propagate correctly

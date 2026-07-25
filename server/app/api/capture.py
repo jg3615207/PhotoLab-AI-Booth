@@ -133,6 +133,7 @@ def get_job(job_id: str):
         return dict(row)
 
 @router.post("/reprint/{job_id}")
+@router.post("/capture/reprint/{job_id}")
 def reprint(job_id: str):
     with get_db() as db:
         row = db.execute("SELECT print_image FROM sessions WHERE job_id=?", (job_id,)).fetchone()

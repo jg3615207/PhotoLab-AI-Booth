@@ -166,7 +166,10 @@ export default function JobHistoryTab() {
 
   const handleReprint = async (jobId: string) => {
     try {
-      const r = await fetch(`/api/capture/reprint/${jobId}`, { method: 'POST' });
+      let r = await fetch(`/api/admin/reprint/${jobId}`, { method: 'POST' });
+      if (!r.ok) {
+        r = await fetch(`/api/capture/reprint/${jobId}`, { method: 'POST' });
+      }
       if (r.ok) {
         alert(isZh ? "已成功重新加入列印隊列！" : "Successfully queued reprint!");
         loadPhotoJobs();
@@ -597,17 +600,22 @@ export default function JobHistoryTab() {
 
                         <td style={{ padding: '14px 14px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <img 
-                              src={`/api/images/${j.job_id}/print_ready.jpg`} 
-                              onError={(e: any) => {
-                                e.target.onerror = null;
-                                e.target.src = `/api/images/${j.job_id}/output.jpg`;
-                              }}
-                              alt="thumb" 
+                            <div 
                               onClick={() => setPreviewJobId(j.job_id)}
                               title={isZh ? "點擊預覽照片大圖" : "Click to preview image"}
-                              style={{ width: '44px', height: '58px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', flexShrink: 0, cursor: 'pointer' }} 
-                            />
+                              style={{ width: '48px', height: '64px', background: '#090914', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer', flexShrink: 0 }} 
+                            >
+                              <img 
+                                src={`/api/images/${j.job_id}/print_ready.jpg`} 
+                                onError={(e: any) => {
+                                  if (e.target.dataset.tried) return;
+                                  e.target.dataset.tried = 'true';
+                                  e.target.src = `/api/images/${j.job_id}/raw.png`;
+                                }}
+                                alt="thumb" 
+                                style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} 
+                              />
+                            </div>
                             <div>
                               <div 
                                 onClick={() => openJobDetail(j.job_id)}
@@ -837,12 +845,18 @@ export default function JobHistoryTab() {
               <button onClick={() => setPreviewJobId(null)} style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer' }}>×</button>
             </div>
 
-            <img 
-              src={`/api/images/${previewJobId}/print_ready.jpg`} 
-              onError={(e: any) => { e.target.src = `/api/images/${previewJobId}/output.jpg`; }} 
-              style={{ maxHeight: '65vh', maxWidth: '100%', objectFit: 'contain', borderRadius: '10px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
-              alt="preview" 
-            />
+            <div style={{ width: '100%', minHeight: '280px', maxHeight: '68vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#090914', borderRadius: '12px', padding: '12px' }}>
+              <img 
+                src={`/api/images/${previewJobId}/print_ready.jpg`} 
+                onError={(e: any) => {
+                  if (e.target.dataset.tried) return;
+                  e.target.dataset.tried = 'true';
+                  e.target.src = `/api/images/${previewJobId}/raw.png`;
+                }} 
+                style={{ maxHeight: '64vh', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
+                alt="preview" 
+              />
+            </div>
 
             <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
@@ -875,6 +889,16 @@ export default function JobHistoryTab() {
                 ⬇️ {isZh ? '下載照片' : 'Download'}
               </a>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Detail Spinner */}
+      {loadingDetail && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 310 }}>
+          <div style={{ background: '#121222', padding: '20px 32px', borderRadius: '12px', border: '1px solid rgba(0,210,255,0.3)', color: '#00d2ff', fontSize: '15px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ display: 'inline-block' }}>⏳</span>
+            {isZh ? '正在讀取任務詳細 JSON...' : 'Loading Job Detail JSON...'}
           </div>
         </div>
       )}
@@ -922,17 +946,52 @@ export default function JobHistoryTab() {
 
             {/* Image Preview Row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
-              <div style={{ textAlign: 'center', background: '#090914', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '6px' }}>📷 {isZh ? '訪客照片 (Input)' : 'Guest Input'}</div>
-                <img src={`/api/images/${selectedJobDetail.job_id}/input.jpg`} onError={(e: any) => { e.target.style.display = 'none'; }} style={{ maxHeight: '140px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px', margin: '0 auto', display: 'block' }} alt="input" />
+              <div style={{ textAlign: 'center', background: '#090914', padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: 600 }}>📷 {isZh ? '訪客照片 (Guest Input)' : 'Guest Input'}</div>
+                <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', borderRadius: '8px', padding: '6px' }}>
+                  <img 
+                    src={`/api/images/${selectedJobDetail.job_id}/input.jpg`} 
+                    onError={(e: any) => {
+                      if (e.target.dataset.tried) return;
+                      e.target.dataset.tried = 'true';
+                      e.target.src = `/api/uploads/${selectedJobDetail.job_id}/input.jpg`;
+                    }} 
+                    style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px' }} 
+                    alt="input" 
+                  />
+                </div>
               </div>
-              <div style={{ textAlign: 'center', background: '#090914', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '6px' }}>🎨 {isZh ? 'AI 原始產圖 (RAW PNG)' : 'Raw AI PNG'}</div>
-                <img src={`/api/images/${selectedJobDetail.job_id}/raw.png`} onError={(e: any) => { e.target.src = `/api/images/${selectedJobDetail.job_id}/output.jpg`; }} style={{ maxHeight: '140px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px', margin: '0 auto', display: 'block' }} alt="raw" />
+
+              <div style={{ textAlign: 'center', background: '#090914', padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: 600 }}>🎨 {isZh ? 'AI 原始產圖 (RAW PNG)' : 'Raw AI PNG'}</div>
+                <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', borderRadius: '8px', padding: '6px' }}>
+                  <img 
+                    src={`/api/images/${selectedJobDetail.job_id}/raw.png`} 
+                    onError={(e: any) => {
+                      if (e.target.dataset.tried) return;
+                      e.target.dataset.tried = 'true';
+                      e.target.src = `/api/images/${selectedJobDetail.job_id}/output.jpg`;
+                    }} 
+                    style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px' }} 
+                    alt="raw" 
+                  />
+                </div>
               </div>
-              <div style={{ textAlign: 'center', background: '#090914', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '6px' }}>🖨️ {isZh ? '相框列印成品 (Print Layout)' : 'Print Ready'}</div>
-                <img src={`/api/images/${selectedJobDetail.job_id}/print_ready.jpg`} onError={(e: any) => { e.target.src = `/api/images/${selectedJobDetail.job_id}/output.jpg`; }} style={{ maxHeight: '140px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px', margin: '0 auto', display: 'block' }} alt="print" />
+
+              <div style={{ textAlign: 'center', background: '#090914', padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: 600 }}>🖨️ {isZh ? '相框列印成品 (Print Layout)' : 'Print Ready'}</div>
+                <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', borderRadius: '8px', padding: '6px' }}>
+                  <img 
+                    src={`/api/images/${selectedJobDetail.job_id}/print_ready.jpg`} 
+                    onError={(e: any) => {
+                      if (e.target.dataset.tried) return;
+                      e.target.dataset.tried = 'true';
+                      e.target.src = `/api/images/${selectedJobDetail.job_id}/raw.png`;
+                    }} 
+                    style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px' }} 
+                    alt="print" 
+                  />
+                </div>
               </div>
             </div>
 
