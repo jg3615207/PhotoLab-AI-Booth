@@ -310,7 +310,7 @@ def admin_reprint(job_id: str):
                     break
         if not target_path or not os.path.exists(target_path):
             raise HTTPException(404, "Print image file not found")
-        enqueue_print(job_id, target_path)
+        enqueue_print(image_path=target_path, copies=1, session_id=job_id)
         return {"status": "queued"}
 
 @router.post("/bulk-reprint")
@@ -324,8 +324,14 @@ def bulk_reprint(req: BulkActionRequest):
             sess = db.execute("SELECT output_image, print_image FROM sessions WHERE job_id=?", (job_id,)).fetchone()
             if sess:
                 target_path = sess["print_image"] if (sess["print_image"] and os.path.exists(sess["print_image"])) else sess["output_image"]
+                if not target_path or not os.path.exists(target_path):
+                    out_dir = Path(settings.output_dir) / job_id
+                    for alt in [out_dir / "print_ready.jpg", out_dir / "framed.jpg", out_dir / "upscaled.jpg", out_dir / "raw.png"]:
+                        if alt.exists():
+                            target_path = str(alt)
+                            break
                 if target_path and os.path.exists(target_path):
-                    enqueue_print(job_id, target_path)
+                    enqueue_print(image_path=target_path, copies=1, session_id=job_id)
                     queued_count += 1
                     
     return {"status": "ok", "queued_count": queued_count}

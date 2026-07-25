@@ -626,13 +626,17 @@ class PrintManagerApp(tk.Tk):
 
                     self._log(f"Processing queued Job #{job_db_id} (Session: {session_id})...")
 
+                    # Determine target job_id for folder lookup
+                    target_job_id = session_id or (img_path if (img_path and not os.path.exists(img_path)) else "")
+                    
                     # Image path fallback check
                     if not img_path or not os.path.exists(img_path):
-                        out_dir = SERVER_DIR / "data" / "outputs" / str(session_id)
-                        for alt in [out_dir / "print_ready.jpg", out_dir / "framed.jpg", out_dir / "upscaled.jpg", out_dir / "raw.png"]:
-                            if alt.exists():
-                                img_path = str(alt)
-                                break
+                        if target_job_id:
+                            out_dir = SERVER_DIR / "data" / "outputs" / str(target_job_id)
+                            for alt in [out_dir / "print_ready.jpg", out_dir / "framed.jpg", out_dir / "upscaled.jpg", out_dir / "raw.png"]:
+                                if alt.exists():
+                                    img_path = str(alt)
+                                    break
 
                     if img_path and os.path.exists(img_path):
                         # Spool to Windows printer

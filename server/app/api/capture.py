@@ -136,9 +136,18 @@ def get_job(job_id: str):
 @router.post("/capture/reprint/{job_id}")
 def reprint(job_id: str):
     with get_db() as db:
-        row = db.execute("SELECT print_image FROM sessions WHERE job_id=?", (job_id,)).fetchone()
-        if not row or not row["print_image"]:
-            raise HTTPException(404)
+        row = db.execute("SELECT output_image, print_image FROM sessions WHERE job_id=?", (job_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Session not found")
+        target_path = row["print_image"] if (row["print_image"] and os.path.exists(row["print_image"])) else row["output_image"]
+        if not target_path or not os.path.exists(target_path):
+            out_dir = Path(settings.output_dir) / job_id
+            for alt in [out_dir / "print_ready.jpg", out_dir / "framed.jpg", out_dir / "upscaled.jpg", out_dir / "raw.png"]:
+                if alt.exists():
+                    target_path = str(alt)
+                    break
+        if not target_path or not os.path.exists(target_path):
+            raise HTTPException(404, "Print image file not found")
         from app.services.printing import enqueue_print
-        enqueue_print(row["print_image"])
+        enqueue_print(image_path=target_path, copies=1, session_id=job_id)
         return {"status": "queued"}
