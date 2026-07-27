@@ -109,13 +109,36 @@ export default function JobHistoryTab() {
     try {
       const res = await fetch('/api/admin/maintenance/live-jobs');
       const data = await res.json();
-      setLiveJobs(data.jobs || []);
+      setLiveJobs(Array.isArray(data) ? data : (data.jobs || []));
     } catch (err) {
       console.error("Failed to fetch live jobs", err);
     } finally {
       setLoadingLive(false);
     }
   };
+
+  useEffect(() => {
+    if (activeSubTab !== 'live_jobs') return;
+
+    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.host;
+    let ws: WebSocket | null = null;
+    try {
+      ws = new WebSocket(`${wsProto}//${wsHost}/api/ws/admin`);
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.event === 'job_update') {
+            setTimeout(loadLiveJobs, 400);
+          }
+        } catch (err) {}
+      };
+    } catch (err) {}
+
+    return () => {
+      if (ws) ws.close();
+    };
+  }, [activeSubTab]);
 
   const loadPhotoJobs = async () => {
     try {
