@@ -139,6 +139,38 @@ def init_db():
     except sqlite3.OperationalError:
         pass
     try:
+        conn.execute("ALTER TABLE sessions ADD COLUMN photos_captured TEXT DEFAULT '[]'")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE events ADD COLUMN max_photos_per_session INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE events ADD COLUMN watermark_text TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE events ADD COLUMN watermark_opacity REAL DEFAULT 0.5")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE events ADD COLUMN watermark_position TEXT DEFAULT 'bottom-right'")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE events ADD COLUMN max_prints_per_capture INTEGER DEFAULT 2")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE events ADD COLUMN total_print_quota INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE events ADD COLUMN paper_size TEXT DEFAULT '4x6'")
+    except sqlite3.OperationalError:
+        pass
+    try:
         conn.execute("ALTER TABLE styles ADD COLUMN transition_type TEXT DEFAULT 'glitch'")
     except sqlite3.OperationalError:
         pass

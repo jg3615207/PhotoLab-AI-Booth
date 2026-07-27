@@ -11,7 +11,7 @@ from app.providers.runninghub_v2 import RunningHubV2Provider
 from app.services.frames import download_image, upscale_image, compose_print_frame
 from app.api.ws import broadcast_job_update
 
-PUBLIC_BASE_URL = "https://math-univ-current-statewide.trycloudflare.com"
+PUBLIC_BASE_URL = settings.public_base_url if settings.public_base_url else "http://localhost:8000"
 
 provider_v1 = RunningHubProvider()
 provider_v2 = RunningHubV2Provider()
@@ -269,19 +269,30 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
 
     upscale_image(raw_path, upscaled_path, target_size=(1200, 1800))
 
-    # Find event custom frame or style default frame
+    # Find event custom frame, logo, watermark or style default frame
     frame_img = None
+    logo_path = None
+    watermark_text = None
+    watermark_pos = 'bottom-right'
+    watermark_op = 0.5
     allow_auto_print = 1
+
     with get_db() as db:
         sess = db.execute("SELECT event_id FROM sessions WHERE job_id=?", (job_id,)).fetchone()
         event_id = sess["event_id"] if sess else None
         
     if event_id:
         with get_db() as db:
-            event = db.execute("SELECT frame_path, allow_auto_print FROM events WHERE id=?", (event_id,)).fetchone()
+            event = db.execute("SELECT frame_path, logo_path, watermark_text, watermark_position, watermark_opacity, allow_auto_print FROM events WHERE id=?", (event_id,)).fetchone()
             if event:
                 if event["frame_path"] and os.path.exists(event["frame_path"]):
                     frame_img = event["frame_path"]
+                if "logo_path" in event.keys() and event["logo_path"] and os.path.exists(event["logo_path"]):
+                    logo_path = event["logo_path"]
+                if "watermark_text" in event.keys() and event["watermark_text"]:
+                    watermark_text = event["watermark_text"]
+                    watermark_pos = event["watermark_position"] or 'bottom-right'
+                    watermark_op = float(event["watermark_opacity"] or 0.5)
                 if "allow_auto_print" in event.keys() and event["allow_auto_print"] is not None:
                     allow_auto_print = int(event["allow_auto_print"])
                 
@@ -290,16 +301,17 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
         if os.path.exists(style_frame):
             frame_img = style_frame
 
-    if frame_img:
-        compose_print_frame(upscaled_path, framed_path, frame_path=frame_img)
-    else:
-        compose_print_frame(upscaled_path, framed_path)
-
     print_path = str(output_dir / "print_ready.jpg")
-    if frame_img:
-        compose_print_frame(upscaled_path, print_path, frame_path=frame_img, target_size=(1200, 1800))
-    else:
-        compose_print_frame(upscaled_path, print_path, target_size=(1200, 1800))
+    compose_print_frame(
+        upscale_path if os.path.exists(upscale_path) else raw_path,
+        print_path,
+        frame_path=frame_img,
+        target_size=(1200, 1800),
+        watermark_text=watermark_text,
+        watermark_position=watermark_pos,
+        watermark_opacity=watermark_op,
+        logo_path=logo_path
+    )
 
     # ---------------------------------------------------------------
     # Race coordinator: claim winner, cancel the other job if needed
@@ -392,10 +404,9 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
     except Exception as e:
         print(f"Failed to save copy to local directory: {e}")
 
-    # Generate QR code
+    # Generate QR code pointing to mobile sharing download page
     try:
-        pr = print_path.replace("\\", "/").split("/")[-2:]
-        result_url = f"{PUBLIC_BASE_URL}/api/images/{pr[0]}/{pr[1]}"
+        result_url = f"{PUBLIC_BASE_URL}/download/{job_id}"
         
         qr_bg = "white"
         qr_fg = "black"

@@ -2,13 +2,14 @@ from pydantic_settings import BaseSettings
 from pathlib import Path
 
 class Settings(BaseSettings):
-    api_key: str = "ef39127499964ff48a68690afd80f268"
+    api_key: str = ""
     rh_base_url: str = "https://www.runninghub.ai"
-    rh_workflow_id: str = "2078434616146497537"
+    rh_workflow_id: str = ""
 
-    openai_api_key: str = "sk-VKkoyB4BvptnANxDrGPmeiu5KxLgj6cn1Y0W4CY9aZfmZSV1u3rEOw3WZTvwzf9d"
-    openai_base_url: str = "https://opencode.ai/zen/v1"
-    openai_model: str = "mimo-v2.5-free"
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_model: str = "gpt-4o"
+    public_base_url: str = ""
 
     upload_dir: str = str(Path(__file__).parent.parent / "data" / "uploads")
     output_dir: str = str(Path(__file__).parent.parent / "data" / "outputs")

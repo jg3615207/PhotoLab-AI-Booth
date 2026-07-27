@@ -45,10 +45,21 @@ async def capture(
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     img_path = str(upload_dir / "input.jpg")
+    # File validation
+    if image.content_type and not image.content_type.startswith("image/"):
+        raise HTTPException(400, "Invalid file format. Only JPEG, PNG, or WEBP images are accepted.")
+
     content = await image.read()
+    if len(content) > 15 * 1024 * 1024:
+        raise HTTPException(400, "File size exceeds 15MB limit.")
+
     from PIL import Image as PILImage
     import io
-    pil_img = PILImage.open(io.BytesIO(content)).convert("RGB")
+    try:
+        pil_img = PILImage.open(io.BytesIO(content)).convert("RGB")
+    except Exception:
+        raise HTTPException(400, "Corrupted or invalid image file.")
+
     max_dim = 2048
     if max(pil_img.size) > max_dim:
         ratio = max_dim / max(pil_img.size)

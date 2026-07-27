@@ -155,7 +155,7 @@ export default function ProcessingScreen() {
   return (
     <div className="screen active" style={{ display: 'flex' }}>
         <div 
-          className={`transition-overlay transition-${activeTransition}-custom`} 
+          className={`transition-overlay ${activeTransition ? `transition-${activeTransition} transition-${activeTransition}-custom` : ''}`} 
           style={{
             '--transition-before-img': jobData?.jobId ? `url(/api/uploads/${jobData.jobId}/input.jpg)` : 'none'
           } as React.CSSProperties} 

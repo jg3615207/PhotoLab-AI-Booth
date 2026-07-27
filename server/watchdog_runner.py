@@ -11,7 +11,7 @@ from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
-DB_PATH = os.path.join(BASE_DIR, "sqlite.db")
+DB_PATH = os.path.join(BASE_DIR, "data", "booth.db")
 LOG_PATH = os.path.join(BASE_DIR, "watchdog.log")
 MEMORY_LIMIT_BYTES = 2 * 1024 * 1024 * 1024  # 2GB
 

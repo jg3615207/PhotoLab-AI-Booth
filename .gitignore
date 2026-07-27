@@ -23,5 +23,7 @@ server/venv/
 .opencode.bak/
 skills.bak/
 out/
+output/
+server/watchdog.log
 frontend/node_modules/
 frontend/dist/

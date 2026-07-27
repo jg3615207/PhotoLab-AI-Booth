@@ -12,6 +12,7 @@ interface SessionData {
   retake_limit?: number;
   enable_filters?: number | boolean;
   enable_gesture_capture?: number | boolean;
+  max_prints_per_capture?: number;
 }
 
 interface KioskContextType {

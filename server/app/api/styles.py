@@ -697,7 +697,8 @@ def analyze_vision(
 
 @router.get("/{file_path:path}")
 def serve_style_file(file_path: str):
-    path = STYLES_DIR / file_path
-    if not path.exists():
-        raise HTTPException(404)
+    path = (STYLES_DIR / file_path).resolve()
+    base_dir = STYLES_DIR.resolve()
+    if not path.is_relative_to(base_dir) or not path.exists():
+        raise HTTPException(404, "File not found")
     return FileResponse(str(path))

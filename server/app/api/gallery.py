@@ -36,6 +36,88 @@ def download_image(job_id: str):
                 
     raise HTTPException(404, "Image file not found")
 
+from fastapi.responses import HTMLResponse
+
+@router.get("/download/{job_id}", response_class=HTMLResponse)
+def mobile_download_page(job_id: str):
+    with get_db() as db:
+        sess = db.execute("SELECT job_id, style_id, created_at FROM sessions WHERE job_id=?", (job_id,)).fetchone()
+        if not sess:
+            return HTMLResponse("<h2>Photo not found or expired.</h2>", status_code=404)
+        
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhotoLab - My Photo</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
+        body {{ background: #0b0c16; color: #fff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }}
+        .card {{ background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(12px); border-radius: 20px; width: 100%; max-width: 480px; padding: 24px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }}
+        h1 {{ font-size: 22px; font-weight: 700; margin-bottom: 6px; background: linear-gradient(135deg, #a3b8ff, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
+        p.subtitle {{ font-size: 13px; color: #8a8d9e; margin-bottom: 20px; }}
+        .photo-container {{ position: relative; width: 100%; border-radius: 14px; overflow: hidden; margin-bottom: 20px; background: #000; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }}
+        .photo-container img {{ width: 100%; height: auto; display: block; }}
+        .btn {{ display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; border-radius: 12px; font-weight: 600; font-size: 15px; cursor: pointer; text-decoration: none; border: none; transition: transform 0.2s, background 0.2s; }}
+        .btn:active {{ transform: scale(0.98); }}
+        .btn-primary {{ background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; margin-bottom: 14px; }}
+        .share-label {{ font-size: 13px; color: #aaa; margin: 16px 0 10px; display: block; }}
+        .share-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }}
+        .share-btn {{ background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: #fff; padding: 10px; border-radius: 10px; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; }}
+        .share-btn:hover {{ background: rgba(255,255,255,0.16); }}
+        .toast {{ position: fixed; bottom: 30px; background: #667eea; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; display: none; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>✨ PhotoLab AI Memory</h1>
+        <p class="subtitle">Tap below to save or share your event photo</p>
+        
+        <div class="photo-container">
+            <img src="/api/images/{job_id}/download" alt="Event Photo">
+        </div>
+
+        <a href="/api/images/{job_id}/download" download="PhotoLab_{job_id}.jpg" class="btn btn-primary">
+            📥 Download High-Res Photo
+        </a>
+
+        <span class="share-label">Share to Social Media</span>
+        <div class="share-grid">
+            <a href="https://www.facebook.com/sharer/sharer.php?u=" id="fb-share" target="_blank" class="share-btn">
+                <span>📘</span> FB
+            </a>
+            <a href="https://twitter.com/intent/tweet?url=" id="tw-share" target="_blank" class="share-btn">
+                <span>🐦</span> X
+            </a>
+            <a href="https://line.me/R/msg/text/?" id="line-share" target="_blank" class="share-btn">
+                <span>💬</span> Line
+            </a>
+            <button onclick="copyShareLink()" class="share-btn">
+                <span>🔗</span> Copy
+            </button>
+        </div>
+    </div>
+    <div id="toast" class="toast">Link copied to clipboard!</div>
+
+    <script>
+        const currUrl = encodeURIComponent(window.location.href);
+        document.getElementById('fb-share').href = 'https://www.facebook.com/sharer/sharer.php?u=' + currUrl;
+        document.getElementById('tw-share').href = 'https://twitter.com/intent/tweet?url=' + currUrl + '&text=' + encodeURIComponent('Check out my AI photo!');
+        document.getElementById('line-share').href = 'https://line.me/R/msg/text/?' + currUrl;
+
+        function copyShareLink() {{
+            navigator.clipboard.writeText(window.location.href).then(() => {{
+                const t = document.getElementById('toast');
+                t.style.display = 'block';
+                setTimeout(() => t.style.display = 'none', 2500);
+            }});
+        }}
+    </script>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
+
 @router.get("/images/{job_id}/{filename}")
 def serve_image(job_id: str, filename: str):
     job_dir = os.path.join(settings.output_dir, job_id)

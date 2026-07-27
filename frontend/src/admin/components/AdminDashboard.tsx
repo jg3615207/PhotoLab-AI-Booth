@@ -8,6 +8,7 @@ import TransitionsTab from './TransitionsTab';
 import JobHistoryTab from './JobHistoryTab';
 import PrintQueueTab from './PrintQueueTab';
 import ToolsTab from './ToolsTab';
+import LiveJobsTab from './LiveJobsTab';
 import { AdminLangProvider, useAdminLang } from '../context/AdminLangContext';
 
 function DashboardContent() {
@@ -52,6 +53,9 @@ function DashboardContent() {
           <div className={`nav-item ${activeTab === 'sessions' ? 'active' : ''}`} onClick={() => setActiveTab('sessions')}>
             📅 {isZh ? '場次管理' : 'Session Manager'}
           </div>
+          <div className={`nav-item ${activeTab === 'live_jobs' ? 'active' : ''}`} onClick={() => setActiveTab('live_jobs')}>
+            📡 {isZh ? '即時監控' : 'Live Monitor'}
+          </div>
           <div className={`nav-item ${activeTab === 'jobs' ? 'active' : ''}`} onClick={() => setActiveTab('jobs')}>
             ⚙️ {isZh ? '任務管理 (Jobs)' : 'Jobs Manager'}
           </div>
@@ -79,6 +83,7 @@ function DashboardContent() {
       <div className="main-content">
         {activeTab === 'styles' && <StylesTab />}
         {activeTab === 'sessions' && <SessionsTab />}
+        {activeTab === 'live_jobs' && <LiveJobsTab />}
         {activeTab === 'jobs' && <JobHistoryTab />}
         {activeTab === 'print_queue' && <PrintQueueTab />}
         {activeTab === 'transitions' && <TransitionsTab />}

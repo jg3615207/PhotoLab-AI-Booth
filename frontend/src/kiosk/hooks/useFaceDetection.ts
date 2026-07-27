@@ -22,7 +22,11 @@ export function useFaceDetection(
     if (!enabled) return;
     const loadModels = async () => {
       try {
-        await faceapi.nets.tinyFaceDetector.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights');
+        try {
+          await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+        } catch {
+          await faceapi.nets.tinyFaceDetector.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights');
+        }
         setIsLoaded(true);
       } catch (e) {
         console.error('FaceAPI failed to load', e);

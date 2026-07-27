@@ -336,8 +336,17 @@ def bulk_reprint(req: BulkActionRequest):
                     
     return {"status": "ok", "queued_count": queued_count}
 
+from fastapi import APIRouter, HTTPException, BackgroundTasks
+
+def cleanup_file(filepath: str):
+    try:
+        if os.path.exists(filepath):
+            os.unlink(filepath)
+    except Exception as e:
+        print(f"Failed to cleanup temp file {filepath}: {e}")
+
 @router.post("/bulk-download")
-def bulk_download(req: BulkActionRequest):
+def bulk_download(req: BulkActionRequest, background_tasks: BackgroundTasks):
     if not req.job_ids:
         raise HTTPException(400, "No job_ids provided")
         
@@ -362,18 +371,22 @@ def bulk_download(req: BulkActionRequest):
         os.unlink(tmp_zip_path)
         raise HTTPException(404, "No valid image files found to package into zip")
 
+    background_tasks.add_task(cleanup_file, tmp_zip_path)
     return FileResponse(tmp_zip_path, media_type="application/zip", filename="PhotoLab_Selected_Photos.zip")
 
 @router.post("/launch-print-app")
 def launch_print_app():
     import subprocess, sys
-    root_dir = Path(__file__).resolve().parent.parent.parent.parent
-    bat_path = root_dir / "run_print_manager.bat"
-    py_app_path = root_dir / "print_manager_app.py"
+    # Find project root directory gracefully
+    current_dir = Path(__file__).resolve().parent
+    project_root = current_dir
+    while project_root.parent != project_root:
+        if (project_root / "print_manager_app.py").exists():
+            break
+        project_root = project_root.parent
 
-    if not bat_path.exists():
-        bat_path = root_dir / "server" / "run_print_manager.bat"
-        py_app_path = root_dir / "server" / "print_manager_app.py"
+    bat_path = project_root / "run_print_manager.bat"
+    py_app_path = project_root / "print_manager_app.py"
 
     try:
         if os.name == 'nt' and hasattr(os, 'startfile') and bat_path.exists():
@@ -384,7 +397,7 @@ def launch_print_app():
             subprocess.Popen([python_exe, str(py_app_path)], cwd=str(py_app_path.parent))
             return {"status": "launched", "method": "subprocess", "path": str(py_app_path)}
         else:
-            raise HTTPException(404, f"Print manager script not found at {bat_path}")
+            raise HTTPException(404, f"Print manager script not found at {py_app_path}")
     except Exception as e:
         print(f"[launch_print_app] ERROR: {e}")
         raise HTTPException(500, f"Failed to launch print app: {str(e)}")

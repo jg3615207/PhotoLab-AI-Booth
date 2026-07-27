@@ -56,6 +56,7 @@ def spool_print_simple(image_path: str, copies: int = 1, printer_name: str = "")
     try:
         import win32print
         import win32ui
+        import win32con
         from PIL import Image
 
         img = Image.open(image_path).convert("RGB")
@@ -129,7 +130,7 @@ def print_worker():
                         if session_id:
                             db.execute("UPDATE sessions SET print_status='completed', printed_at=? WHERE job_id=?", (now_str, session_id))
                     else:
-                        db.execute("UPDATE print_queue SET status='failed' WHERE id=?", (job_db_id))
+                        db.execute("UPDATE print_queue SET status='failed' WHERE id=?", (job_db_id,))
                         if session_id:
                             db.execute("UPDATE sessions SET print_status='failed' WHERE job_id=?", (session_id,))
         except Exception as e:

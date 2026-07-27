@@ -7,7 +7,18 @@ from app.db import init_db, seed_styles
 from app.api import styles, capture, gallery, events, admin, ws, transitions, print_manager
 from app.services.printing import start_print_worker
 
+from fastapi.middleware.cors import CORSMiddleware
+from app.api.gallery import mobile_download_page
+
 app = FastAPI(title="PhotoLab AI Booth")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(styles.router)
 app.include_router(capture.router)
@@ -19,13 +30,15 @@ app.include_router(transitions.router)
 app.include_router(transitions.public_router)
 app.include_router(print_manager.router)
 
-from app.db import init_db, seed_styles, get_setting
+@app.get("/download/{job_id}")
+def download_alias(job_id: str):
+    return mobile_download_page(job_id)
 
 @app.get("/api/health")
 def health():
     return {
         "status": "ok", 
-        "version": "0.17.0",
+        "version": "0.18.0",
         "custom_css": get_setting("custom_css", "")
     }
 

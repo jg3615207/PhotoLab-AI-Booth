@@ -730,6 +730,13 @@ class PrintManagerApp(tk.Tk):
 
     def _on_close(self):
         self.worker_running = False
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=5.0)
+            conn.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('use_external_print_manager', '0')")
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
         self.destroy()
 
 if __name__ == "__main__":

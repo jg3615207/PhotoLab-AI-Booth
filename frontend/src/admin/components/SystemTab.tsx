@@ -112,7 +112,26 @@ export default function SystemTab() {
   };
 
   const handleBackupDb = () => {
-    window.open('/api/health', '_blank');
+    window.open('/api/admin/maintenance/backup-db', '_blank');
+  };
+
+  const handleAutoCleanup = async () => {
+    const daysStr = prompt(isZh ? "請輸入保留天數 (超過此天數的舊相片將被清理):" : "Enter retention days (photos older than this will be cleaned):", "30");
+    if (!daysStr) return;
+    const days = parseInt(daysStr, 10) || 30;
+    if (!confirm(isZh ? `確定要自動清理超過 ${days} 天的舊相片嗎？` : `Clean photos older than ${days} days?`)) return;
+    
+    try {
+      const r = await fetch(`/api/admin/maintenance/auto-cleanup?days=${days}`, { method: 'POST' });
+      const data = await r.json();
+      if (r.ok) {
+        alert(isZh ? `自動清理完成！清理了 ${data.cleaned_sessions} 個舊場次，共 ${data.cleaned_files} 個檔案。` : `Cleanup complete! Cleared ${data.cleaned_sessions} sessions (${data.cleaned_files} files).`);
+      } else {
+        alert(`Failed: ${data.detail}`);
+      }
+    } catch (e: any) {
+      alert(`Error: ${e.message}`);
+    }
   };
 
   return (
@@ -221,6 +240,13 @@ export default function SystemTab() {
           style={{ padding: '10px 20px', borderRadius: '8px', background: '#8b2020', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}
         >
           🗑️ {isZh ? '清理快取與上傳檔案' : 'Clear Cache & Uploads'}
+        </button>
+
+        <button 
+          onClick={handleAutoCleanup} 
+          style={{ padding: '10px 20px', borderRadius: '8px', background: 'linear-gradient(135deg, #667eea, #764ba2)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}
+        >
+          🧹 {isZh ? '自動定期清理 (Retention)' : 'Auto Cleanup Retention'}
         </button>
       </div>
 
