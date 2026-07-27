@@ -8,6 +8,7 @@ import TransitionsTab from './TransitionsTab';
 import JobHistoryTab from './JobHistoryTab';
 import PrintQueueTab from './PrintQueueTab';
 import ToolsTab from './ToolsTab';
+import { AgentTab } from './AgentTab';
 import { AdminLangProvider, useAdminLang } from '../context/AdminLangContext';
 
 function DashboardContent() {
@@ -46,6 +47,9 @@ function DashboardContent() {
         </div>
         
         <div className="nav-menu-container">
+          <div className={`nav-item ${activeTab === 'agent' ? 'active' : ''}`} onClick={() => setActiveTab('agent')}>
+            🤖 {isZh ? 'AI 創作 Agent' : 'AI Style Agent'}
+          </div>
           <div className={`nav-item ${activeTab === 'styles' ? 'active' : ''}`} onClick={() => setActiveTab('styles')}>
             🎨 {isZh ? '風格庫' : 'Style Library'}
           </div>
@@ -64,7 +68,7 @@ function DashboardContent() {
           <div className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
             📊 {isZh ? '數據分析' : 'Analytics'}
           </div>
-          <div className={`nav-item ${activeTab === 'tools' ? 'active' : ''}`} onClick={() => setActiveTab('tools')}>
+          <div className={`nav-item ${activeTab === 'tools' ? 'active font-semibold' : ''}`} onClick={() => setActiveTab('tools')}>
             🛠️ {isZh ? '工具與資源' : 'Tools & Links'}
           </div>
           <div className={`nav-item ${activeTab === 'wiki' ? 'active' : ''}`} onClick={() => setActiveTab('wiki')}>
@@ -77,13 +81,14 @@ function DashboardContent() {
       </div>
 
       <div className="main-content">
+        {activeTab === 'agent' && <AgentTab onNavigateToStyles={() => setActiveTab('styles')} />}
         {activeTab === 'styles' && <StylesTab />}
         {activeTab === 'sessions' && <SessionsTab />}
         {activeTab === 'jobs' && <JobHistoryTab />}
         {activeTab === 'print_queue' && <PrintQueueTab />}
         {activeTab === 'transitions' && <TransitionsTab />}
         {activeTab === 'analytics' && <AnalyticsTab />}
-        {activeTab === 'tools' && <ToolsTab />}
+        {activeTab === 'tools' && <ToolsTab onOpenAgent={() => setActiveTab('agent')} />}
         {activeTab === 'wiki' && <WikiTab />}
         {activeTab === 'system' && <SystemTab />}
       </div>

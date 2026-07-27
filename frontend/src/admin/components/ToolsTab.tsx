@@ -11,6 +11,10 @@ interface UsefulLink {
   icon: string;
 }
 
+interface ToolsTabProps {
+  onOpenAgent?: () => void;
+}
+
 const USEFUL_WEBSITES: UsefulLink[] = [
   {
     id: 'agentpedia',
@@ -32,7 +36,7 @@ const USEFUL_WEBSITES: UsefulLink[] = [
   }
 ];
 
-export default function ToolsTab() {
+export default function ToolsTab({ onOpenAgent }: ToolsTabProps) {
   const { lang } = useAdminLang();
   const isZh = lang === 'zh-Hant';
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,7 +66,7 @@ export default function ToolsTab() {
             🛠️ {isZh ? '工具與資源箱' : 'Tools & Useful Resources'}
           </h1>
           <p style={{ color: '#aaa', fontSize: '14px', marginTop: '6px', margin: 0 }}>
-            {isZh ? '管理員精選實用網站、開發工具與系統輔助連結' : 'Handy developer resources, useful tools, and curated links for PhotoLab operators'}
+            {isZh ? '管理員精選實用網站、AI Agent 助手與開發輔助連結' : 'Handy developer resources, AI agents, and curated links for PhotoLab operators'}
           </p>
         </div>
 
@@ -81,6 +85,61 @@ export default function ToolsTab() {
             minWidth: '240px'
           }}
         />
+      </div>
+
+      {/* Featured AI Style Agent Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2))',
+        border: '1px solid rgba(168, 85, 247, 0.4)',
+        padding: '24px',
+        borderRadius: '16px',
+        marginBottom: '24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+      }}>
+        <div style={{ flex: 1, minWidth: '280px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '20px' }}>🤖</span>
+            <span style={{ fontSize: '18px', fontWeight: 700, color: '#fff' }}>
+              {isZh ? 'PhotoLab AI Style Agent (全功能視覺與 Prompt AI 助手)' : 'PhotoLab AI Style Agent (Vision & Prompt AI)'}
+            </span>
+            <span style={{ fontSize: '11px', background: 'rgba(74, 222, 128, 0.2)', color: '#4ade80', border: '1px solid rgba(74, 222, 128, 0.3)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
+              {isZh ? '強大推薦' : 'Featured Agent'}
+            </span>
+          </div>
+          <p style={{ color: '#cbd5e1', fontSize: '13px', margin: 0, lineHeight: 1.5 }}>
+            {isZh 
+              ? '具備圖片視覺分析 (Vision AI)、提示詞生成與優化 (Prompt Engineering)、RunningHub 參考圖自動繪製與一鍵建立風格庫的對話式 AI 助手。支援多會話持久儲存與雙語溝通！' 
+              : 'Conversational AI agent capable of Vision image analysis, PhotoLab-compliant prompt engineering, RunningHub T2I reference photo rendering, and multi-session style creation!'}
+          </p>
+        </div>
+
+        {onOpenAgent && (
+          <button
+            onClick={onOpenAgent}
+            style={{
+              padding: '12px 24px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: '14px',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(168, 85, 247, 0.4)',
+              transition: 'transform 0.2s, filter 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            ⚡ {isZh ? '立即開啟 AI 創作 Agent' : 'Launch AI Style Agent'}
+          </button>
+        )}
       </div>
 
       {/* Useful Websites Section */}

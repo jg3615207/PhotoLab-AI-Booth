@@ -124,6 +124,23 @@ def init_db():
             is_favorite INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS agent_conversations (
+            id TEXT PRIMARY KEY,
+            title TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS agent_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            conversation_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            images TEXT DEFAULT '[]',
+            tool_calls TEXT DEFAULT '[]',
+            tool_results TEXT DEFAULT '[]',
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (conversation_id) REFERENCES agent_conversations(id) ON DELETE CASCADE
+        );
     """)
     # Migration: add v2_model and v2_quality columns (v0.4.0)
     try:
