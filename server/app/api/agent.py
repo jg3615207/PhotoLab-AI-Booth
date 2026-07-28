@@ -249,6 +249,9 @@ class ChatRequest(BaseModel):
 def get_llm_config():
     """Reads OpenAI/LLM settings configured in PhotoLab app_settings."""
     api_key = get_setting("openai_api_key", settings.openai_api_key)
+    if not api_key or api_key.strip() == "":
+        api_key = settings.api_key or ""
+        
     base_url = get_setting("openai_base_url", settings.openai_base_url or "https://api.openai.com/v1")
     model = get_setting("openai_model", settings.openai_model or "gpt-4o-mini")
     
@@ -653,7 +656,10 @@ def serve_agent_image(filename: str):
 async def chat_stream(req: ChatRequest):
     cfg = get_llm_config()
     if not cfg["api_key"]:
-        raise HTTPException(status_code=400, detail="LLM API Key is missing. Configure OpenAI API Key in System Settings.")
+        raise HTTPException(
+            status_code=400, 
+            detail="LLM API Key is missing. Please set your API Key in Global Settings (⚙️ 全域設定 -> Vision AI / LLM Settings)."
+        )
 
     conv_id = req.conversation_id
     conn = get_conn()

@@ -204,7 +204,9 @@ export const AgentTab: React.FC<AgentTabProps> = ({ onNavigateToStyles }) => {
       });
 
       if (!res.ok) {
-        throw new Error(`Server returned ${res.status}`);
+        const errData = await res.json().catch(() => ({}));
+        const errMsg = errData.detail || `${isZh ? '伺服器回應錯誤' : 'Server returned'} ${res.status}`;
+        throw new Error(errMsg);
       }
 
       const reader = res.body?.getReader();
