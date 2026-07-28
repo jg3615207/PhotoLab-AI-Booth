@@ -366,7 +366,7 @@ async def execute_tool(name: str, args: Dict[str, Any], lang: str = "en") -> Dic
         payload = {
             "model": cfg["model"],
             "messages": [{"role": "user", "content": content_payload}],
-            "max_tokens": 2048
+            "max_tokens": 4096
         }
         
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -408,7 +408,7 @@ async def execute_tool(name: str, args: Dict[str, Any], lang: str = "en") -> Dic
                     {"role": "system", "content": sys_msg},
                     {"role": "user", "content": f"Create prompt template for: {base_concept}"}
                 ],
-                "max_tokens": 1500
+                "max_tokens": 3000
             }
             try:
                 async with httpx.AsyncClient(timeout=30.0) as client:
@@ -439,7 +439,7 @@ async def execute_tool(name: str, args: Dict[str, Any], lang: str = "en") -> Dic
                     {"role": "system", "content": sys_msg},
                     {"role": "user", "content": f"Existing Prompt: \"{existing}\"\nFeedback: {feedback}"}
                 ],
-                "max_tokens": 1500
+                "max_tokens": 3000
             }
             try:
                 async with httpx.AsyncClient(timeout=20.0) as client:
@@ -727,7 +727,7 @@ async def chat_stream(req: ChatRequest):
             "tools": AGENT_TOOLS,
             "tool_choice": "auto",
             "stream": True,
-            "max_tokens": 4096
+            "max_tokens": 8192
         }
         
         full_assistant_text = ""
