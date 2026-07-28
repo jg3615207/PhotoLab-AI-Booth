@@ -366,10 +366,10 @@ async def execute_tool(name: str, args: Dict[str, Any], lang: str = "en") -> Dic
         payload = {
             "model": cfg["model"],
             "messages": [{"role": "user", "content": content_payload}],
-            "max_tokens": 800
+            "max_tokens": 2048
         }
         
-        async with httpx.AsyncClient(timeout=45.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(f"{cfg['base_url']}/chat/completions", headers=headers, json=payload)
             if resp.status_code == 200:
                 res_json = resp.json()
@@ -399,7 +399,7 @@ async def execute_tool(name: str, args: Dict[str, Any], lang: str = "en") -> Dic
                 "ComfyUI / Stable Diffusion image-to-image prompt template in English. "
                 "Format: Describe art medium, colors, lighting, atmospheric details. "
                 "Add guardrails: 'Transform ONLY the person from input photo into this style. Do NOT add extra people. Reference image is for style/colors only.' "
-                "Output ONLY the final prompt template text without intro or explanations."
+                "Output ONLY the complete final prompt template text without intro or explanations."
             )
             headers = {"Authorization": f"Bearer {cfg['api_key']}", "Content-Type": "application/json"}
             payload = {
@@ -408,10 +408,10 @@ async def execute_tool(name: str, args: Dict[str, Any], lang: str = "en") -> Dic
                     {"role": "system", "content": sys_msg},
                     {"role": "user", "content": f"Create prompt template for: {base_concept}"}
                 ],
-                "max_tokens": 300
+                "max_tokens": 1500
             }
             try:
-                async with httpx.AsyncClient(timeout=20.0) as client:
+                async with httpx.AsyncClient(timeout=30.0) as client:
                     resp = await client.post(f"{cfg['base_url']}/chat/completions", headers=headers, json=payload)
                     if resp.status_code == 200:
                         crafted = resp.json()["choices"][0]["message"]["content"].strip().strip('"')
@@ -439,7 +439,7 @@ async def execute_tool(name: str, args: Dict[str, Any], lang: str = "en") -> Dic
                     {"role": "system", "content": sys_msg},
                     {"role": "user", "content": f"Existing Prompt: \"{existing}\"\nFeedback: {feedback}"}
                 ],
-                "max_tokens": 300
+                "max_tokens": 1500
             }
             try:
                 async with httpx.AsyncClient(timeout=20.0) as client:
@@ -726,14 +726,15 @@ async def chat_stream(req: ChatRequest):
             "messages": messages_payload,
             "tools": AGENT_TOOLS,
             "tool_choice": "auto",
-            "stream": True
+            "stream": True,
+            "max_tokens": 4096
         }
         
         full_assistant_text = ""
         collected_tool_calls = []
 
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 async with client.stream("POST", f"{cfg['base_url']}/chat/completions", headers=headers, json=payload) as response:
                     if response.status_code != 200:
                         err_body = await response.aread()
