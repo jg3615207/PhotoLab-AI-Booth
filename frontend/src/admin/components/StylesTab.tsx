@@ -39,6 +39,41 @@ export default function StylesTab() {
   const [editingStyle, setEditingStyle] = useState<StyleItem | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [testStyle, setTestStyle] = useState<StyleItem | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const handleCloneStyle = async (s: StyleItem) => {
+    const newId = `${s.id}_copy_${Date.now().toString().slice(-4)}`;
+    const newName = `${s.name} (${isZh ? '副本' : 'Copy'})`;
+    try {
+      const form = new FormData();
+      form.append('id', newId);
+      form.append('name', newName);
+      form.append('prompt_template', s.prompt_template || '');
+      form.append('max_people', (s.max_people || 1).toString());
+      form.append('aspect_ratio', s.aspect_ratio || '16:9');
+      form.append('resolution', s.resolution || '2k');
+      form.append('seed', s.seed || '');
+      form.append('provider', s.provider || 'v2');
+      if (s.provider === 'v2') {
+        form.append('v2_model', s.v2_model || 'nb2-cheap');
+        form.append('v2_quality', s.v2_quality || 'medium');
+      }
+      form.append('transition_type', s.transition_type || 'glitch');
+      form.append('animated_thumbnail', s.animated_thumbnail || '');
+      form.append('dynamic_prompt_enabled', (s.dynamic_prompt_enabled || 0).toString());
+      form.append('multi_face_crop_enabled', (s.multi_face_crop_enabled || 0).toString());
+
+      const res = await fetch('/api/styles', {
+        method: 'POST',
+        body: form
+      });
+      if (res.ok) {
+        loadStyles();
+      }
+    } catch (err) {
+      console.error("Clone style failed", err);
+    }
+  };
 
   // Form inputs
   const [fId, setFId] = useState('');
@@ -641,11 +676,29 @@ export default function StylesTab() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <h1 style={{ color: '#fff', margin: 0 }}>🎨 {isZh ? '風格庫管理' : 'Style Library'}</h1>
-        <button className="btn-primary" onClick={() => { resetForm(); setShowAddForm(true); }} style={{ padding: '10px 20px', borderRadius: '8px' }}>
-          + {isZh ? '新增風格' : 'New Style'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder={isZh ? '搜尋風格名稱、ID 或提示詞...' : 'Search style name, ID, or prompt...'}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255,255,255,0.15)',
+              background: 'rgba(5, 5, 12, 0.8)',
+              color: '#fff',
+              fontSize: '13px',
+              width: '240px',
+              outline: 'none'
+            }}
+          />
+          <button className="btn-primary" onClick={() => { resetForm(); setShowAddForm(true); }} style={{ padding: '10px 20px', borderRadius: '8px' }}>
+            + {isZh ? '新增風格' : 'New Style'}
+          </button>
+        </div>
       </div>
 
       {/* Add / Edit Form Modal */}
@@ -1152,7 +1205,15 @@ export default function StylesTab() {
         <div style={{ color: '#888', padding: '32px', textAlign: 'center' }}>{isZh ? '載入風格中...' : 'Loading styles...'}</div>
       ) : (
         <div style={{ display: 'grid', gap: '12px' }}>
-          {styles.map(s => (
+          {styles.filter(s => {
+            if (!searchTerm.trim()) return true;
+            const term = searchTerm.toLowerCase();
+            return (
+              s.name.toLowerCase().includes(term) ||
+              s.id.toLowerCase().includes(term) ||
+              (s.prompt_template && s.prompt_template.toLowerCase().includes(term))
+            );
+          }).map(s => (
             <div key={s.id} style={{ background: 'rgba(26, 26, 46, 0.8)', padding: '16px', borderRadius: '12px', display: 'grid', gridTemplateColumns: '80px 1.5fr 2fr 1fr 1fr auto', alignItems: 'center', gap: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
               {/* FIXED THUMBNAIL SRC - NO EXTRA /api PREPENDED */}
               <img 
@@ -1235,6 +1296,7 @@ export default function StylesTab() {
               <div style={{ display: 'flex', gap: '6px' }}>
                 <button className="btn-secondary" onClick={() => handleUploadFrame(s.id)} style={{ padding: '6px 10px', fontSize: '12px' }}>{isZh ? '邊框 PNG' : 'Frame PNG'}</button>
                 <button className="btn-primary" onClick={() => openEditModal(s)} style={{ padding: '6px 12px', fontSize: '12px' }}>{isZh ? '編輯' : 'Edit'}</button>
+                <button className="btn-secondary" onClick={() => handleCloneStyle(s)} style={{ padding: '6px 10px', fontSize: '12px' }}>📋 {isZh ? '複製' : 'Clone'}</button>
                 <button className="btn-secondary" onClick={() => openTestModal(s)} style={{ padding: '6px 12px', fontSize: '12px' }}>{isZh ? '測試' : 'Test'}</button>
                 {s.active ? (
                   <button onClick={() => handleToggleActive(s.id, false)} style={{ padding: '6px 10px', fontSize: '12px', background: '#8b2020', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>{isZh ? '隱藏' : 'Hide'}</button>

@@ -132,6 +132,32 @@ export default function AnalyticsTab() {
         )}
       </div>
 
+      {/* Style Popularity Breakdown */}
+      {stats.by_style && stats.by_style.length > 0 && (
+        <div style={{ background: 'rgba(26, 26, 46, 0.8)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '28px' }}>
+          <h3 style={{ color: '#fff', fontSize: '18px', marginBottom: '16px' }}>
+            🎨 {isZh ? '風格受歡迎程度統計' : 'Style Popularity Breakdown'}
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {stats.by_style.map(item => {
+              const styleTotal = stats.range_total || stats.total || 1;
+              const pct = Math.round((item.count / styleTotal) * 100);
+              return (
+                <div key={item.style_id} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#e2e8f0' }}>
+                    <span style={{ fontWeight: 600, color: '#a3b8ff' }}>{item.style_id}</span>
+                    <span style={{ color: '#aaa' }}>{item.count} {isZh ? '次' : 'gens'} ({pct}%)</span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.max(pct, 2)}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #a855f7)', borderRadius: '4px' }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{ background: 'rgba(26, 26, 46, 0.8)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
         <h3 style={{ color: '#fff', fontSize: '18px', marginBottom: '20px' }}>
           📈 {isZh ? '今日每小時生成分佈' : 'Hourly Distribution Today'}
@@ -141,6 +167,7 @@ export default function AnalyticsTab() {
             <div key={hr} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
               <div style={{ color: count > 0 ? '#4f4' : '#555', fontSize: '11px', marginBottom: '4px' }}>{count > 0 ? count : ''}</div>
               <div 
+                title={`${hr}:00 - ${count} ${isZh ? '次生成' : 'generations'}`}
                 style={{ 
                   width: '100%', 
                   height: `${(count / maxCount) * 100}%`, 

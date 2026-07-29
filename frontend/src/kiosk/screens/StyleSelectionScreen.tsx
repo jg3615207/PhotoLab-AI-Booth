@@ -55,6 +55,10 @@ export default function StyleSelectionScreen() {
               onClick={() => handleSelectStyle(s)}
               onMouseEnter={() => setHoveredStyleId(s.id)}
               onMouseLeave={() => setHoveredStyleId(null)}
+              onPointerEnter={() => setHoveredStyleId(s.id)}
+              onPointerLeave={() => setHoveredStyleId(null)}
+              onTouchStart={() => setHoveredStyleId(s.id)}
+              onTouchEnd={() => setTimeout(() => setHoveredStyleId(null), 3000)}
             >
               {isHovered && s.animated_thumbnail ? (
                 hasVideo ? (

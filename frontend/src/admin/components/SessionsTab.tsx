@@ -512,8 +512,22 @@ export default function SessionsTab() {
               }} 
             />
             <strong style={{ color: '#fff' }}>{s.id}</strong>
-            <span style={{ color: '#ddd' }}>{s.name}</span>
-            <span style={{ color: '#aaa' }}>{s.jobs_count} / {s.frame_cap > 0 ? s.frame_cap : '∞'}</span>
+            <div>
+              <div style={{ color: '#fff', fontWeight: 600 }}>{s.name}</div>
+              <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>
+                🎨 {s.allowed_styles?.length || 0} {isZh ? '個允許風格' : 'allowed styles'}
+              </div>
+            </div>
+            <div>
+              <span style={{ fontSize: '13px', color: '#e2e8f0', fontWeight: 600 }}>
+                📸 {s.jobs_count} / {s.frame_cap > 0 ? s.frame_cap : '∞'}
+              </span>
+              {s.expire_date && (
+                <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>
+                  ⏳ {s.expire_date}
+                </div>
+              )}
+            </div>
             <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
               <button className="btn-secondary" onClick={() => openEditForm(s)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>{isZh ? '編輯' : 'Edit'}</button>
               <button className="btn-secondary" onClick={() => cloneSession(s)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>{isZh ? '複製' : 'Clone'}</button>

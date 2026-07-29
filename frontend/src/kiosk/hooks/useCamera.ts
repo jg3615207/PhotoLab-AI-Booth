@@ -5,15 +5,39 @@ export function useCamera() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isMirrored, setIsMirrored] = useState(false);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
 
-  const startCamera = async () => {
+  useEffect(() => {
+    navigator.mediaDevices?.enumerateDevices()
+      .then(devs => {
+        const videoInputs = devs.filter(d => d.kind === 'videoinput');
+        setDevices(videoInputs);
+        if (videoInputs.length > 0 && !selectedDeviceId) {
+          setSelectedDeviceId(videoInputs[0].deviceId);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const startCamera = async (deviceId = selectedDeviceId) => {
     try {
       if (stream) {
         stream.getTracks().forEach(t => t.stop());
       }
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1080 }, height: { ideal: 1920 } }
-      });
+      
+      const videoConstraints: MediaTrackConstraints = deviceId
+        ? { deviceId: { exact: deviceId }, width: { ideal: 1080 }, height: { ideal: 1920 } }
+        : { facingMode: 'user', width: { ideal: 1080 }, height: { ideal: 1920 } };
+
+      let newStream: MediaStream;
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
+      } catch (firstErr) {
+        // Fallback to basic video without resolution constraints
+        newStream = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId } : true });
+      }
+
       setStream(newStream);
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
@@ -45,6 +69,9 @@ export function useCamera() {
     stream,
     error,
     isMirrored,
+    devices,
+    selectedDeviceId,
+    setSelectedDeviceId,
     startCamera,
     stopCamera,
     toggleMirror

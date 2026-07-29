@@ -68,6 +68,12 @@ export default function JobHistoryTab() {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(50);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalJobsCount, setTotalJobsCount] = useState(0);
+
   // Bulk Selection states
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
   const [bulkProcessing, setBulkProcessing] = useState(false);
@@ -140,16 +146,24 @@ export default function JobHistoryTab() {
     };
   }, [activeSubTab]);
 
-  const loadPhotoJobs = async () => {
+  const loadPhotoJobs = async (targetPage = currentPage) => {
     try {
       const [resJobs, resEvents] = await Promise.all([
-        fetch(`/api/admin/job-history?event_id=${selectedEvent}&status=${selectedStatus}`),
+        fetch(`/api/admin/job-history?event_id=${selectedEvent}&status=${selectedStatus}&page=${targetPage}&page_size=${pageSize}`),
         fetch('/api/events')
       ]);
       const dataJobs = await resJobs.json();
       const dataEvents = await resEvents.json();
 
-      setJobs(dataJobs || []);
+      if (dataJobs && Array.isArray(dataJobs.items)) {
+        setJobs(dataJobs.items);
+        setTotalPages(dataJobs.total_pages || 1);
+        setTotalJobsCount(dataJobs.total || 0);
+        setCurrentPage(dataJobs.page || 1);
+      } else {
+        setJobs(Array.isArray(dataJobs) ? dataJobs : []);
+        setTotalJobsCount(Array.isArray(dataJobs) ? dataJobs.length : 0);
+      }
       setEvents(dataEvents || []);
     } catch (err) {
       console.error("Failed to fetch photo jobs history", err);
@@ -771,6 +785,52 @@ export default function JobHistoryTab() {
                   })}
                 </tbody>
               </table>
+
+              {/* Pagination Controls */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.2)' }}>
+                <div style={{ fontSize: '13px', color: '#aaa' }}>
+                  {isZh ? `顯示第 ${totalJobsCount > 0 ? (currentPage - 1) * pageSize + 1 : 0} - ${Math.min(currentPage * pageSize, totalJobsCount)} 筆，共 ${totalJobsCount} 筆` : `Showing ${totalJobsCount > 0 ? (currentPage - 1) * pageSize + 1 : 0} - ${Math.min(currentPage * pageSize, totalJobsCount)} of ${totalJobsCount} jobs`}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button
+                    disabled={currentPage <= 1}
+                    onClick={() => loadPhotoJobs(currentPage - 1)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: currentPage <= 1 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.08)',
+                      color: '#fff',
+                      cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
+                      opacity: currentPage <= 1 ? 0.4 : 1,
+                      fontSize: '12px',
+                      fontWeight: 600
+                    }}
+                  >
+                    ◀ {isZh ? '上一頁' : 'Prev'}
+                  </button>
+                  <span style={{ fontSize: '13px', color: '#e2e8f0', fontWeight: 600 }}>
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    disabled={currentPage >= totalPages}
+                    onClick={() => loadPhotoJobs(currentPage + 1)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: currentPage >= totalPages ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.08)',
+                      color: '#fff',
+                      cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
+                      opacity: currentPage >= totalPages ? 0.4 : 1,
+                      fontSize: '12px',
+                      fontWeight: 600
+                    }}
+                  >
+                    {isZh ? '下一頁' : 'Next'} ▶
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </>

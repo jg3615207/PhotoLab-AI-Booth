@@ -38,7 +38,9 @@ export function useHandsTracker(
 
     try {
       const hands = new window.Hands({
-        locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        locateFile: (file: string) => {
+          return `/mediapipe/${file}`;
+        }
       });
 
       hands.setOptions({

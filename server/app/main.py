@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from app.config import settings
-from app.db import init_db, seed_styles
+from app.db import init_db, seed_styles, get_setting
 from app.api import styles, capture, gallery, events, admin, ws, transitions, print_manager, agent
 from app.services.printing import start_print_worker
 
@@ -14,7 +14,13 @@ app = FastAPI(title="PhotoLab AI Booth")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8000",
+        settings.public_base_url,
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,7 +45,7 @@ def download_alias(job_id: str):
 def health():
     return {
         "status": "ok", 
-        "version": "0.19.0",
+        "version": "0.20.0",
         "custom_css": get_setting("custom_css", "")
     }
 

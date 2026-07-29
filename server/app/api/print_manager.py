@@ -25,9 +25,34 @@ def format_file_size(size_bytes: int) -> str:
 def get_job_history(
     event_id: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    limit: int = Query(200)
+    page: int = Query(1),
+    page_size: int = Query(50),
+    limit: Optional[int] = Query(None)
 ):
+    if limit is not None:
+        page_size = limit
+
+    effective_page = max(1, page)
+    effective_size = max(1, min(page_size, 200))
+    offset = (effective_page - 1) * effective_size
+
     with get_db() as db:
+        params = []
+        conditions = []
+        
+        if event_id and event_id != "all":
+            conditions.append("s.event_id = ?")
+            params.append(event_id)
+        if status and status != "all":
+            conditions.append("s.status = ?")
+            params.append(status)
+
+        count_query = "SELECT COUNT(*) FROM sessions s"
+        if conditions:
+            count_query += " WHERE " + " AND ".join(conditions)
+
+        total_count = db.execute(count_query, params).fetchone()[0]
+
         query = """
             SELECT 
                 s.job_id,
@@ -52,28 +77,17 @@ def get_job_history(
             LEFT JOIN events e ON s.event_id = e.id
             LEFT JOIN styles st ON s.style_id = st.id
         """
-        params = []
-        conditions = []
-        
-        if event_id and event_id != "all":
-            conditions.append("s.event_id = ?")
-            params.append(event_id)
-        if status and status != "all":
-            conditions.append("s.status = ?")
-            params.append(status)
-            
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
             
-        query += " ORDER BY s.created_at DESC LIMIT ?"
-        params.append(limit)
+        query += " ORDER BY s.created_at DESC LIMIT ? OFFSET ?"
+        data_params = list(params) + [effective_size, offset]
         
-        rows = db.execute(query, params).fetchall()
+        rows = db.execute(query, data_params).fetchall()
         result = []
         for r in rows:
             d = dict(r)
             
-            # File metadata
             out_path = d.get("print_image") or d.get("output_image")
             file_size_str = "N/A"
             filename_str = f"{d['job_id']}.jpg"
@@ -88,8 +102,15 @@ def get_job_history(
             d["file_size_formatted"] = file_size_str
             d["is_downloaded"] = d["download_count"] > 0
             result.append(d)
-            
-        return result
+
+        import math
+        return {
+            "items": result,
+            "total": total_count,
+            "page": effective_page,
+            "page_size": effective_size,
+            "total_pages": math.ceil(total_count / effective_size) if effective_size > 0 else 1
+        }
 
 @router.get("/job-detail/{job_id}")
 def get_job_detail(job_id: str):

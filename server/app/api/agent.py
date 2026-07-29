@@ -645,7 +645,11 @@ def clear_all_conversations():
 
 @router.get("/images/{filename}")
 def serve_agent_image(filename: str):
-    file_path = AGENT_IMAGES_DIR / filename
+    safe_filename = Path(filename).name
+    file_path = (AGENT_IMAGES_DIR / safe_filename).resolve()
+    base_dir = AGENT_IMAGES_DIR.resolve()
+    if not str(file_path).startswith(str(base_dir)):
+        raise HTTPException(status_code=403, detail="Access denied")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Image not found")
     return FileResponse(file_path)

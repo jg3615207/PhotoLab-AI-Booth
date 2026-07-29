@@ -141,6 +141,11 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (conversation_id) REFERENCES agent_conversations(id) ON DELETE CASCADE
         );
+        CREATE INDEX IF NOT EXISTS idx_sessions_event_id ON sessions(event_id);
+        CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
+        CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at);
+        CREATE INDEX IF NOT EXISTS idx_print_queue_status ON print_queue(status);
+        CREATE INDEX IF NOT EXISTS idx_agent_messages_conv ON agent_messages(conversation_id);
     """)
     # Migration: add v2_model and v2_quality columns (v0.4.0)
     try:

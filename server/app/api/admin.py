@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from app.config import settings
 from app.db import get_db
 from pathlib import Path
-import shutil, json
+import shutil, json, os, sqlite3, tempfile
 
 router = APIRouter(prefix="/api/admin/maintenance", tags=["admin"])
 
@@ -29,7 +29,18 @@ def get_watchdog_status():
 
 @router.get("/backup-db")
 def backup_db():
-    return FileResponse(settings.db_path, filename="photolab_backup.db")
+    temp_dir = tempfile.gettempdir()
+    backup_path = os.path.join(temp_dir, "photolab_backup.db")
+    try:
+        src = sqlite3.connect(settings.db_path)
+        dst = sqlite3.connect(backup_path)
+        with dst:
+            src.backup(dst)
+        dst.close()
+        src.close()
+        return FileResponse(backup_path, filename="photolab_backup.db")
+    except Exception as e:
+        return FileResponse(settings.db_path, filename="photolab_backup.db")
 
 @router.post("/clear-cache")
 def clear_cache():

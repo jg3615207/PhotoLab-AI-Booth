@@ -164,6 +164,17 @@ export const AgentTab: React.FC<AgentTabProps> = ({ onNavigateToStyles }) => {
     setTimeout(() => setCopiedText(null), 2000);
   };
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsGenerating(false);
+    setActiveToolName(null);
+  };
+
   const handleSendMessage = async (customText?: string) => {
     const textToSend = customText !== undefined ? customText : inputMessage;
     if (!textToSend.trim() && attachedImages.length === 0) return;
@@ -174,6 +185,9 @@ export const AgentTab: React.FC<AgentTabProps> = ({ onNavigateToStyles }) => {
     setAttachedImages([]);
     setIsGenerating(true);
     setActiveToolName(null);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     const userMsg: Message = {
       role: 'user',
@@ -195,6 +209,7 @@ export const AgentTab: React.FC<AgentTabProps> = ({ onNavigateToStyles }) => {
       const res = await fetch('/api/agent/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           conversation_id: activeConvId,
           message: textToSend,
@@ -981,25 +996,47 @@ export const AgentTab: React.FC<AgentTabProps> = ({ onNavigateToStyles }) => {
               }}
             />
 
-            <button
-              onClick={() => handleSendMessage()}
-              disabled={isGenerating || (!inputMessage.trim() && attachedImages.length === 0)}
-              style={{
-                padding: '10px 18px',
-                background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-                opacity: isGenerating || (!inputMessage.trim() && attachedImages.length === 0) ? 0.5 : 1,
-                color: '#fff',
-                border: 'none',
-                borderRadius: '10px',
-                cursor: isGenerating ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)'
-              }}
-            >
-              <Send size={16} />
-            </button>
+            {isGenerating ? (
+              <button
+                onClick={handleStopGeneration}
+                style={{
+                  padding: '10px 18px',
+                  background: 'linear-gradient(135deg, #ef4444, #f43f5e)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)'
+                }}
+              >
+                <span>⏹</span> {isZh ? '停止生成' : 'Stop'}
+              </button>
+            ) : (
+              <button
+                onClick={() => handleSendMessage()}
+                disabled={!inputMessage.trim() && attachedImages.length === 0}
+                style={{
+                  padding: '10px 18px',
+                  background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                  opacity: (!inputMessage.trim() && attachedImages.length === 0) ? 0.5 : 1,
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)'
+                }}
+              >
+                <Send size={16} />
+              </button>
+            )}
           </div>
         </div>
       </div>

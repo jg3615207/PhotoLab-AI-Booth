@@ -120,22 +120,30 @@ def mobile_download_page(job_id: str):
 
 @router.get("/images/{job_id}/{filename}")
 def serve_image(job_id: str, filename: str):
-    job_dir = os.path.join(settings.output_dir, job_id)
-    path = os.path.join(job_dir, filename)
+    from pathlib import Path
+    safe_job_id = Path(job_id).name
+    safe_filename = Path(filename).name
+
+    job_dir = (Path(settings.output_dir) / safe_job_id).resolve()
+    base_out = Path(settings.output_dir).resolve()
+    if not str(job_dir).startswith(str(base_out)):
+        raise HTTPException(403, "Access denied")
+
+    path = job_dir / safe_filename
     
-    if not os.path.exists(path):
+    if not path.exists():
         for alt in ["print_ready.jpg", "framed.jpg", "upscaled.jpg", "raw.png", "raw.jpg", "input.jpg"]:
-            alt_path = os.path.join(job_dir, alt)
-            if os.path.exists(alt_path):
+            alt_path = job_dir / alt
+            if alt_path.exists():
                 path = alt_path
                 break
 
-    if not os.path.exists(path):
-        upload_input = os.path.join(settings.upload_dir, job_id, "input.jpg")
-        if os.path.exists(upload_input):
+    if not path.exists():
+        upload_input = (Path(settings.upload_dir) / safe_job_id / "input.jpg").resolve()
+        if upload_input.exists():
             path = upload_input
 
-    if not os.path.exists(path):
+    if not path.exists():
         from fastapi.responses import Response
         svg_placeholder = """<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400" fill="none">
           <rect width="300" height="400" fill="#121222" rx="12"/>
@@ -145,26 +153,36 @@ def serve_image(job_id: str, filename: str):
         </svg>"""
         return Response(content=svg_placeholder, media_type="image/svg+xml")
         
-    if filename in ["output.jpg", "print_ready.jpg", "framed.jpg", "raw.jpg", "raw.png"]:
+    if safe_filename in ["output.jpg", "print_ready.jpg", "framed.jpg", "raw.jpg", "raw.png"]:
         try:
             with get_db() as db:
-                db.execute("UPDATE sessions SET download_count = COALESCE(download_count, 0) + 1 WHERE job_id=?", (job_id,))
+                db.execute("UPDATE sessions SET download_count = COALESCE(download_count, 0) + 1 WHERE job_id=?", (safe_job_id,))
         except Exception:
             pass
 
-    media_type = "image/png" if path.endswith(".png") else "image/jpeg"
-    return FileResponse(path, media_type=media_type)
+    path_str = str(path)
+    media_type = "image/png" if path_str.endswith(".png") else "image/jpeg"
+    return FileResponse(path_str, media_type=media_type)
 
 @router.get("/uploads/{job_id}/{filename}")
 def serve_upload_image(job_id: str, filename: str):
-    path = os.path.join(settings.upload_dir, job_id, filename)
-    if not os.path.exists(path):
-        # Fallback to output directory if needed
-        out_input = os.path.join(settings.output_dir, job_id, filename)
-        if os.path.exists(out_input):
+    from pathlib import Path
+    safe_job_id = Path(job_id).name
+    safe_filename = Path(filename).name
+
+    upload_base = Path(settings.upload_dir).resolve()
+    path = (upload_base / safe_job_id / safe_filename).resolve()
+    if not str(path).startswith(str(upload_base)):
+        raise HTTPException(403, "Access denied")
+
+    if not path.exists():
+        out_base = Path(settings.output_dir).resolve()
+        out_input = (out_base / safe_job_id / safe_filename).resolve()
+        if out_input.exists() and str(out_input).startswith(str(out_base)):
             path = out_input
 
-    if not os.path.exists(path):
+    if not path.exists():
         raise HTTPException(404, "Upload file not found")
-    media_type = "image/png" if path.endswith(".png") else "image/jpeg"
-    return FileResponse(path, media_type=media_type)
+    path_str = str(path)
+    media_type = "image/png" if path_str.endswith(".png") else "image/jpeg"
+    return FileResponse(path_str, media_type=media_type)
