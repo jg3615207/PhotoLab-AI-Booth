@@ -37,13 +37,29 @@ interface KioskContextType {
 const KioskContext = createContext<KioskContextType | undefined>(undefined);
 
 export function KioskProvider({ children }: { children: ReactNode }) {
-  const [currentScreen, setScreen] = useState<Screen>('join');
+  const [currentScreen, setScreenState] = useState<Screen>(() => {
+    try {
+      const saved = sessionStorage.getItem('photolab_kiosk_screen');
+      if (saved && ['join', 'attract', 'styles', 'capture', 'preview', 'processing', 'reveal', 'result'].includes(saved)) {
+        return saved as Screen;
+      }
+    } catch (e) {}
+    return 'join';
+  });
+
+  const setScreen = (screen: Screen) => {
+    setScreenState(screen);
+    try {
+      sessionStorage.setItem('photolab_kiosk_screen', screen);
+    } catch (e) {}
+  };
+
   const [session, setSession] = useState<SessionData | null>(null);
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<any | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [jobData, setJobData] = useState<any | null>(null);
-  const [lang, setLang] = useState<KioskLang>('zh-Hant'); // Default to zh-Hant or toggleable
+  const [lang, setLang] = useState<KioskLang>('zh-Hant');
   const [retakeCount, setRetakeCount] = useState(0);
 
   const toggleLang = () => {

@@ -14,6 +14,21 @@ export default function SystemTab() {
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [watchdog, setWatchdog] = useState<any>(null);
+  const [diagResults, setDiagResults] = useState<any | null>(null);
+  const [runningDiag, setRunningDiag] = useState(false);
+
+  const handleRunDiagnostics = async () => {
+    setRunningDiag(true);
+    try {
+      const res = await fetch('/api/admin/maintenance/diagnostics');
+      const data = await res.json();
+      setDiagResults(data);
+    } catch (err: any) {
+      alert("Diagnostics failed: " + err.message);
+    } finally {
+      setRunningDiag(false);
+    }
+  };
 
   useEffect(() => {
     fetch('/api/styles/settings')
@@ -306,9 +321,60 @@ export default function SystemTab() {
                 <strong>{isZh ? '最近重啟原因: ' : 'Last Restart Reason: '}</strong> {watchdog.last_restart_reason}
               </div>
             )}
+            <div style={{ marginTop: '12px', color: '#888', fontSize: '12px' }}>
+              💡 {isZh ? '看門狗每 5 秒自動檢測 RAM 記憶體與心跳。若超過 2GB 限制將自動重啟以確保零當機。' : 'Watchdog polls system RAM & heartbeat every 5s. Auto-restarts if memory exceeds 2GB.'}
+            </div>
           </div>
         </div>
       )}
+
+      {/* 1-Click System Diagnostics Panel */}
+      <div style={{ marginTop: '28px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '20px', color: '#fff', margin: 0 }}>
+            🩺 {isZh ? '系統與 API 診斷工具' : 'System & API Diagnostics'}
+          </h2>
+          <button
+            onClick={handleRunDiagnostics}
+            disabled={runningDiag}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #00d2ff, #3a7bd5)',
+              color: '#fff',
+              fontWeight: 700,
+              cursor: runningDiag ? 'not-allowed' : 'pointer',
+              fontSize: '13px'
+            }}
+          >
+            {runningDiag ? (isZh ? '測試中...' : 'Testing...') : (isZh ? '🚀 執行診斷測試' : '🚀 Run Diagnostics')}
+          </button>
+        </div>
+
+        {diagResults && (
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '20px', display: 'grid', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
+              <span style={{ color: '#fff', fontWeight: 600 }}>🌐 RunningHub API</span>
+              <span style={{ color: diagResults.runninghub_api?.status === 'ok' ? '#38ef7d' : '#ff4f4f', fontWeight: 700 }}>
+                {diagResults.runninghub_api?.status === 'ok' ? '✅ OK' : `❌ ${diagResults.runninghub_api?.message || 'Error'}`}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
+              <span style={{ color: '#fff', fontWeight: 600 }}>💾 {isZh ? '硬碟可用空間' : 'Disk Storage'}</span>
+              <span style={{ color: diagResults.storage?.status === 'ok' ? '#38ef7d' : '#ffaa00', fontWeight: 700 }}>
+                {diagResults.storage?.free_gb} GB {isZh ? '可用' : 'Free'} / {diagResults.storage?.total_gb} GB Total
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: '#fff', fontWeight: 600 }}>🗄️ {isZh ? '資料庫完整性' : 'Database Integrity'}</span>
+              <span style={{ color: diagResults.database?.status === 'ok' ? '#38ef7d' : '#ff4f4f', fontWeight: 700 }}>
+                {diagResults.database?.status === 'ok' ? '✅ Pass (OK)' : `❌ ${diagResults.database?.message}`}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

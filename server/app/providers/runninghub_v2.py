@@ -56,9 +56,6 @@ class RunningHubV2Provider(AIProvider):
     """V2 Direct Model API: calls model endpoints directly.
     Supports multiple models via registry. ~18s per render, no seed control."""
 
-    def __init__(self):
-        self._client = httpx.Client(timeout=180)
-
     def _resolve_model(self, model_id: str) -> dict:
         """Look up a model in the registry. Raises ValueError if not found."""
         if model_id not in V2_MODEL_REGISTRY:
@@ -66,20 +63,21 @@ class RunningHubV2Provider(AIProvider):
         return V2_MODEL_REGISTRY[model_id]
 
     def _upload(self, file_path: str) -> str:
-        with open(file_path, "rb") as f:
-            content = f.read()
-        r = self._client.post(
-            f"{BASE}/openapi/v2/media/upload/binary",
-            headers={"Authorization": f"Bearer {API_KEY}"},
-            files={"file": ("img.jpg", content, "image/jpeg")},
-        )
-        data = r.json()
-        if data.get("code") != 0:
-            raise RuntimeError(f"v2 upload failed: {data.get('msg')}")
-        url = data["data"].get("download_url")
-        if not url:
-            raise RuntimeError("v2 upload: no download_url in response")
-        return url
+        with httpx.Client(timeout=180.0) as client:
+            with open(file_path, "rb") as f:
+                content = f.read()
+            r = client.post(
+                f"{BASE}/openapi/v2/media/upload/binary",
+                headers={"Authorization": f"Bearer {API_KEY}"},
+                files={"file": ("img.jpg", content, "image/jpeg")},
+            )
+            data = r.json()
+            if data.get("code") != 0:
+                raise RuntimeError(f"v2 upload failed: {data.get('msg')}")
+            url = data["data"].get("download_url")
+            if not url:
+                raise RuntimeError("v2 upload: no download_url in response")
+            return url
 
     def upload_image(self, image_path: str) -> str:
         return self._upload(image_path)
@@ -121,21 +119,22 @@ class RunningHubV2Provider(AIProvider):
             quality = v2_quality or model["default_quality"]
             if quality:
                 body["quality"] = quality
+        
+        with httpx.Client(timeout=180.0) as client:
+            r = client.post(
+                endpoint,
+                headers={
+                    "Authorization": f"Bearer {API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json=body,
+            )
+            data = r.json()
+            task_id = data.get("taskId")
+            if not task_id:
+                raise RuntimeError(f"v2 task creation failed: {data.get('errorMessage', data)}")
 
-        r = self._client.post(
-            endpoint,
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json=body,
-        )
-        data = r.json()
-        task_id = data.get("taskId")
-        if not task_id:
-            raise RuntimeError(f"v2 task creation failed: {data.get('errorMessage', data)}")
-
-        return self._poll_task(task_id)
+            return self._poll_task(task_id)
 
     def generate_ref_image(
         self,
@@ -163,46 +162,48 @@ class RunningHubV2Provider(AIProvider):
             if quality:
                 body["quality"] = quality
 
-        r = self._client.post(
-            endpoint,
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json=body,
-        )
-        data = r.json()
-        task_id = data.get("taskId")
-        if not task_id:
-            raise RuntimeError(f"text-to-image task creation failed: {data.get('errorMessage', data)}")
+        with httpx.Client(timeout=180.0) as client:
+            r = client.post(
+                endpoint,
+                headers={
+                    "Authorization": f"Bearer {API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json=body,
+            )
+            data = r.json()
+            task_id = data.get("taskId")
+            if not task_id:
+                raise RuntimeError(f"text-to-image task creation failed: {data.get('errorMessage', data)}")
 
-        return self._poll_task(task_id)
+            return self._poll_task(task_id)
 
     def _poll_task(self, task_id: str) -> GenerateResult:
         """Poll RunningHub task status and return result."""
         start = time.time()
-        while time.time() - start < 200:
-            time.sleep(3)
-            r = self._client.post(
-                f"{BASE}/openapi/v2/query",
-                headers={"Authorization": f"Bearer {API_KEY}"},
-                json={"taskId": task_id},
-            )
-            status_data = r.json()
-            s = status_data.get("status")
-            if s == "SUCCESS":
-                results = status_data.get("results", [])
-                if not results:
-                    raise RuntimeError("Task completed but no results")
-                usage = status_data.get("usage", {})
-                return GenerateResult(
-                    image_url=results[0]["url"],
-                    task_id=task_id,
-                    cost_time=int(usage.get("taskCostTime", 0)),
-                    cost_money=float(usage.get("thirdPartyConsumeMoney", 0) or 0)
-                               + float(usage.get("consumeMoney", 0) or 0),
+        with httpx.Client(timeout=180.0) as client:
+            while time.time() - start < 200:
+                time.sleep(3)
+                r = client.post(
+                    f"{BASE}/openapi/v2/query",
+                    headers={"Authorization": f"Bearer {API_KEY}"},
+                    json={"taskId": task_id},
                 )
-            elif s == "FAILED":
-                raise RuntimeError(f"Task failed: {status_data.get('errorMessage', 'unknown')}")
+                status_data = r.json()
+                s = status_data.get("status")
+                if s == "SUCCESS":
+                    results = status_data.get("results", [])
+                    if not results:
+                        raise RuntimeError("Task completed but no results")
+                    usage = status_data.get("usage", {})
+                    return GenerateResult(
+                        image_url=results[0]["url"],
+                        task_id=task_id,
+                        cost_time=int(usage.get("taskCostTime", 0)),
+                        cost_money=float(usage.get("thirdPartyConsumeMoney", 0) or 0)
+                                   + float(usage.get("consumeMoney", 0) or 0),
+                    )
+                elif s == "FAILED":
+                    raise RuntimeError(f"v2 task {task_id} failed: {status_data.get('errorMessage', 'unknown')}")
 
-        raise TimeoutError(f"Task {task_id} timed out")
+        raise TimeoutError(f"v2 task {task_id} did not complete in 200s")

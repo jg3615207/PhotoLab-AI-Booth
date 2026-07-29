@@ -28,11 +28,14 @@ class ConnectionManager:
             self.admin_connections.remove(websocket)
 
     async def broadcast_admin(self):
-        for ws in self.admin_connections:
+        stale = []
+        for ws in list(self.admin_connections):
             try:
                 await ws.send_json({"event": "job_update"})
             except Exception:
-                pass
+                stale.append(ws)
+        for ws in stale:
+            self.disconnect_admin(ws)
 
     async def send_status(self, session_id: str, status: str, output_image: str = None, error_message: str = None):
         if session_id in self.active_connections:

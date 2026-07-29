@@ -123,19 +123,34 @@ export default function CaptureScreen() {
     reader.readAsDataURL(file);
   };
 
+  const speakText = (text: string) => {
+    try {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = isZh ? 'zh-TW' : 'en-US';
+        utter.rate = 1.1;
+        window.speechSynthesis.speak(utter);
+      }
+    } catch (e) {}
+  };
+
   const startCountdown = () => {
     let count = 3;
     setCountdown(count);
+    speakText(count.toString());
     const iv = setInterval(() => {
       count--;
       if (count <= 0) {
         clearInterval(iv);
         setCountdown(null);
         setFlash(true);
+        speakText(isZh ? "笑一個！" : "Smile!");
         setTimeout(() => setFlash(false), 500);
         capturePhoto();
       } else {
         setCountdown(count);
+        speakText(count.toString());
       }
     }, 1000);
   };

@@ -14,46 +14,45 @@ NODE_IDS = {
 }
 
 class RunningHubProvider(AIProvider):
-    def __init__(self):
-        self._client = httpx.Client(timeout=180)
-
     def _upload(self, file_path: str) -> str:
-        with open(file_path, "rb") as f:
-            r = self._client.post(
-                f"{BASE}/task/openapi/upload",
-                data={"apiKey": API_KEY},
-                files={"file": ("image.jpg", f, "image/jpeg")},
-            )
-        data = r.json()
-        if data.get("code") != 0:
-            raise RuntimeError(f"Upload failed: {data.get('msg')}")
-        return data["data"]["fileName"]
+        with httpx.Client(timeout=180.0) as client:
+            with open(file_path, "rb") as f:
+                r = client.post(
+                    f"{BASE}/task/openapi/upload",
+                    data={"apiKey": API_KEY},
+                    files={"file": ("image.jpg", f, "image/jpeg")},
+                )
+            data = r.json()
+            if data.get("code") != 0:
+                raise RuntimeError(f"Upload failed: {data.get('msg')}")
+            return data["data"]["fileName"]
 
     def upload_image(self, image_path: str) -> str:
         return self._upload(image_path)
 
     def _wait_for_task(self, task_id: str, poll_interval: int = 3, max_wait: int = 200) -> dict:
         start = time.time()
-        while time.time() - start < max_wait:
-            r = self._client.post(
-                f"{BASE}/task/openapi/status",
-                json={"apiKey": API_KEY, "taskId": task_id},
-            )
-            data = r.json()
-            status = data.get("data")
-            if status == "SUCCESS":
-                r2 = self._client.post(
-                    f"{BASE}/task/openapi/outputs",
+        with httpx.Client(timeout=180.0) as client:
+            while time.time() - start < max_wait:
+                r = client.post(
+                    f"{BASE}/task/openapi/status",
                     json={"apiKey": API_KEY, "taskId": task_id},
                 )
-                outputs = r2.json()
-                items = outputs.get("data", [])
-                if items:
-                    return items[0]
-                raise RuntimeError("No outputs returned for successful task")
-            elif status == "FAILED":
-                raise RuntimeError(f"Task {task_id} failed")
-            time.sleep(poll_interval)
+                data = r.json()
+                status = data.get("data")
+                if status == "SUCCESS":
+                    r2 = client.post(
+                        f"{BASE}/task/openapi/outputs",
+                        json={"apiKey": API_KEY, "taskId": task_id},
+                    )
+                    outputs = r2.json()
+                    items = outputs.get("data", [])
+                    if items:
+                        return items[0]
+                    raise RuntimeError("No outputs returned for successful task")
+                elif status == "FAILED":
+                    raise RuntimeError(f"Task {task_id} failed")
+                time.sleep(poll_interval)
         raise TimeoutError(f"Task {task_id} did not complete in {max_wait}s")
 
     def _normalize_filename(self, name: str) -> str:

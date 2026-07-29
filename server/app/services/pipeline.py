@@ -125,11 +125,14 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
         except Exception:
             dynamic_prompt = False
             
-        if dynamic_prompt:
+        if dynamic_prompt or "{clothing}" in prompt or "{pose}" in prompt or "{vision_desc}" in prompt:
             broadcast_job_update(job_id, "processing", error_message="Analyzing guest posture for dynamic prompt...")
             dynamic_desc = get_dynamic_prompt(image_path)
             if dynamic_desc:
-                prompt = f"{dynamic_desc}, {prompt}"
+                if "{clothing}" in prompt or "{pose}" in prompt or "{vision_desc}" in prompt:
+                    prompt = prompt.replace("{clothing}", dynamic_desc).replace("{pose}", dynamic_desc).replace("{vision_desc}", dynamic_desc)
+                else:
+                    prompt = f"{dynamic_desc}, {prompt}"
                 print(f"[pipeline] Dynamically injected vision prompt: {prompt}")
 
         multi_face_crop = False
@@ -227,8 +230,11 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
     upscaled_path = str(output_dir / "upscaled.jpg")
     framed_path = str(output_dir / "framed.jpg")
 
-    import asyncio
-    asyncio.run(download_image(result.image_url, raw_path))
+    with httpx.Client(timeout=60.0) as client:
+        resp = client.get(result.image_url)
+        resp.raise_for_status()
+        with open(raw_path, "wb") as f:
+            f.write(resp.content)
 
     # Embed final prompt & complete JSON metadata into the raw PNG file
     try:

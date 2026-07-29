@@ -49,9 +49,15 @@ async def capture(
     if image.content_type and not image.content_type.startswith("image/"):
         raise HTTPException(400, "Invalid file format. Only JPEG, PNG, or WEBP images are accepted.")
 
-    content = await image.read()
-    if len(content) > 15 * 1024 * 1024:
-        raise HTTPException(400, "File size exceeds 15MB limit.")
+    MAX_SIZE = 15 * 1024 * 1024
+    chunks = []
+    total_bytes = 0
+    while chunk := await image.read(1024 * 1024):
+        total_bytes += len(chunk)
+        if total_bytes > MAX_SIZE:
+            raise HTTPException(400, "File size exceeds 15MB limit.")
+        chunks.append(chunk)
+    content = b"".join(chunks)
 
     from PIL import Image as PILImage
     import io

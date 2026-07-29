@@ -179,3 +179,41 @@ def get_stats(days: int = 30):
             "hourly": hourly_list,
             "daily_trend": daily_list
         }
+
+@router.get("/diagnostics")
+def run_diagnostics():
+    import httpx, shutil
+    results = {}
+    
+    # 1. RunningHub API Key check
+    rh_api = settings.api_key
+    if rh_api:
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                r = client.post(f"{settings.rh_base_url}/task/openapi/status", json={"apiKey": rh_api, "taskId": "test"})
+                results["runninghub_api"] = {"status": "ok" if r.status_code == 200 else "error", "code": r.status_code}
+        except Exception as e:
+            results["runninghub_api"] = {"status": "error", "message": str(e)}
+    else:
+        results["runninghub_api"] = {"status": "warning", "message": "API key not configured"}
+
+    # 2. Disk Storage space check
+    try:
+        total, used, free = shutil.disk_usage(settings.output_dir)
+        results["storage"] = {
+            "free_gb": round(free / (1024**3), 2),
+            "total_gb": round(total / (1024**3), 2),
+            "status": "ok" if free > 5 * 1024**3 else "warning"
+        }
+    except Exception as e:
+        results["storage"] = {"status": "error", "message": str(e)}
+
+    # 3. Database Integrity check
+    try:
+        with get_db() as db:
+            integrity = db.execute("PRAGMA integrity_check").fetchone()[0]
+            results["database"] = {"status": "ok" if integrity == "ok" else "error", "message": integrity}
+    except Exception as e:
+        results["database"] = {"status": "error", "message": str(e)}
+
+    return results
