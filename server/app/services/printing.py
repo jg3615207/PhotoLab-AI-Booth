@@ -91,6 +91,14 @@ def spool_print_simple(image_path: str, copies: int = 1, printer_name: str = "")
 def print_image(image_path: str, copies: int = 1):
     name = settings.printer_name
     try:
+        # Try direct GDI printing first
+        if spool_print_simple(image_path, copies, name):
+            print(f"[print] Direct GDI print successful for {image_path}")
+            return True
+    except Exception as e:
+        print(f"[print] GDI print attempt exception: {e}")
+
+    try:
         import win32api
         import win32print
         pname = name or win32print.GetDefaultPrinter()
@@ -102,7 +110,7 @@ def print_image(image_path: str, copies: int = 1):
             win32api.ShellExecute(0, "printto", image_path, f'"{pname}"', ".", 0)
         return True
     except Exception as e:
-        print(f"[print] ERROR: {e}")
+        print(f"[print] ShellExecute ERROR: {e}")
         return False
 
 def print_worker():
@@ -129,6 +137,12 @@ def print_worker():
                         db.execute("UPDATE print_queue SET status='completed', printed_at=? WHERE id=?", (now_str, job_db_id))
                         if session_id:
                             db.execute("UPDATE sessions SET print_status='completed', printed_at=? WHERE job_id=?", (now_str, session_id))
+                        try:
+                            curr_val = int(db.execute("SELECT value FROM app_settings WHERE key='prints_remaining'").fetchone()[0] or 400)
+                            new_val = max(0, curr_val - copies)
+                            db.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('prints_remaining', ?)", (str(new_val),))
+                        except Exception:
+                            pass
                     else:
                         db.execute("UPDATE print_queue SET status='failed' WHERE id=?", (job_db_id,))
                         if session_id:

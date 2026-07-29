@@ -7,11 +7,19 @@ API_KEY = settings.api_key
 BASE = settings.rh_base_url
 WORKFLOW_ID = settings.rh_workflow_id
 
-NODE_IDS = {
-    "guest_image": "2",
-    "style_ref": "3",
-    "model": "1",
-}
+def get_node_ids() -> dict:
+    try:
+        from app.db import get_setting
+        custom = get_setting("rh_node_ids", "")
+        if custom:
+            return json.loads(custom)
+    except Exception:
+        pass
+    return {
+        "guest_image": "2",
+        "style_ref": "3",
+        "model": "1",
+    }
 
 class RunningHubProvider(AIProvider):
     def _upload(self, file_path: str) -> str:
@@ -79,28 +87,35 @@ class RunningHubProvider(AIProvider):
         if not rh_ref_file:
             raise ValueError("No style reference file (rh_ref_file) configured for this style")
 
+        node_ids = get_node_ids()
         node_overrides = [
-            {"nodeId": NODE_IDS["guest_image"], "fieldName": "image", "fieldValue": guest_fn},
-            {"nodeId": NODE_IDS["style_ref"], "fieldName": "image", "fieldValue": rh_ref_file},
-            {"nodeId": NODE_IDS["model"], "fieldName": "prompt", "fieldValue": prompt},
-            {"nodeId": NODE_IDS["model"], "fieldName": "seed", "fieldValue": str(seed)},
-            {"nodeId": NODE_IDS["model"], "fieldName": "resolution", "fieldValue": resolution},
-            {"nodeId": NODE_IDS["model"], "fieldName": "aspectRatio", "fieldValue": aspect_ratio},
+            {"nodeId": node_ids["guest_image"], "fieldName": "image", "fieldValue": guest_fn},
+            {"nodeId": node_ids["style_ref"], "fieldName": "image", "fieldValue": rh_ref_file},
+            {"nodeId": node_ids["model"], "fieldName": "prompt", "fieldValue": prompt},
+            {"nodeId": node_ids["model"], "fieldName": "seed", "fieldValue": str(seed)},
+            {"nodeId": node_ids["model"], "fieldName": "resolution", "fieldValue": resolution},
+            {"nodeId": node_ids["model"], "fieldName": "aspectRatio", "fieldValue": aspect_ratio},
         ]
 
-        r = self._client.post(
-            f"{BASE}/task/openapi/create",
-            json={"apiKey": API_KEY, "workflowId": WORKFLOW_ID, "nodeInfoList": node_overrides},
-        )
-        result = r.json()
-        if result.get("code") != 0:
-            raise RuntimeError(f"Task creation failed: {result.get('msg')}")
-
-        task_id = result["data"]["taskId"]
-        output = self._wait_for_task(task_id)
-        return GenerateResult(
-            image_url=output["fileUrl"],
-            task_id=task_id,
-            cost_time=int(output.get("taskCostTime", 0)),
-            cost_money=float(output.get("thirdPartyConsumeMoney", 0)) + float(output.get("consumeMoney", 0)),
-        )
+        with httpx.Client(timeout=180.0) as client:
+            r = client.post(
+                f"{BASE}/task/openapi/create",
+                json={
+                    "apiKey": API_KEY,
+                    "workflowId": WORKFLOW_ID,
+                    "nodeInfoList": node_overrides,
+                },
+            )
+            data = r.json()
+            if data.get("code") != 0:
+                raise RuntimeError(f"Task creation failed: {data.get('msg')}")
+            task_id = data["data"]["taskId"]
+            out = self._wait_for_task(task_id)
+            fn = self._normalize_filename(out["fileUrl"])
+            img_url = f"{BASE}/task/openapi/outputs/{fn}"
+            return GenerateResult(
+                image_url=img_url,
+                task_id=task_id,
+                cost_time=int(out.get("taskCostTime", 0)),
+                cost_money=float(out.get("thirdPartyConsumeMoney", 0)) + float(out.get("consumeMoney", 0)),
+            )

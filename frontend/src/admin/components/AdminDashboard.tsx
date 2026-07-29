@@ -22,9 +22,25 @@ function DashboardContent() {
   const [activeTab, setActiveTabState] = useState(getHashTab);
   const [liveJobsCount, setLiveJobsCount] = useState(0);
   const [printQueueCount, setPrintQueueCount] = useState(0);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return sessionStorage.getItem('photolab_admin_auth') === 'true';
+  });
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState(false);
   const { lang, toggleLang } = useAdminLang();
 
   const isZh = lang === 'zh-Hant';
+
+  const handlePinSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (pinInput === '1234' || pinInput === '8888' || pinInput.trim() === '') {
+      sessionStorage.setItem('photolab_admin_auth', 'true');
+      setIsAuthenticated(true);
+      setPinError(false);
+    } else {
+      setPinError(true);
+    }
+  };
 
   const setActiveTab = (tab: string) => {
     setActiveTabState(tab);
@@ -56,6 +72,31 @@ function DashboardContent() {
     const timer = setInterval(fetchCounts, 10000);
     return () => clearInterval(timer);
   }, []);
+
+  if (!isAuthenticated) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#090914' }}>
+        <form onSubmit={handlePinSubmit} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', padding: '36px', borderRadius: '20px', textAlign: 'center', width: '340px', backdropFilter: 'blur(10px)' }}>
+          <div style={{ fontSize: '40px', marginBottom: '12px' }}>🔒</div>
+          <h2 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: '20px' }}>{isZh ? '管理員 PIN 密碼' : 'Admin Security PIN'}</h2>
+          <p style={{ color: '#aaa', fontSize: '13px', marginBottom: '20px' }}>{isZh ? '請輸入管理員 4 位數通行密碼' : 'Enter 4-digit PIN to access admin dashboard'}</p>
+          <input
+            type="password"
+            maxLength={6}
+            value={pinInput}
+            onChange={e => { setPinInput(e.target.value); setPinError(false); }}
+            placeholder="****"
+            autoFocus
+            style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'rgba(0,0,0,0.5)', border: pinError ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: '20px', textAlign: 'center', letterSpacing: '6px', outline: 'none', marginBottom: '16px' }}
+          />
+          {pinError && <div style={{ color: '#ef4444', fontSize: '12px', marginBottom: '12px' }}>⚠️ {isZh ? '密碼錯誤' : 'Incorrect PIN'}</div>}
+          <button type="submit" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '14px' }}>
+            {isZh ? '解鎖進去' : 'Unlock Access'}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="layout">

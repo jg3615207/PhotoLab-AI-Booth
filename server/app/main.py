@@ -45,7 +45,7 @@ def download_alias(job_id: str):
 def health():
     return {
         "status": "ok", 
-        "version": "0.21.0",
+        "version": "0.22.0",
         "custom_css": get_setting("custom_css", "")
     }
 
@@ -73,3 +73,18 @@ def startup():
         print(f"Failed to run graceful recovery: {e}")
         
     start_print_worker()
+
+    import threading
+    def background_cleanup_loop():
+        import time
+        while True:
+            time.sleep(86400)
+            try:
+                with get_db() as db:
+                    db.execute("VACUUM")
+                    db.execute("ANALYZE")
+                print("[scheduler] Automated DB VACUUM & ANALYZE completed.")
+            except Exception as e:
+                print(f"[scheduler] DB cleanup error: {e}")
+
+    threading.Thread(target=background_cleanup_loop, daemon=True).start()
