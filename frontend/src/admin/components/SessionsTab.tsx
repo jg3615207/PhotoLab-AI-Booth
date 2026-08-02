@@ -21,6 +21,7 @@ interface SessionItem {
   enable_gesture_capture?: number;
   gen_failsafe_enabled?: number;
   gen_failsafe_timeout?: number;
+  booth_mode?: 'ai' | 'normal';
   active: boolean;
   archived?: boolean;
   jobs_count: number;
@@ -54,6 +55,7 @@ export default function SessionsTab() {
   const [formGesture, setFormGesture] = useState(1);
   const [formFailsafe, setFormFailsafe] = useState(0);
   const [formFailsafeTimeout, setFormFailsafeTimeout] = useState(35);
+  const [formBoothMode, setFormBoothMode] = useState<'ai' | 'normal'>('ai');
 
   // Preview status
   const [logoStatus, setLogoStatus] = useState('');
@@ -94,6 +96,7 @@ export default function SessionsTab() {
     setFormGesture(1);
     setFormFailsafe(0);
     setFormFailsafeTimeout(35);
+    setFormBoothMode('ai');
     setLogoPreview('');
     setFramePreview('');
     setLogoStatus('');
@@ -116,6 +119,7 @@ export default function SessionsTab() {
     setFormGesture(s.enable_gesture_capture ?? 1);
     setFormFailsafe(s.gen_failsafe_enabled ?? 0);
     setFormFailsafeTimeout(s.gen_failsafe_timeout ?? 35);
+    setFormBoothMode(s.booth_mode === 'normal' ? 'normal' : 'ai');
 
     if (s.logo_path) {
       setLogoPreview(`/api/events/${s.id}/logo?t=${Date.now()}`);
@@ -148,6 +152,7 @@ export default function SessionsTab() {
     setFormGesture(s.enable_gesture_capture ?? 1);
     setFormFailsafe(s.gen_failsafe_enabled ?? 0);
     setFormFailsafeTimeout(s.gen_failsafe_timeout ?? 35);
+    setFormBoothMode(s.booth_mode === 'normal' ? 'normal' : 'ai');
   };
 
   const handleSave = async () => {
@@ -169,7 +174,8 @@ export default function SessionsTab() {
       qr_fg_color: formQrFg,
       enable_gesture_capture: formGesture,
       gen_failsafe_enabled: formFailsafe,
-      gen_failsafe_timeout: formFailsafeTimeout
+      gen_failsafe_timeout: formFailsafeTimeout,
+      booth_mode: formBoothMode,
     };
 
     const method = editMode ? 'PUT' : 'POST';
@@ -329,6 +335,25 @@ export default function SessionsTab() {
                   placeholder="夏日派對 2026" 
                   style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} 
                 />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', color: '#667eea', fontSize: '13px', marginBottom: '4px', fontWeight: 600 }}>
+                  ⚙️ {isZh ? '相機相亭模式 (Booth Mode)' : 'Photo Booth Mode'}
+                </label>
+                <select 
+                  value={formBoothMode} 
+                  onChange={e => setFormBoothMode(e.target.value as 'ai' | 'normal')} 
+                  style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #667eea', borderRadius: '6px', color: '#fff', fontWeight: 600 }}
+                >
+                  <option value="ai">🤖 {isZh ? 'AI 藝術寫真模式 (AI Generation)' : 'AI Photo Booth (RunningHub AI)'}</option>
+                  <option value="normal">📷 {isZh ? '傳統拍貼機模式 (No AI Instant Print)' : 'Normal Photo Booth (No AI, Direct Print)'}</option>
+                </select>
+                <p style={{ fontSize: '11px', color: '#aaa', marginTop: '4px', lineHeight: '1.4' }}>
+                  {formBoothMode === 'normal' 
+                    ? (isZh ? '傳統模式下拍完照片直接加上相框/濾鏡並列印，無 AI 生成延遲與費用。' : 'Direct capture with frames & filters. No AI latency or cost.')
+                    : (isZh ? 'AI 模式下由 RunningHub 圖像模型進行繪畫生成與風格轉換。' : 'AI image-to-image transformation via RunningHub models.')}
+                </p>
               </div>
 
               <div>

@@ -5,6 +5,7 @@ from app.config import settings
 from app.db import get_db
 from app.services.frames import check_faces
 from app.services.pipeline import run_pipeline, run_pipeline_with_failsafe
+from app.services.normal_pipeline import run_normal_pipeline
 import threading
 
 router = APIRouter(prefix="/api", tags=["capture"])
@@ -80,14 +81,28 @@ async def capture(
         with open(ref_path, "wb") as f:
             f.write(ref_content)
 
+    style_mode = "ai"
     with get_db() as db:
-        st_row = db.execute("SELECT v2_model FROM styles WHERE id=?", (style_id,)).fetchone()
+        st_row = db.execute("SELECT v2_model, mode FROM styles WHERE id=?", (style_id,)).fetchone()
         used_model = model_override or (st_row["v2_model"] if st_row and st_row["v2_model"] else "nb2-cheap")
+        if st_row and "mode" in st_row.keys() and st_row["mode"]:
+            style_mode = st_row["mode"]
+
         db.execute(
             "INSERT INTO sessions (job_id, style_id, capture_source, input_image, ref_image, status, event_id, v2_model) VALUES (?,?,?,?,?,?,?,?)",
             (job_id, style_id, capture_source, img_path, ref_path, "created", event_id, used_model),
         )
 
+    # Route to Normal (No AI) pipeline if style mode is normal
+    if style_mode == "normal":
+        threading.Thread(
+            target=run_normal_pipeline,
+            args=(job_id, style_id, img_path),
+            daemon=True,
+        ).start()
+        return {"job_id": job_id, "status": "created"}
+
+    # AI Pipeline Flow
     face_count = check_faces(img_path)
     with get_db() as db:
         s = db.execute("SELECT max_people FROM styles WHERE id=?", (style_id,)).fetchone()
@@ -123,8 +138,6 @@ async def capture(
     )
 
     if failsafe_enabled:
-        # run_pipeline_with_failsafe blocks internally (waits for the race),
-        # so we wrap it in a daemon thread
         threading.Thread(
             target=run_pipeline_with_failsafe,
             kwargs={**pipeline_kwargs, "job_id": job_id, "failsafe_timeout": failsafe_timeout},

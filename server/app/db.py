@@ -262,6 +262,23 @@ def init_db():
             conn.execute(f"ALTER TABLE events ADD COLUMN {col}")
         except sqlite3.OperationalError:
             pass
+
+    # Migration: Normal Photo Booth Mode
+    try:
+        conn.execute("ALTER TABLE events ADD COLUMN booth_mode TEXT DEFAULT 'ai'")
+    except sqlite3.OperationalError:
+        pass
+
+    for col in [
+        "mode TEXT DEFAULT 'ai'",
+        "filter_preset TEXT DEFAULT ''",
+        "layout_type TEXT DEFAULT 'single'"
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE styles ADD COLUMN {col}")
+        except sqlite3.OperationalError:
+            pass
+
     # Backfill existing v2 styles to default model
     conn.execute("UPDATE styles SET v2_model='nb2-cheap' WHERE provider='v2' AND v2_model IS NULL")
 

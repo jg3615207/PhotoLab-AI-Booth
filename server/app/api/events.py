@@ -27,6 +27,7 @@ class EventCreate(BaseModel):
     enable_gesture_capture: Optional[int] = 1
     gen_failsafe_enabled: Optional[int] = 0
     gen_failsafe_timeout: Optional[int] = 35
+    booth_mode: Optional[str] = "ai"
 
 class EventUpdate(BaseModel):
     name: Optional[str] = None
@@ -45,6 +46,7 @@ class EventUpdate(BaseModel):
     enable_gesture_capture: Optional[int] = None
     gen_failsafe_enabled: Optional[int] = None
     gen_failsafe_timeout: Optional[int] = None
+    booth_mode: Optional[str] = None
 
 @router.get("")
 def list_events():
@@ -58,6 +60,8 @@ def list_events():
                 event_dict["allowed_styles"] = json.loads(event_dict["allowed_styles"])
             except:
                 event_dict["allowed_styles"] = []
+            if "booth_mode" not in event_dict or not event_dict["booth_mode"]:
+                event_dict["booth_mode"] = "ai"
             
             # Count completed jobs
             count = db.execute("SELECT COUNT(*) FROM sessions WHERE event_id=?", (event_dict["id"],)).fetchone()[0]
@@ -79,6 +83,8 @@ def get_event(event_id: str):
             event_dict["allowed_styles"] = json.loads(event_dict["allowed_styles"])
         except:
             event_dict["allowed_styles"] = []
+        if "booth_mode" not in event_dict or not event_dict["booth_mode"]:
+            event_dict["booth_mode"] = "ai"
             
         count = db.execute("SELECT COUNT(*) FROM sessions WHERE event_id=?", (event_id,)).fetchone()[0]
         event_dict["jobs_count"] = count
@@ -90,9 +96,9 @@ def create_event(event: EventCreate):
     with get_db() as db:
         try:
             db.execute("""
-                INSERT INTO events (id, name, allowed_styles, allow_auto_print, logo_path, event_name_overlay, frame_cap, expire_date, active, frame_path, enable_filters, retake_limit, qr_bg_color, qr_fg_color, enable_gesture_capture, gen_failsafe_enabled, gen_failsafe_timeout)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (event.id, event.name, json.dumps(event.allowed_styles), event.allow_auto_print, event.logo_path, event.event_name_overlay, event.frame_cap, event.expire_date, event.active, event.frame_path, event.enable_filters, event.retake_limit, event.qr_bg_color, event.qr_fg_color, event.enable_gesture_capture, event.gen_failsafe_enabled, event.gen_failsafe_timeout))
+                INSERT INTO events (id, name, allowed_styles, allow_auto_print, logo_path, event_name_overlay, frame_cap, expire_date, active, frame_path, enable_filters, retake_limit, qr_bg_color, qr_fg_color, enable_gesture_capture, gen_failsafe_enabled, gen_failsafe_timeout, booth_mode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (event.id, event.name, json.dumps(event.allowed_styles), event.allow_auto_print, event.logo_path, event.event_name_overlay, event.frame_cap, event.expire_date, event.active, event.frame_path, event.enable_filters, event.retake_limit, event.qr_bg_color, event.qr_fg_color, event.enable_gesture_capture, event.gen_failsafe_enabled, event.gen_failsafe_timeout, event.booth_mode))
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
     return {"status": "ok"}
@@ -150,6 +156,9 @@ def update_event(event_id: str, event: EventUpdate):
     if event.gen_failsafe_timeout is not None:
         updates.append("gen_failsafe_timeout=?")
         values.append(event.gen_failsafe_timeout)
+    if event.booth_mode is not None:
+        updates.append("booth_mode=?")
+        values.append(event.booth_mode)
 
     if not updates:
         return {"status": "ok"}

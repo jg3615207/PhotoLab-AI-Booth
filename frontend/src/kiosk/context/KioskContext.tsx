@@ -13,6 +13,7 @@ interface SessionData {
   enable_filters?: number | boolean;
   enable_gesture_capture?: number | boolean;
   max_prints_per_capture?: number;
+  booth_mode?: 'ai' | 'normal';
 }
 
 interface KioskContextType {

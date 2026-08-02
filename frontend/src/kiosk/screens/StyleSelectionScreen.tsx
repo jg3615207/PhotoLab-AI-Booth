@@ -8,6 +8,8 @@ interface StyleData {
   max_people: number;
   animated_thumbnail?: string;
   aspect_ratio?: string;
+  mode?: string;
+  filter_preset?: string;
 }
 
 export default function StyleSelectionScreen() {
@@ -19,7 +21,9 @@ export default function StyleSelectionScreen() {
   const [hoveredStyleId, setHoveredStyleId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/styles')
+    const boothMode = session?.booth_mode || 'ai';
+    const fetchUrl = `/api/styles?mode=${boothMode}`;
+    fetch(fetchUrl)
       .then(r => r.json())
       .then((data: StyleData[]) => {
         let filteredStyles = data;
@@ -49,6 +53,7 @@ export default function StyleSelectionScreen() {
           const isHovered = hoveredStyleId === s.id;
           const hasVideo = s.animated_thumbnail && (s.animated_thumbnail.endsWith('.mp4') || s.animated_thumbnail.endsWith('.webm'));
           const aspectStyle = s.aspect_ratio ? { aspectRatio: s.aspect_ratio.replace(':', '/') } : {};
+          const isNormalStyle = s.mode === 'normal';
 
           return (
             <div 
@@ -94,10 +99,12 @@ export default function StyleSelectionScreen() {
                 />
               )}
               <div className="style-name">{s.name}</div>
-              <div className="style-badge">
-                {s.max_people > 1 
-                  ? (isZh ? `最多 ${s.max_people} 人` : `Up to ${s.max_people} people`) 
-                  : (isZh ? '單人' : 'Solo (1 person)')}
+              <div className="style-badge" style={isNormalStyle ? { background: 'rgba(72, 187, 120, 0.25)', color: '#68d391', borderColor: 'rgba(72, 187, 120, 0.4)' } : {}}>
+                {isNormalStyle 
+                  ? (isZh ? '📷 快照相亭' : '📷 Instant Photo') 
+                  : (s.max_people > 1 
+                      ? (isZh ? `最多 ${s.max_people} 人` : `Up to ${s.max_people} people`) 
+                      : (isZh ? '單人' : 'Solo (1 person)'))}
               </div>
             </div>
           );

@@ -3,19 +3,24 @@ import { useKiosk } from '../context/KioskContext';
 import confetti from 'canvas-confetti';
 
 export default function ProcessingScreen() {
-  const { jobData, setJobData, setScreen, lang, selectedStyleId } = useKiosk();
+  const { jobData, setJobData, setScreen, lang, selectedStyleId, session, selectedStyle } = useKiosk();
   const isZh = lang === 'zh-Hant';
 
-  const tipsZh = ['正在套用藝術風格...', '加入 AI 魔法效果...', '快要完成了...'];
-  const tipsEn = ['Applying artistic style...', 'Adding some AI magic...', 'Almost there...'];
-  const tips = isZh ? tipsZh : tipsEn;
+  const isNormalMode = session?.booth_mode === 'normal' || selectedStyle?.mode === 'normal';
+
+  const tipsZhAI = ['正在套用藝術風格...', '加入 AI 魔法效果...', '快要完成了...'];
+  const tipsEnAI = ['Applying artistic style...', 'Adding some AI magic...', 'Almost there...'];
+  const tipsZhNormal = ['正在套用相框與濾鏡...', '準備列印預覽...', '即將完成...'];
+  const tipsEnNormal = ['Applying photo frame & filter...', 'Preparing print preview...', 'Almost ready...'];
+
+  const tips = isZh ? (isNormalMode ? tipsZhNormal : tipsZhAI) : (isNormalMode ? tipsEnNormal : tipsEnAI);
 
   const [tip, setTip] = useState(tips[0]);
   const [transitionType, setTransitionType] = useState('glitch');
   const [transitions, setTransitions] = useState<any[]>([]);
   const [activeTransition, setActiveTransition] = useState<string | null>(null);
   const isFinishedRef = useRef(false);
-  
+
   useEffect(() => {
     if (selectedStyleId) {
       Promise.all([
@@ -36,7 +41,7 @@ export default function ProcessingScreen() {
     const interval = setInterval(() => {
       tipIdx++;
       setTip(tips[tipIdx % tips.length]);
-    }, 4000);
+    }, 2000);
     return () => clearInterval(interval);
   }, [tips]);
 
@@ -162,7 +167,7 @@ export default function ProcessingScreen() {
         />
       <div className="processing-content">
         <div className="spinner"></div>
-        <h2>{isZh ? 'AI 創作中...' : 'Creating Your Masterpiece...'}</h2>
+        <h2>{isNormalMode ? (isZh ? '相片處理中...' : 'Processing Your Photo...') : (isZh ? 'AI 創作中...' : 'Creating Your Masterpiece...')}</h2>
         <p id="processing-tip">{tip}</p>
       </div>
     </div>

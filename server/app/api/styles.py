@@ -14,10 +14,23 @@ router = APIRouter(prefix="/api/styles", tags=["styles"])
 STYLES_DIR = Path(__file__).parent.parent.parent / "styles"
 
 @router.get("")
-def list_styles(admin: bool = False):
+def list_styles(admin: bool = False, mode: str = None):
     with get_db() as db:
-        clause = "" if admin else " WHERE active=1"
-        rows = db.execute(f"SELECT * FROM styles{clause} ORDER BY sort_order ASC, created_at DESC").fetchall()
+        clauses = []
+        params = []
+        if not admin:
+            clauses.append("active=1")
+        if mode:
+            if mode == "normal":
+                clauses.append("mode IN ('normal', 'both')")
+            elif mode == "ai":
+                clauses.append("mode IN ('ai', 'both')")
+            else:
+                clauses.append("mode=?")
+                params.append(mode)
+
+        where_str = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        rows = db.execute(f"SELECT * FROM styles{where_str} ORDER BY sort_order ASC, created_at DESC", tuple(params)).fetchall()
         result = []
         for r in rows:
             s = dict(r)
@@ -30,8 +43,20 @@ def list_styles(admin: bool = False):
                     s["animated_thumbnail"] = f"/api/styles/{r['id']}/{s['animated_thumbnail']}"
             else:
                 s["animated_thumbnail"] = ""
+            if "mode" not in s or not s["mode"]:
+                s["mode"] = "ai"
+            if "filter_preset" not in s:
+                s["filter_preset"] = ""
+            if "layout_type" not in s:
+                s["layout_type"] = "single"
             result.append(s)
         return result
+
+@router.get("/filters")
+def list_filter_presets():
+    """Returns available color/effect filter presets for Normal photo booth mode."""
+    from app.services.filters import get_available_filters
+    return get_available_filters()
 
 class ReorderRequest(BaseModel):
     ids: list[str]
@@ -75,14 +100,17 @@ def create_style(
     animated_thumbnail: str = Form(""),
     dynamic_prompt_enabled: int = Form(0),
     multi_face_crop_enabled: int = Form(0),
+    mode: str = Form("ai"),
+    filter_preset: str = Form(""),
+    layout_type: str = Form("single"),
 ):
     with get_db() as db:
         existing = db.execute("SELECT id FROM styles WHERE id=?", (id,)).fetchone()
         if existing:
             raise HTTPException(400, "Style ID already exists")
         db.execute(
-            "INSERT INTO styles (id, name, max_people, aspect_ratio, prompt_template, resolution, seed, provider, v2_model, v2_quality, transition_type, animated_thumbnail, dynamic_prompt_enabled, multi_face_crop_enabled, active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
-            (id, name, max_people, aspect_ratio, prompt_template, resolution, seed or "", provider, v2_model, v2_quality or None, transition_type, animated_thumbnail, dynamic_prompt_enabled, multi_face_crop_enabled),
+            "INSERT INTO styles (id, name, max_people, aspect_ratio, prompt_template, resolution, seed, provider, v2_model, v2_quality, transition_type, animated_thumbnail, dynamic_prompt_enabled, multi_face_crop_enabled, mode, filter_preset, layout_type, active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
+            (id, name, max_people, aspect_ratio, prompt_template, resolution, seed or "", provider, v2_model, v2_quality or None, transition_type, animated_thumbnail, dynamic_prompt_enabled, multi_face_crop_enabled, mode, filter_preset, layout_type),
         )
     return {"status": "created", "id": id}
 
@@ -102,13 +130,16 @@ def update_style(
     animated_thumbnail: str = Form(None),
     dynamic_prompt_enabled: int = Form(None),
     multi_face_crop_enabled: int = Form(None),
+    mode: str = Form(None),
+    filter_preset: str = Form(None),
+    layout_type: str = Form(None),
 ):
     with get_db() as db:
         row = db.execute("SELECT id FROM styles WHERE id=?", (style_id,)).fetchone()
         if not row:
             raise HTTPException(404)
         updates = {}
-        for k in ["name", "max_people", "aspect_ratio", "prompt_template", "resolution", "seed", "active", "v2_model", "v2_quality", "transition_type", "animated_thumbnail", "dynamic_prompt_enabled", "multi_face_crop_enabled"]:
+        for k in ["name", "max_people", "aspect_ratio", "prompt_template", "resolution", "seed", "active", "v2_model", "v2_quality", "transition_type", "animated_thumbnail", "dynamic_prompt_enabled", "multi_face_crop_enabled", "mode", "filter_preset", "layout_type"]:
             v = locals().get(k)
             if v is not None:
                 updates[k] = v
@@ -133,6 +164,9 @@ class StylePatch(BaseModel):
     animated_thumbnail: Optional[str] = None
     dynamic_prompt_enabled: Optional[int] = None
     multi_face_crop_enabled: Optional[int] = None
+    mode: Optional[str] = None
+    filter_preset: Optional[str] = None
+    layout_type: Optional[str] = None
 
 
 class GenerateRefRequest(BaseModel):

@@ -21,6 +21,9 @@ interface StyleItem {
   rh_ref_file?: string;
   rh_ref_url?: string;
   cost_money?: number;
+  mode?: string;
+  filter_preset?: string;
+  layout_type?: string;
 }
 
 interface V2Model {
@@ -40,6 +43,15 @@ export default function StylesTab() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [testStyle, setTestStyle] = useState<StyleItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [modeFilter, setModeFilter] = useState<string>('all');
+  const [availableFilters, setAvailableFilters] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/styles/filters')
+      .then(r => r.json())
+      .then(data => setAvailableFilters(data || []))
+      .catch(e => console.error("Failed to fetch available filters:", e));
+  }, []);
 
   const handleCloneStyle = async (s: StyleItem) => {
     const newId = `${s.id}_copy_${Date.now().toString().slice(-4)}`;
@@ -62,6 +74,9 @@ export default function StylesTab() {
       form.append('animated_thumbnail', s.animated_thumbnail || '');
       form.append('dynamic_prompt_enabled', (s.dynamic_prompt_enabled || 0).toString());
       form.append('multi_face_crop_enabled', (s.multi_face_crop_enabled || 0).toString());
+      form.append('mode', s.mode || 'ai');
+      form.append('filter_preset', s.filter_preset || '');
+      form.append('layout_type', s.layout_type || 'single');
 
       const res = await fetch('/api/styles', {
         method: 'POST',
@@ -90,6 +105,9 @@ export default function StylesTab() {
   const [fAnimatedThumb, setFAnimatedThumb] = useState('');
   const [fDynamicPrompt, setFDynamicPrompt] = useState(0);
   const [fMultiFaceCrop, setFMultiFaceCrop] = useState(0);
+  const [fMode, setFMode] = useState('ai');
+  const [fFilterPreset, setFFilterPreset] = useState('');
+  const [fLayoutType, setFLayoutType] = useState('single');
   const [transitionsList, setTransitionsList] = useState<any[]>([]);
 
   // Undo prompt memory
@@ -266,6 +284,9 @@ export default function StylesTab() {
     form.append('animated_thumbnail', fAnimatedThumb);
     form.append('dynamic_prompt_enabled', fDynamicPrompt.toString());
     form.append('multi_face_crop_enabled', fMultiFaceCrop.toString());
+    form.append('mode', fMode);
+    form.append('filter_preset', fFilterPreset);
+    form.append('layout_type', fLayoutType);
 
     const r = await fetch('/api/styles', { method: 'POST', body: form });
     if (r.ok) {
@@ -309,6 +330,9 @@ export default function StylesTab() {
     setFAnimatedThumb('');
     setFDynamicPrompt(0);
     setFMultiFaceCrop(0);
+    setFMode('ai');
+    setFFilterPreset('');
+    setFLayoutType('single');
     setRefFile(null);
     setRefPreviewUrl(null);
   };
@@ -329,6 +353,9 @@ export default function StylesTab() {
     setFAnimatedThumb(s.animated_thumbnail || '');
     setFDynamicPrompt(s.dynamic_prompt_enabled || 0);
     setFMultiFaceCrop(s.multi_face_crop_enabled || 0);
+    setFMode(s.mode || 'ai');
+    setFFilterPreset(s.filter_preset || '');
+    setFLayoutType(s.layout_type || 'single');
 
     if (s.rh_ref_file || s.rh_ref_url) {
       setRefPreviewUrl(`/api/styles/${s.id}/ref.jpg?t=${Date.now()}`);
@@ -357,6 +384,9 @@ export default function StylesTab() {
     form.append('animated_thumbnail', fAnimatedThumb);
     form.append('dynamic_prompt_enabled', fDynamicPrompt.toString());
     form.append('multi_face_crop_enabled', fMultiFaceCrop.toString());
+    form.append('mode', fMode);
+    form.append('filter_preset', fFilterPreset);
+    form.append('layout_type', fLayoutType);
 
     const r = await fetch(`/api/styles/${editingStyle.id}`, { method: 'PUT', body: form });
     if (r.ok) {
@@ -676,9 +706,30 @@ export default function StylesTab() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h1 style={{ color: '#fff', margin: 0 }}>🎨 {isZh ? '風格庫管理' : 'Style Library'}</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', background: 'rgba(5, 5, 12, 0.8)', padding: '3px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)' }}>
+            <button
+              onClick={() => setModeFilter('all')}
+              style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: modeFilter === 'all' ? '#667eea' : 'transparent', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              {isZh ? '全部' : 'All'}
+            </button>
+            <button
+              onClick={() => setModeFilter('ai')}
+              style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: modeFilter === 'ai' ? '#667eea' : 'transparent', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              🤖 {isZh ? 'AI 寫真' : 'AI Mode'}
+            </button>
+            <button
+              onClick={() => setModeFilter('normal')}
+              style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: modeFilter === 'normal' ? '#48bb78' : 'transparent', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              📷 {isZh ? '傳統相亭' : 'Normal Booth'}
+            </button>
+          </div>
+
           <input
             type="text"
             value={searchTerm}
@@ -722,19 +773,59 @@ export default function StylesTab() {
                 <input type="text" value={fName} onChange={e => setFName(e.target.value)} placeholder="吉卜力夢幻" style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} />
               </div>
 
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label style={{ color: '#aaa', fontSize: '13px' }}>{isZh ? '提示詞模板' : 'Prompt Template'}</label>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {previousPrompt !== null && (
-                      <button className="btn-secondary" onClick={handleUndoPrompt} style={{ padding: '4px 8px', fontSize: '11px' }}>↩ {isZh ? '復原' : 'Undo'}</button>
-                    )}
-                    <button className="btn-secondary" onClick={handleVisionOptimize} disabled={optimizing} style={{ padding: '4px 8px', fontSize: '11px' }}>📷 {isZh ? '視覺參考圖 AI' : 'Vision Ref AI'}</button>
-                    <button className="btn-primary" onClick={handleOptimizePrompt} disabled={optimizing} style={{ padding: '4px 8px', fontSize: '11px' }}>✨ {isZh ? '優化提示詞' : 'Optimize Prompt'}</button>
-                  </div>
+              {/* Mode Selection */}
+              <div style={{ display: 'grid', gridTemplateColumns: fMode !== 'ai' ? '1fr 1fr' : '1fr', gap: '12px', background: 'rgba(102,126,234,0.08)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(102,126,234,0.2)' }}>
+                <div>
+                  <label style={{ display: 'block', color: '#a3b8ff', fontSize: '13px', marginBottom: '4px', fontWeight: 600 }}>
+                    ⚙️ {isZh ? '風格適用模式 (Mode)' : 'Style Applicable Mode'}
+                  </label>
+                  <select 
+                    value={fMode} 
+                    onChange={e => setFMode(e.target.value)}
+                    style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #667eea', borderRadius: '6px', color: '#fff', fontWeight: 600 }}
+                  >
+                    <option value="ai">🤖 {isZh ? '僅限 AI 生成模式 (AI Only)' : 'AI Generation Mode Only'}</option>
+                    <option value="normal">📷 {isZh ? '僅限傳統拍貼機模式 (Normal Only)' : 'Normal Photo Booth Only'}</option>
+                    <option value="both">🌟 {isZh ? '通用 (AI 與傳統模式皆可)' : 'Both AI & Normal Modes'}</option>
+                  </select>
                 </div>
-                <textarea value={fPrompt} onChange={e => setFPrompt(e.target.value)} rows={4} placeholder="吉卜力動漫風格，保留臉部特徵..." style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', fontFamily: 'inherit' }} />
+
+                {fMode !== 'ai' && (
+                  <div>
+                    <label style={{ display: 'block', color: '#68d391', fontSize: '13px', marginBottom: '4px', fontWeight: 600 }}>
+                      🎞️ {isZh ? '預設相片濾鏡 (Filter Preset)' : 'Photo Filter Preset'}
+                    </label>
+                    <select
+                      value={fFilterPreset}
+                      onChange={e => setFFilterPreset(e.target.value)}
+                      style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #48bb78', borderRadius: '6px', color: '#fff' }}
+                    >
+                      <option value="">{isZh ? '無 (原圖色調)' : 'None (Original)'}</option>
+                      {availableFilters.map(flt => (
+                        <option key={flt.id} value={flt.id}>
+                          {isZh ? flt.name_zh : flt.name} — {flt.description}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
+
+              {fMode !== 'normal' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ color: '#aaa', fontSize: '13px' }}>{isZh ? '提示詞模板 (Prompt Template)' : 'Prompt Template'}</label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {previousPrompt !== null && (
+                        <button className="btn-secondary" onClick={handleUndoPrompt} style={{ padding: '4px 8px', fontSize: '11px' }}>↩ {isZh ? '復原' : 'Undo'}</button>
+                      )}
+                      <button className="btn-secondary" onClick={handleVisionOptimize} disabled={optimizing} style={{ padding: '4px 8px', fontSize: '11px' }}>📷 {isZh ? '視覺參考圖 AI' : 'Vision Ref AI'}</button>
+                      <button className="btn-primary" onClick={handleOptimizePrompt} disabled={optimizing} style={{ padding: '4px 8px', fontSize: '11px' }}>✨ {isZh ? '優化提示詞' : 'Optimize Prompt'}</button>
+                    </div>
+                  </div>
+                  <textarea value={fPrompt} onChange={e => setFPrompt(e.target.value)} rows={4} placeholder="吉卜力動漫風格，保留臉部特徵..." style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', fontFamily: 'inherit' }} />
+                </div>
+              )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#0d0d1a', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
@@ -1206,6 +1297,8 @@ export default function StylesTab() {
       ) : (
         <div style={{ display: 'grid', gap: '12px' }}>
           {styles.filter(s => {
+            if (modeFilter === 'ai' && (s.mode === 'normal')) return false;
+            if (modeFilter === 'normal' && (s.mode === 'ai')) return false;
             if (!searchTerm.trim()) return true;
             const term = searchTerm.toLowerCase();
             return (
@@ -1213,7 +1306,9 @@ export default function StylesTab() {
               s.id.toLowerCase().includes(term) ||
               (s.prompt_template && s.prompt_template.toLowerCase().includes(term))
             );
-          }).map(s => (
+          }).map(s => {
+            const styleMode = s.mode || 'ai';
+            return (
             <div key={s.id} style={{ background: 'rgba(26, 26, 46, 0.8)', padding: '16px', borderRadius: '12px', display: 'grid', gridTemplateColumns: (s.aspect_ratio === '16:9' || s.aspect_ratio === '3:2') ? '100px 1.5fr 2fr 1fr 1fr auto' : '80px 1.5fr 2fr 1fr 1fr auto', alignItems: 'center', gap: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
               <img 
                 src={s.thumbnail} 
@@ -1230,13 +1325,20 @@ export default function StylesTab() {
               />
 
               <div>
-                <strong style={{ fontSize: '16px', color: '#fff' }}>{s.name}</strong>
+                <strong style={{ fontSize: '16px', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {s.name}
+                  {styleMode === 'normal' && <span style={{ fontSize: '10px', background: 'rgba(72,187,120,0.2)', color: '#68d391', border: '1px solid rgba(72,187,120,0.4)', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>📷 傳統</span>}
+                  {styleMode === 'both' && <span style={{ fontSize: '10px', background: 'rgba(159,122,234,0.2)', color: '#b794f4', border: '1px solid rgba(159,122,234,0.4)', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>🌟 通用</span>}
+                  {styleMode === 'ai' && <span style={{ fontSize: '10px', background: 'rgba(102,126,234,0.2)', color: '#a3b8ff', border: '1px solid rgba(102,126,234,0.4)', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>🤖 AI</span>}
+                </strong>
                 <div style={{ fontSize: '12px', color: '#888' }}>{s.id}</div>
               </div>
 
               <div>
                 <div style={{ fontSize: '13px', color: '#bbb', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
-                  {s.prompt_template || <i>{isZh ? '無提示詞' : 'No prompt template'}</i>}
+                  {styleMode === 'normal' 
+                    ? (s.filter_preset ? (isZh ? `濾鏡: ${s.filter_preset}` : `Filter: ${s.filter_preset}`) : (isZh ? '相框拍貼 (無濾鏡)' : 'Frame only')) 
+                    : (s.prompt_template || <i>{isZh ? '無提示詞' : 'No prompt template'}</i>)}
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <span className={`status ${s.rh_ref_file ? 'status-active' : 'status-inactive'}`} style={{ fontSize: '11px' }}>
@@ -1308,10 +1410,10 @@ export default function StylesTab() {
                 ) : (
                   <button className="btn-primary" onClick={() => handleToggleActive(s.id, true)} style={{ padding: '6px 10px', fontSize: '12px' }}>{isZh ? '顯示' : 'Show'}</button>
                 )}
-                <button onClick={() => handleDeleteStyle(s.id)} style={{ padding: '6px 10px', fontSize: '12px', background: '#d32f2f', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>{isZh ? '刪除' : 'Delete'}</button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

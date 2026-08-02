@@ -2,11 +2,13 @@ import React from 'react';
 import { useKiosk } from '../context/KioskContext';
 
 export default function ResultScreen() {
-  const { setScreen, jobData, lang, session } = useKiosk();
+  const { setScreen, jobData, lang, session, selectedStyle } = useKiosk();
   const isZh = lang === 'zh-Hant';
   const [showPrintModal, setShowPrintModal] = React.useState(false);
   const [copies, setCopies] = React.useState(1);
   const [printingStatus, setPrintingStatus] = React.useState<string | null>(null);
+
+  const isNormalMode = session?.booth_mode === 'normal' || selectedStyle?.mode === 'normal';
 
   if (!jobData || !jobData.result) {
     return (
@@ -49,7 +51,11 @@ export default function ResultScreen() {
 
   return (
     <div className="screen active" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-      <h2 style={{ fontSize: '26px', color: '#fff', marginBottom: '16px' }}>{isZh ? '🎉 您的 AI 照片已完成！' : '🎉 Your Photo Is Ready!'}</h2>
+      <h2 style={{ fontSize: '26px', color: '#fff', marginBottom: '16px' }}>
+        {isNormalMode 
+          ? (isZh ? '🎉 您的照片已完成！' : '🎉 Your Photo Is Ready!') 
+          : (isZh ? '🎉 您的 AI 照片已完成！' : '🎉 Your AI Photo Is Ready!')}
+      </h2>
       
       <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '24px' }}>
         <img src={imgSrc} className="result-img" alt="Result" style={{ maxHeight: '420px', borderRadius: '16px', boxShadow: '0 8px 30px rgba(0,0,0,0.6)', border: '2px solid rgba(255,255,255,0.1)' }} />
