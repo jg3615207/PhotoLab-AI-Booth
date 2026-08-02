@@ -649,9 +649,14 @@ export default function StylesTab() {
     const hasAnyPhoto = testImageBlob || slotBlobs.some(b => b !== null);
     if (!hasAnyPhoto) return alert(isZh ? "請先拍攝或選擇測試照片" : "Select or capture at least one test photo first.");
 
+    const isNormal = testStyle.mode === 'normal' || fMode === 'normal';
+
     [0, 1, 2, 3].forEach(async (index) => {
+      // For Normal mode styles, only test slots that have an active photo or default photo
+      if (isNormal && index > 0 && !slotBlobs[index]) return;
+
       const modelId = testMode === 'models' ? testModels[index] : selectedSingleModel;
-      if (!modelId) return;
+      if (!isNormal && !modelId) return;
 
       const targetBlob = slotBlobs[index] || testImageBlob;
       if (!targetBlob) return;
@@ -1071,8 +1076,15 @@ export default function StylesTab() {
               </button>
             </div>
 
+            {/* Banner / Info for Normal Mode Test */}
+            {(testStyle.mode === 'normal' || fMode === 'normal') && (
+              <div style={{ background: 'rgba(72,187,120,0.15)', border: '1px solid rgba(72,187,120,0.4)', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px', color: '#68d391', fontSize: '13px', fontWeight: 600 }}>
+                📷 {isZh ? '傳統/美顏拍貼模式測試 — 免 AI 模型，將直接套用相片濾鏡、美顏演算法與相框組合 (約 1 秒完成)' : 'Normal / Beauty Mode Test — No AI model required. Will apply photo filter, beauty algorithm, and frame instantly (~1s).'}
+              </div>
+            )}
+
             {/* Target Model Bar for Photos Mode */}
-            {testMode === 'photos' && (
+            {testMode === 'photos' && testStyle.mode !== 'normal' && fMode !== 'normal' && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(78,205,196,0.1)', border: '1px solid rgba(78,205,196,0.3)', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px' }}>
                 <div style={{ fontSize: '13px', color: '#4ecdc4', fontWeight: 600 }}>
                   ⚙️ {isZh ? '選擇要測試 prompt 穩定度的 AI 模型:' : 'Target AI Model for Prompt Stability:'}
@@ -1175,7 +1187,11 @@ export default function StylesTab() {
                   <div key={slotIdx} style={{ background: '#0d0d1a', padding: '10px', borderRadius: '8px', textAlign: 'center', minHeight: '220px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: slotPreviewUrls[slotIdx] ? '1px solid rgba(78,205,196,0.4)' : '1px solid rgba(255,255,255,0.06)' }}>
                     
                     {/* Header: Model Selector (models mode) OR Slot Title (photos mode) */}
-                    {testMode === 'models' ? (
+                    {(testStyle.mode === 'normal' || fMode === 'normal') ? (
+                      <div style={{ fontSize: '11px', color: '#68d391', fontWeight: 700, marginBottom: '6px' }}>
+                        📷 {isZh ? `美顏/濾鏡測試 #${slotIdx + 1}` : `Filter Test #${slotIdx + 1}`}
+                      </div>
+                    ) : testMode === 'models' ? (
                       <select 
                         value={testModels[slotIdx]} 
                         onChange={e => {
