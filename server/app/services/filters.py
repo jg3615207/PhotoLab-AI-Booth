@@ -179,11 +179,14 @@ _FACEMESH_RIGHT_EYEBROW = [300, 293, 334, 296, 336, 285, 295, 282, 283, 276]
 def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
     """
     Precision Skin-Only Beauty Filter using Google MediaPipe 468-point Face Mesh.
+    Pipeline (inspired by GPUImage BeautifyFace):
     1. Detects face 3D mesh points.
     2. Builds precise skin mask (Face oval MINUS Eyes, Eyelashes, Eyebrows, Lips).
     3. Dilates feature exclusion zones to guarantee eyes/eyelashes/brows are 100% protected.
     4. Smooths skin with edge-preserving bilateral filter.
-    5. Applies unsharp sharpening filter specifically over eye/eyebrow regions for crisp, sparkling eyes.
+    5. Canny Edge Detail Overlay — extracts fine skin texture edges from the original
+       and composites them back onto the smoothed result to prevent the "plastic doll" look.
+    6. Applies unsharp sharpening filter specifically over eye/eyebrow regions for crisp, sparkling eyes.
     Falls back to OpenCV Haar cascade or PIL soft blur if MediaPipe is unavailable.
     """
     try:
@@ -206,9 +209,20 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
                 return _beauty_opencv_fallback(pil_img)
 
             img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+            gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
 
             # Edge-preserving bilateral skin smoothing
             smoothed_bgr = cv2.bilateralFilter(img_bgr, d=9, sigmaColor=75, sigmaSpace=75)
+
+            # ── Canny Edge Detail Extraction ─────────────────────────
+            # Detect fine skin texture edges from the ORIGINAL image.
+            # These edges (pores, fine lines, contours) are blended back
+            # onto the smoothed result so skin looks natural, not waxy.
+            canny_edges = cv2.Canny(gray, threshold1=50, threshold2=150)
+            # Soften edge lines slightly so they blend naturally
+            canny_edges = cv2.GaussianBlur(canny_edges, (3, 3), 0)
+            # Normalize to 0-1 float, will be used as overlay intensity
+            edge_overlay = canny_edges.astype(np.float32) / 255.0
 
             # Unsharp sharpening filter for eye enhancement
             sharpen_kernel = np.array([[0, -0.4, 0], [-0.4, 2.6, -0.4], [0, -0.4, 0]], dtype=np.float32)
@@ -266,7 +280,16 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
             # Step 1: Smooth skin where skin_mask > 0
             res = (img_bgr * (1.0 - skin_mask_3ch) + smoothed_bgr * skin_mask_3ch)
 
-            # Step 2: Sharpen eyes & eyebrows where eye_feature_mask > 0
+            # Step 2: Canny Edge Detail Overlay — blend original texture edges
+            # back into skin region at 40% to preserve natural skin detail.
+            # Only apply within the skin mask so eyes/lips are untouched.
+            edge_in_skin = edge_overlay * skin_mask_blurred  # edges only where skin was smoothed
+            edge_in_skin_3ch = np.stack([edge_in_skin] * 3, axis=-1)
+            edge_detail_strength = 0.4  # 40% edge overlay intensity
+            # Where edges exist, pull original pixel detail back through
+            res = res * (1.0 - edge_in_skin_3ch * edge_detail_strength) + img_bgr * (edge_in_skin_3ch * edge_detail_strength)
+
+            # Step 3: Sharpen eyes & eyebrows where eye_feature_mask > 0
             res = (res * (1.0 - eye_mask_3ch * 0.5) + sharpened_bgr * (eye_mask_3ch * 0.5))
             res = np.clip(res, 0, 255).astype(np.uint8)
 
