@@ -11,9 +11,11 @@ async def download_image(url: str, dest: str) -> str:
     return dest
 
 def upscale_image(src: str, dest: str, target_size: tuple = (1200, 1800)) -> str:
-    from PIL import Image
-    img = Image.open(src).convert("RGB")
-    img = img.resize(target_size, Image.LANCZOS)
+    from PIL import Image, ImageOps
+    raw_img = Image.open(src).convert("RGB")
+    w, h = raw_img.size
+    eff_target = (max(target_size), min(target_size)) if w > h else (min(target_size), max(target_size))
+    img = ImageOps.fit(raw_img, eff_target, Image.LANCZOS)
     Path(dest).parent.mkdir(parents=True, exist_ok=True)
     img.save(dest, "JPEG", quality=95)
     return dest
@@ -28,32 +30,35 @@ def compose_print_frame(
     watermark_opacity: float = 0.5,
     logo_path: str | None = None,
 ) -> str:
-    from PIL import Image, ImageDraw, ImageFont
-    img = Image.open(image_path).convert("RGBA")
-    img = img.resize(target_size, Image.LANCZOS)
+    from PIL import Image, ImageDraw, ImageFont, ImageOps
+    raw_img = Image.open(image_path).convert("RGBA")
+    w, h = raw_img.size
+    eff_target = (max(target_size), min(target_size)) if w > h else (min(target_size), max(target_size))
+    
+    img = ImageOps.fit(raw_img, eff_target, Image.LANCZOS)
 
     if frame_path and Path(frame_path).exists():
         frame = Image.open(frame_path).convert("RGBA")
-        frame = frame.resize(target_size, Image.LANCZOS)
+        frame = ImageOps.fit(frame, eff_target, Image.LANCZOS)
         img = Image.alpha_composite(img, frame)
 
     # Logo branding overlay
     if logo_path and Path(logo_path).exists():
         try:
             logo = Image.open(logo_path).convert("RGBA")
-            logo_width = int(target_size[0] * 0.25)
+            logo_width = int(eff_target[0] * 0.25)
             logo_height = int(logo.height * (logo_width / logo.width))
             logo = logo.resize((logo_width, logo_height), Image.LANCZOS)
-            img.paste(logo, (target_size[0] - logo_width - 30, 30), logo)
+            img.paste(logo, (eff_target[0] - logo_width - 30, 30), logo)
         except Exception as e:
             print(f"[branding] Logo error: {e}")
 
     # Watermark text overlay
     if watermark_text:
         try:
-            txt_layer = Image.new("RGBA", target_size, (255, 255, 255, 0))
+            txt_layer = Image.new("RGBA", eff_target, (255, 255, 255, 0))
             draw = ImageDraw.Draw(txt_layer)
-            font_size = int(target_size[1] * 0.025)
+            font_size = int(eff_target[1] * 0.025)
             try:
                 font = ImageFont.truetype("arial.ttf", font_size)
             except IOError:
@@ -67,11 +72,11 @@ def compose_print_frame(
             if watermark_position == 'top-left':
                 pos = (margin, margin)
             elif watermark_position == 'top-right':
-                pos = (target_size[0] - txt_w - margin, margin)
+                pos = (eff_target[0] - txt_w - margin, margin)
             elif watermark_position == 'bottom-left':
-                pos = (margin, target_size[1] - txt_h - margin)
+                pos = (margin, eff_target[1] - txt_h - margin)
             else: # bottom-right
-                pos = (target_size[0] - txt_w - margin, target_size[1] - txt_h - margin)
+                pos = (eff_target[0] - txt_w - margin, eff_target[1] - txt_h - margin)
 
             alpha = int(255 * clamp(watermark_opacity, 0.1, 1.0))
             draw.text(pos, watermark_text, fill=(255, 255, 255, alpha), font=font)

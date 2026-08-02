@@ -1033,11 +1033,11 @@ export default function JobHistoryTab() {
                 <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: 600 }}>📷 {isZh ? '訪客照片 (Guest Input)' : 'Guest Input'}</div>
                 <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', borderRadius: '8px', padding: '6px' }}>
                   <img 
-                    src={`/api/images/${selectedJobDetail.job_id}/input.jpg`} 
+                    src={`/api/uploads/${selectedJobDetail.job_id}/input.jpg`} 
                     onError={(e: any) => {
                       if (e.target.dataset.tried) return;
                       e.target.dataset.tried = 'true';
-                      e.target.src = `/api/uploads/${selectedJobDetail.job_id}/input.jpg`;
+                      e.target.src = `/api/images/${selectedJobDetail.job_id}/input.jpg`;
                     }} 
                     style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px' }} 
                     alt="input" 

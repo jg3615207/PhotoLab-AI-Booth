@@ -7,6 +7,7 @@ interface StyleData {
   thumbnail: string;
   max_people: number;
   animated_thumbnail?: string;
+  aspect_ratio?: string;
 }
 
 export default function StyleSelectionScreen() {
@@ -47,7 +48,8 @@ export default function StyleSelectionScreen() {
         {styles.map(s => {
           const isHovered = hoveredStyleId === s.id;
           const hasVideo = s.animated_thumbnail && (s.animated_thumbnail.endsWith('.mp4') || s.animated_thumbnail.endsWith('.webm'));
-          
+          const aspectStyle = s.aspect_ratio ? { aspectRatio: s.aspect_ratio.replace(':', '/') } : {};
+
           return (
             <div 
               key={s.id} 
@@ -69,13 +71,14 @@ export default function StyleSelectionScreen() {
                     loop
                     muted
                     playsInline
-                    style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                    style={{ objectFit: 'cover', width: '100%', ...aspectStyle }}
                   />
                 ) : (
                   <img 
                     className="style-thumb" 
                     src={s.animated_thumbnail} 
                     alt={s.name}
+                    style={aspectStyle}
                   />
                 )
               ) : (
@@ -83,6 +86,7 @@ export default function StyleSelectionScreen() {
                   className="style-thumb" 
                   src={s.thumbnail} 
                   alt={s.name}
+                  style={aspectStyle}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';

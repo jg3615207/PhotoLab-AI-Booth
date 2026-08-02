@@ -1214,13 +1214,18 @@ export default function StylesTab() {
               (s.prompt_template && s.prompt_template.toLowerCase().includes(term))
             );
           }).map(s => (
-            <div key={s.id} style={{ background: 'rgba(26, 26, 46, 0.8)', padding: '16px', borderRadius: '12px', display: 'grid', gridTemplateColumns: '80px 1.5fr 2fr 1fr 1fr auto', alignItems: 'center', gap: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              {/* FIXED THUMBNAIL SRC - NO EXTRA /api PREPENDED */}
+            <div key={s.id} style={{ background: 'rgba(26, 26, 46, 0.8)', padding: '16px', borderRadius: '12px', display: 'grid', gridTemplateColumns: (s.aspect_ratio === '16:9' || s.aspect_ratio === '3:2') ? '100px 1.5fr 2fr 1fr 1fr auto' : '80px 1.5fr 2fr 1fr 1fr auto', alignItems: 'center', gap: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
               <img 
                 src={s.thumbnail} 
                 onClick={() => setLightboxUrl(s.thumbnail)} 
                 onError={(e) => { (e.target as HTMLElement).style.background = '#2a2a4e'; }} 
-                style={{ width: '60px', height: '90px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer' }} 
+                style={{ 
+                  width: (s.aspect_ratio === '16:9' || s.aspect_ratio === '3:2') ? '96px' : '60px', 
+                  height: (s.aspect_ratio === '16:9' || s.aspect_ratio === '3:2') ? '54px' : '90px', 
+                  objectFit: 'cover', 
+                  borderRadius: '6px', 
+                  cursor: 'pointer' 
+                }} 
                 alt={s.name} 
               />
 
@@ -1297,7 +1302,7 @@ export default function StylesTab() {
                 <button className="btn-secondary" onClick={() => handleUploadFrame(s.id)} style={{ padding: '6px 10px', fontSize: '12px' }}>{isZh ? '邊框 PNG' : 'Frame PNG'}</button>
                 <button className="btn-primary" onClick={() => openEditModal(s)} style={{ padding: '6px 12px', fontSize: '12px' }}>{isZh ? '編輯' : 'Edit'}</button>
                 <button className="btn-secondary" onClick={() => handleCloneStyle(s)} style={{ padding: '6px 10px', fontSize: '12px' }}>📋 {isZh ? '複製' : 'Clone'}</button>
-                <button className="btn-secondary" onClick={() => openTestModal(s)} style={{ padding: '6px 12px', fontSize: '12px' }}>{isZh ? '測試' : 'Test'}</button>
+                <button className="btn-secondary" onClick={() => openTestModal(s)} style={{ padding: '6px 10px', fontSize: '12px' }}>{isZh ? '測試' : 'Test'}</button>
                 {s.active ? (
                   <button onClick={() => handleToggleActive(s.id, false)} style={{ padding: '6px 10px', fontSize: '12px', background: '#8b2020', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>{isZh ? '隱藏' : 'Hide'}</button>
                 ) : (

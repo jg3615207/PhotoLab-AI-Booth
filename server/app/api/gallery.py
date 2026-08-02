@@ -131,8 +131,15 @@ def serve_image(job_id: str, filename: str):
 
     path = job_dir / safe_filename
     
+    if safe_filename.startswith("input"):
+        upload_input = (Path(settings.upload_dir) / safe_job_id / safe_filename).resolve()
+        if not upload_input.exists():
+            upload_input = (Path(settings.upload_dir) / safe_job_id / "input.jpg").resolve()
+        if upload_input.exists():
+            path = upload_input
+
     if not path.exists():
-        for alt in ["print_ready.jpg", "framed.jpg", "upscaled.jpg", "raw.png", "raw.jpg", "input.jpg"]:
+        for alt in ["print_ready.jpg", "framed.jpg", "upscaled.jpg", "raw.png", "raw.jpg"]:
             alt_path = job_dir / alt
             if alt_path.exists():
                 path = alt_path
