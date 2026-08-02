@@ -19,7 +19,8 @@ FILTER_PRESETS = [
     {"id": "beauty-glow", "name": "✨ Dreamy Glow", "name_zh": "✨ 夢幻柔光", "description": "Soft-focus portrait glow effect"},
     {"id": "beauty-bright", "name": "✨ Bright Portrait", "name_zh": "✨ 明亮人像", "description": "Brightened, warm, clean portrait"},
     {"id": "beauty-porcelain", "name": "✨ Porcelain", "name_zh": "✨ 瓷肌美顏", "description": "Strong smoothing, magazine-cover skin"},
-    {"id": "beauty-face", "name": "✨ Face Mesh Beauty", "name_zh": "✨ 468點智慧美顏", "description": "MediaPipe FaceMesh skin smoothing (keeps eyes & lips razor sharp)"},
+    {"id": "beauty-face", "name": "✨ Face Mesh Beauty", "name_zh": "✨ 468點智慧美顏", "description": "MediaPipe FaceMesh skin smoothing + Canny edge detail"},
+    {"id": "beauty-face-v2", "name": "✨ FabSoften 468 Beauty v2", "name_zh": "✨ 468點智慧美顏 v2", "description": "MediaPipe 468 Mesh + FabSoften frequency texture restoration & guided feathering"},
 ]
 
 def get_available_filters():
@@ -93,7 +94,7 @@ def apply_filter(pil_img: Image.Image, filter_preset: str) -> Image.Image:
         enh_sat = ImageEnhance.Color(grained)
         return enh_sat.enhance(0.90)
 
-    # ── Beauty Mode Filters (non-AI) ─────────────────────────────────
+    # ── Beauty Mode Presets (non-AI) ─────────────────────────────────
     elif preset == "beauty-soft":
         return _beauty_soft(pil_img)
 
@@ -105,6 +106,9 @@ def apply_filter(pil_img: Image.Image, filter_preset: str) -> Image.Image:
 
     elif preset == "beauty-porcelain":
         return _beauty_porcelain(pil_img)
+
+    elif preset in ["beauty-face-v2", "beauty-facemesh-v2", "facemesh-v2", "v2"]:
+        return _beauty_facemesh_v2(pil_img)
 
     elif preset in ["beauty-face", "beauty-facemesh", "facemesh"]:
         return _beauty_facemesh_aware(pil_img)
@@ -176,6 +180,136 @@ _FACEMESH_LEFT_EYEBROW = [70, 63, 105, 66, 107, 55, 65, 52, 53, 46]
 _FACEMESH_RIGHT_EYEBROW = [300, 293, 334, 296, 336, 285, 295, 282, 283, 276]
 
 
+def _guided_feathering(mask: np.ndarray, guide_gray: np.ndarray, radius: int = 8, eps: float = 1e-3) -> np.ndarray:
+    """
+    FabSoften Guided Feathering:
+    Uses OpenCV Guided Filter to align skin mask edges seamlessly with real image
+    edge boundaries (jawline, hairline), eliminating harsh mask artifacts.
+    """
+    try:
+        import cv2
+        if hasattr(cv2, 'ximgproc') and hasattr(cv2.ximgproc, 'guidedFilter'):
+            mask_u8 = (mask * 255.0).astype(np.uint8)
+            filtered = cv2.ximgproc.guidedFilter(guide=guide_gray, src=mask_u8, radius=radius, eps=eps)
+            return filtered.astype(np.float32) / 255.0
+        else:
+            return cv2.GaussianBlur(mask, (5, 5), 0)
+    except Exception:
+        import cv2
+        return cv2.GaussianBlur(mask, (5, 5), 0)
+
+
+def _beauty_facemesh_v2(pil_img: Image.Image) -> Image.Image:
+    """
+    ✨ 468點智慧美顏 v2 (MediaPipe 468 Mesh + FabSoften Texture Restoration & Guided Feathering).
+    Combines:
+    1. MediaPipe 468 3D Face Mesh geometry for 100% accurate feature exclusion.
+    2. FabSoften Frequency Separation: Bilateral blemish removal + high-frequency skin pore restoration.
+    3. FabSoften Guided Feathering: Edge-preserving skin mask blending via Guided Filtering.
+    4. Sparkling Eye Sharpening: Unsharp contrast sharpening over eyes, eyelids & eyebrows.
+    """
+    try:
+        import cv2
+        import mediapipe as mp
+
+        mp_face_mesh = mp.solutions.face_mesh
+        img_rgb = np.array(pil_img)
+        h_img, w_img = img_rgb.shape[:2]
+
+        with mp_face_mesh.FaceMesh(
+            static_image_mode=True,
+            max_num_faces=4,
+            refine_landmarks=True,
+            min_detection_confidence=0.5
+        ) as face_mesh:
+            results = face_mesh.process(img_rgb)
+
+            if not results.multi_face_landmarks:
+                return _beauty_facemesh_aware(pil_img)
+
+            img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+            gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+
+            # Step 1: Bilateral smoothing for skin blemish & redness removal
+            smoothed_bgr = cv2.bilateralFilter(img_bgr, d=9, sigmaColor=75, sigmaSpace=75)
+
+            # Step 2: FabSoften High-Frequency Texture Extraction & Restoration
+            # Extract fine micro-textures (pores, fine details) from original photo
+            blur_guide = cv2.GaussianBlur(img_bgr, (5, 5), 0)
+            high_freq_texture = img_bgr.astype(np.float32) - blur_guide.astype(np.float32)
+
+            # Re-composite high-frequency texture onto smoothed skin (35% intensity)
+            restored_skin_bgr = smoothed_bgr.astype(np.float32) + (high_freq_texture * 0.35)
+            restored_skin_bgr = np.clip(restored_skin_bgr, 0, 255).astype(np.uint8)
+
+            # Step 3: Unsharp sharpening filter for eye & eyebrow enhancement
+            sharpen_kernel = np.array([[0, -0.4, 0], [-0.4, 2.6, -0.4], [0, -0.4, 0]], dtype=np.float32)
+            sharpened_bgr = cv2.filter2D(img_bgr, -1, sharpen_kernel)
+
+            # Step 4: Build MediaPipe 468-point face oval & feature masks
+            skin_mask = np.zeros((h_img, w_img), dtype=np.float32)
+            eye_feature_mask = np.zeros((h_img, w_img), dtype=np.float32)
+
+            for face_landmarks in results.multi_face_landmarks:
+                landmarks = face_landmarks.landmark
+
+                def get_pts(indices):
+                    return np.array([
+                        [int(landmarks[idx].x * w_img), int(landmarks[idx].y * h_img)]
+                        for idx in indices
+                    ], dtype=np.int32)
+
+                # Face Oval
+                face_pts = get_pts(_FACEMESH_OVAL)
+                face_mask_raw = np.zeros((h_img, w_img), dtype=np.uint8)
+                cv2.fillConvexPoly(face_mask_raw, cv2.convexHull(face_pts), 255)
+
+                # Feature Exclusion (Eyes, Eyebrows, Lips)
+                no_smooth_mask = np.zeros((h_img, w_img), dtype=np.uint8)
+                eye_mask_raw = np.zeros((h_img, w_img), dtype=np.uint8)
+
+                for feature_indices in [_FACEMESH_LEFT_EYE, _FACEMESH_RIGHT_EYE, _FACEMESH_LEFT_EYEBROW, _FACEMESH_RIGHT_EYEBROW, _FACEMESH_LIPS]:
+                    pts = get_pts(feature_indices)
+                    hull = cv2.convexHull(pts)
+                    cv2.fillPoly(no_smooth_mask, [hull], 255)
+                    if feature_indices in [_FACEMESH_LEFT_EYE, _FACEMESH_RIGHT_EYE, _FACEMESH_LEFT_EYEBROW, _FACEMESH_RIGHT_EYEBROW]:
+                        cv2.fillPoly(eye_mask_raw, [hull], 255)
+
+                # Dilate feature mask by 15px to protect eyelids, eyelashes & eye contours
+                dil_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+                no_smooth_dilated = cv2.dilate(no_smooth_mask, dil_kernel, iterations=1)
+                eye_mask_dilated = cv2.dilate(eye_mask_raw, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)), iterations=1)
+
+                skin_mask_face = face_mask_raw.copy()
+                skin_mask_face[no_smooth_dilated > 0] = 0
+
+                skin_mask = np.maximum(skin_mask, skin_mask_face.astype(np.float32) / 255.0)
+                eye_feature_mask = np.maximum(eye_feature_mask, eye_mask_dilated.astype(np.float32) / 255.0)
+
+            # Step 5: FabSoften Guided Feathering for seamless skin edge transitions
+            skin_mask_guided = _guided_feathering(skin_mask, gray, radius=8, eps=1e-3)
+            skin_mask_3ch = np.stack([skin_mask_guided] * 3, axis=-1)
+
+            eye_mask_blurred = cv2.GaussianBlur(eye_feature_mask, (5, 5), 0)
+            eye_mask_3ch = np.stack([eye_mask_blurred] * 3, axis=-1)
+
+            # Composite:
+            # 1. Apply FabSoften smoothed + texture-restored skin where skin_mask > 0
+            res = (img_bgr * (1.0 - skin_mask_3ch) + restored_skin_bgr * skin_mask_3ch)
+
+            # 2. Apply Eye Sharpening where eye_feature_mask > 0
+            res = (res * (1.0 - eye_mask_3ch * 0.5) + sharpened_bgr * (eye_mask_3ch * 0.5))
+            res = np.clip(res, 0, 255).astype(np.uint8)
+
+            result_pil = Image.fromarray(cv2.cvtColor(res, cv2.COLOR_BGR2RGB))
+            result_pil = ImageEnhance.Brightness(result_pil).enhance(1.03)
+            result_pil = ImageEnhance.Color(result_pil).enhance(1.03)
+            return result_pil
+
+    except Exception:
+        return _beauty_facemesh_aware(pil_img)
+
+
 def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
     """
     Precision Skin-Only Beauty Filter using Google MediaPipe 468-point Face Mesh.
@@ -215,13 +349,8 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
             smoothed_bgr = cv2.bilateralFilter(img_bgr, d=9, sigmaColor=75, sigmaSpace=75)
 
             # ── Canny Edge Detail Extraction ─────────────────────────
-            # Detect fine skin texture edges from the ORIGINAL image.
-            # These edges (pores, fine lines, contours) are blended back
-            # onto the smoothed result so skin looks natural, not waxy.
             canny_edges = cv2.Canny(gray, threshold1=50, threshold2=150)
-            # Soften edge lines slightly so they blend naturally
             canny_edges = cv2.GaussianBlur(canny_edges, (3, 3), 0)
-            # Normalize to 0-1 float, will be used as overlay intensity
             edge_overlay = canny_edges.astype(np.float32) / 255.0
 
             # Unsharp sharpening filter for eye enhancement
@@ -269,7 +398,7 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
                 skin_mask = np.maximum(skin_mask, skin_mask_face.astype(np.float32) / 255.0)
                 eye_feature_mask = np.maximum(eye_feature_mask, eye_mask_dilated.astype(np.float32) / 255.0)
 
-            # Feather skin mask with small 5px kernel (prevents blur bleed into eyes)
+            # Feather skin mask with small 5px kernel
             skin_mask_blurred = cv2.GaussianBlur(skin_mask, (5, 5), 0)
             skin_mask_3ch = np.stack([skin_mask_blurred] * 3, axis=-1)
 
@@ -280,13 +409,10 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
             # Step 1: Smooth skin where skin_mask > 0
             res = (img_bgr * (1.0 - skin_mask_3ch) + smoothed_bgr * skin_mask_3ch)
 
-            # Step 2: Canny Edge Detail Overlay — blend original texture edges
-            # back into skin region at 40% to preserve natural skin detail.
-            # Only apply within the skin mask so eyes/lips are untouched.
-            edge_in_skin = edge_overlay * skin_mask_blurred  # edges only where skin was smoothed
+            # Step 2: Canny Edge Detail Overlay
+            edge_in_skin = edge_overlay * skin_mask_blurred
             edge_in_skin_3ch = np.stack([edge_in_skin] * 3, axis=-1)
-            edge_detail_strength = 0.4  # 40% edge overlay intensity
-            # Where edges exist, pull original pixel detail back through
+            edge_detail_strength = 0.4
             res = res * (1.0 - edge_in_skin_3ch * edge_detail_strength) + img_bgr * (edge_in_skin_3ch * edge_detail_strength)
 
             # Step 3: Sharpen eyes & eyebrows where eye_feature_mask > 0

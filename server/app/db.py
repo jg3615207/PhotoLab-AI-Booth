@@ -304,16 +304,14 @@ def seed_styles():
 
 def seed_normal_styles():
     with get_db() as db:
-        count = db.execute("SELECT COUNT(*) FROM styles WHERE mode IN ('normal', 'both')").fetchone()[0]
-        if count > 0:
-            return
         beauty_styles = [
-            ("beauty-facemesh", "✨ 468點智慧美顏", 1, "both", "beauty-face", "single", 1),
-            ("beauty-soft", "✨ 柔膚自然", 1, "both", "beauty-soft", "single", 2),
-            ("beauty-glow", "✨ 夢幻柔光", 1, "both", "beauty-glow", "single", 3),
-            ("beauty-bright", "✨ 明亮人像", 1, "both", "beauty-bright", "single", 4),
-            ("beauty-porcelain", "✨ 瓷肌美顏", 1, "both", "beauty-porcelain", "single", 5),
-            ("normal-classic", "📷 經典拍貼 (原圖)", 1, "both", "none", "single", 6),
+            ("beauty-facemesh-v2", "✨ 468點智慧美顏 v2", 1, "both", "beauty-face-v2", "single", 1),
+            ("beauty-facemesh", "✨ 468點智慧美顏", 1, "both", "beauty-face", "single", 2),
+            ("beauty-soft", "✨ 柔膚自然", 1, "both", "beauty-soft", "single", 3),
+            ("beauty-glow", "✨ 夢幻柔光", 1, "both", "beauty-glow", "single", 4),
+            ("beauty-bright", "✨ 明亮人像", 1, "both", "beauty-bright", "single", 5),
+            ("beauty-porcelain", "✨ 瓷肌美顏", 1, "both", "beauty-porcelain", "single", 6),
+            ("normal-classic", "📷 經典拍貼 (原圖)", 1, "both", "none", "single", 7),
         ]
         for sid, name, max_p, mode, flt, layout, order in beauty_styles:
             db.execute(
