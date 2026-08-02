@@ -26,7 +26,10 @@ function KioskApp() {
         .then(data => {
           if (!data.active) throw new Error("This session is currently inactive.");
           setSession(data);
-          setScreen('attract');
+          const savedScreen = sessionStorage.getItem('photolab_kiosk_screen');
+          if (!savedScreen || savedScreen === 'join') {
+            setScreen('attract');
+          }
         })
         .catch(err => {
           console.error(err);
@@ -35,7 +38,7 @@ function KioskApp() {
     } else {
       setScreen('join');
     }
-  }, [setScreen, setSession]);
+  }, []);
 
   return (
     <div id="app">
