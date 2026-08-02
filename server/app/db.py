@@ -285,6 +285,7 @@ def init_db():
     conn.commit()
 
 def seed_styles():
+    seed_normal_styles()
     with get_db() as db:
         existing = db.execute("SELECT COUNT(*) FROM styles").fetchone()[0]
         if existing > 0:
@@ -298,6 +299,29 @@ def seed_styles():
             wf = json.dumps({"workflow_id": settings.rh_workflow_id, "input_nodes": {"image": "2", "style_ref": "3", "prompt": "1"}})
             db.execute("INSERT OR IGNORE INTO styles (id, name, max_people, prompt_template, rh_ref_file, workflows) VALUES (?,?,?,?,?,?)",
                        (s["id"], s["name"], s["max_people"], s["prompt_template"], s["rh_ref_file"], wf))
+
+        seed_normal_styles()
+
+def seed_normal_styles():
+    with get_db() as db:
+        count = db.execute("SELECT COUNT(*) FROM styles WHERE mode IN ('normal', 'both')").fetchone()[0]
+        if count > 0:
+            return
+        beauty_styles = [
+            ("beauty-facemesh", "✨ 468點智慧美顏", 1, "both", "beauty-face", "single", 1),
+            ("beauty-soft", "✨ 柔膚自然", 1, "both", "beauty-soft", "single", 2),
+            ("beauty-glow", "✨ 夢幻柔光", 1, "both", "beauty-glow", "single", 3),
+            ("beauty-bright", "✨ 明亮人像", 1, "both", "beauty-bright", "single", 4),
+            ("beauty-porcelain", "✨ 瓷肌美顏", 1, "both", "beauty-porcelain", "single", 5),
+            ("normal-classic", "📷 經典拍貼 (原圖)", 1, "both", "none", "single", 6),
+        ]
+        for sid, name, max_p, mode, flt, layout, order in beauty_styles:
+            db.execute(
+                """INSERT OR IGNORE INTO styles 
+                   (id, name, max_people, aspect_ratio, prompt_template, mode, filter_preset, layout_type, sort_order, active)
+                   VALUES (?, ?, ?, '3:4', '', ?, ?, ?, ?, 1)""",
+                (sid, name, max_p, mode, flt, layout, order)
+            )
 
 
 def get_setting(key: str, default: str = None) -> str:

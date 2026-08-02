@@ -87,16 +87,21 @@ export default function StyleSelectionScreen() {
                   />
                 )
               ) : (
-                <img 
-                  className="style-thumb" 
-                  src={s.thumbnail} 
-                  alt={s.name}
-                  style={aspectStyle}
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
-                />
+                <div style={{ position: 'relative', width: '100%', minHeight: '180px', background: 'linear-gradient(135deg, #1a1a3a 0%, #0d0d1a 100%)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...aspectStyle }}>
+                  <img 
+                    className="style-thumb" 
+                    src={s.thumbnail} 
+                    alt={s.name}
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', ...aspectStyle }}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                  <div style={{ fontSize: '48px', opacity: 0.85, textShadow: '0 0 20px rgba(102, 126, 234, 0.6)' }}>
+                    {s.name.includes('✨') ? '✨' : (isNormalStyle ? '📷' : '🎨')}
+                  </div>
+                </div>
               )}
               <div className="style-name">{s.name}</div>
               <div className="style-badge" style={isNormalStyle ? { background: 'rgba(72, 187, 120, 0.25)', color: '#68d391', borderColor: 'rgba(72, 187, 120, 0.4)' } : {}}>

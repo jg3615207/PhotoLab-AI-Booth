@@ -114,3 +114,6 @@
 [2026-08-02 17:21:38] Watchdog Auto-Restarter active.
 [2026-08-02 17:21:38] Starting backend: C:\AI\VibeCoding\PhotoLab\server\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8765 --reload
 [2026-08-02 17:53:03] Watchdog stopped by user keyboard interrupt.
+[2026-08-02 18:38:23] Watchdog Auto-Restarter active.
+[2026-08-02 18:38:23] Starting backend: C:\AI\VibeCoding\PhotoLab\server\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8765 --reload
+[2026-08-02 18:40:23] Watchdog stopped by user keyboard interrupt.
