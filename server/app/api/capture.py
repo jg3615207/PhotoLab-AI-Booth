@@ -83,11 +83,17 @@ async def capture(
 
     booth_mode = "ai"
     style_mode = "ai"
+    has_ref_file = False
     with get_db() as db:
-        st_row = db.execute("SELECT v2_model, mode FROM styles WHERE id=?", (style_id,)).fetchone()
+        st_row = db.execute("SELECT v2_model, mode, rh_ref_file, rh_ref_url FROM styles WHERE id=?", (style_id,)).fetchone()
         used_model = model_override or (st_row["v2_model"] if st_row and st_row["v2_model"] else "nb2-cheap")
-        if st_row and "mode" in st_row.keys() and st_row["mode"]:
-            style_mode = st_row["mode"]
+        if st_row:
+            if "mode" in st_row.keys() and st_row["mode"]:
+                style_mode = st_row["mode"]
+            ref_f = st_row["rh_ref_file"] if "rh_ref_file" in st_row.keys() and st_row["rh_ref_file"] else ""
+            ref_u = st_row["rh_ref_url"] if "rh_ref_url" in st_row.keys() and st_row["rh_ref_url"] else ""
+            if (ref_f and ref_f.strip()) or (ref_u and ref_u.strip()):
+                has_ref_file = True
 
         if event_id:
             ev_row = db.execute("SELECT booth_mode FROM events WHERE id=?", (event_id,)).fetchone()
@@ -99,8 +105,8 @@ async def capture(
             (job_id, style_id, capture_source, img_path, ref_path, "created", event_id, used_model),
         )
 
-    # Route to Normal (No AI) pipeline if booth mode is normal OR style mode is normal
-    is_normal = (booth_mode == "normal") or (style_mode == "normal") or (booth_mode == "normal" and style_mode == "both")
+    # Route to Normal (No AI) pipeline if booth mode is normal OR style mode is normal OR style lacks AI reference image
+    is_normal = (booth_mode == "normal") or (style_mode == "normal") or (style_mode == "both" and not has_ref_file)
     if is_normal:
         threading.Thread(
             target=run_normal_pipeline,
