@@ -45,7 +45,7 @@ def download_alias(job_id: str):
 def health():
     return {
         "status": "ok", 
-        "version": "0.24.0",
+        "version": "0.25.0",
         "custom_css": get_setting("custom_css", "")
     }
 
