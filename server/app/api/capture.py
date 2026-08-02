@@ -81,6 +81,7 @@ async def capture(
         with open(ref_path, "wb") as f:
             f.write(ref_content)
 
+    booth_mode = "ai"
     style_mode = "ai"
     with get_db() as db:
         st_row = db.execute("SELECT v2_model, mode FROM styles WHERE id=?", (style_id,)).fetchone()
@@ -88,13 +89,19 @@ async def capture(
         if st_row and "mode" in st_row.keys() and st_row["mode"]:
             style_mode = st_row["mode"]
 
+        if event_id:
+            ev_row = db.execute("SELECT booth_mode FROM events WHERE id=?", (event_id,)).fetchone()
+            if ev_row and "booth_mode" in ev_row.keys() and ev_row["booth_mode"]:
+                booth_mode = ev_row["booth_mode"]
+
         db.execute(
             "INSERT INTO sessions (job_id, style_id, capture_source, input_image, ref_image, status, event_id, v2_model) VALUES (?,?,?,?,?,?,?,?)",
             (job_id, style_id, capture_source, img_path, ref_path, "created", event_id, used_model),
         )
 
-    # Route to Normal (No AI) pipeline if style mode is normal
-    if style_mode == "normal":
+    # Route to Normal (No AI) pipeline if booth mode is normal OR style mode is normal
+    is_normal = (booth_mode == "normal") or (style_mode == "normal") or (booth_mode == "normal" and style_mode == "both")
+    if is_normal:
         threading.Thread(
             target=run_normal_pipeline,
             args=(job_id, style_id, img_path),

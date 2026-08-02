@@ -28,7 +28,10 @@ export default function StyleSelectionScreen() {
       .then((data: StyleData[]) => {
         let filteredStyles = data;
         if (session?.allowed_styles && session.allowed_styles.length > 0) {
-          filteredStyles = data.filter(s => session.allowed_styles!.includes(s.id));
+          const matched = data.filter(s => session.allowed_styles!.includes(s.id));
+          if (matched.length > 0) {
+            filteredStyles = matched;
+          }
         }
         setStyles(filteredStyles);
       })
