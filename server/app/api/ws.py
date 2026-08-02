@@ -64,6 +64,7 @@ def broadcast_job_update(job_id: str, status: str, output_image: str = None, err
             )
 
 @router.websocket("/ws/jobs/{session_id}")
+@router.websocket("/api/ws/jobs/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
     await manager.connect(websocket, session_id)
     try:
@@ -73,6 +74,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
         manager.disconnect(session_id)
 
 @router.websocket("/ws/admin")
+@router.websocket("/api/ws/admin")
 async def websocket_admin_endpoint(websocket: WebSocket):
     await manager.connect_admin(websocket)
     try:

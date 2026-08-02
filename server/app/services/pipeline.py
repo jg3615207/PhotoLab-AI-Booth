@@ -309,7 +309,7 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
 
     print_path = str(output_dir / "print_ready.jpg")
     compose_print_frame(
-        upscale_path if os.path.exists(upscale_path) else raw_path,
+        upscaled_path if os.path.exists(upscaled_path) else raw_path,
         print_path,
         frame_path=frame_img,
         target_size=(1200, 1800),
