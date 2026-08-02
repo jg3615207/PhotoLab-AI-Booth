@@ -19,7 +19,7 @@ FILTER_PRESETS = [
     {"id": "beauty-glow", "name": "✨ Dreamy Glow", "name_zh": "✨ 夢幻柔光", "description": "Soft-focus portrait glow effect"},
     {"id": "beauty-bright", "name": "✨ Bright Portrait", "name_zh": "✨ 明亮人像", "description": "Brightened, warm, clean portrait"},
     {"id": "beauty-porcelain", "name": "✨ Porcelain", "name_zh": "✨ 瓷肌美顏", "description": "Strong smoothing, magazine-cover skin"},
-    {"id": "beauty-face", "name": "✨ Face Mesh Beauty", "name_zh": "✨ 468點智慧美顏", "description": "MediaPipe FaceMesh skin smoothing (preserves eyes, lips & hair)"},
+    {"id": "beauty-face", "name": "✨ Face Mesh Beauty", "name_zh": "✨ 468點智慧美顏", "description": "MediaPipe FaceMesh skin smoothing (keeps eyes & lips razor sharp)"},
 ]
 
 def get_available_filters():
@@ -180,10 +180,10 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
     """
     Precision Skin-Only Beauty Filter using Google MediaPipe 468-point Face Mesh.
     1. Detects face 3D mesh points.
-    2. Builds precise skin mask (Face oval MINUS Eyes, Eyebrows, Lips).
-    3. Feathers mask boundaries for seamless blending.
+    2. Builds precise skin mask (Face oval MINUS Eyes, Eyelashes, Eyebrows, Lips).
+    3. Dilates feature exclusion zones to guarantee eyes/eyelashes/brows are 100% protected.
     4. Smooths skin with edge-preserving bilateral filter.
-    5. Leaves eyes, lips, nostrils & hair crisp.
+    5. Applies unsharp sharpening filter specifically over eye/eyebrow regions for crisp, sparkling eyes.
     Falls back to OpenCV Haar cascade or PIL soft blur if MediaPipe is unavailable.
     """
     try:
@@ -203,17 +203,20 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
             results = face_mesh.process(img_rgb)
 
             if not results.multi_face_landmarks:
-                # No faces detected via MediaPipe — try OpenCV Haar cascade fallback
                 return _beauty_opencv_fallback(pil_img)
 
-            # Convert RGB → BGR for OpenCV processing
             img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
 
-            # Generate edge-preserving bilateral smoothed version of whole image
+            # Edge-preserving bilateral skin smoothing
             smoothed_bgr = cv2.bilateralFilter(img_bgr, d=9, sigmaColor=75, sigmaSpace=75)
 
-            # Initialize overall skin mask (0.0 to 1.0 float32)
+            # Unsharp sharpening filter for eye enhancement
+            sharpen_kernel = np.array([[0, -0.4, 0], [-0.4, 2.6, -0.4], [0, -0.4, 0]], dtype=np.float32)
+            sharpened_bgr = cv2.filter2D(img_bgr, -1, sharpen_kernel)
+
+            # Initialize masks
             skin_mask = np.zeros((h_img, w_img), dtype=np.float32)
+            eye_feature_mask = np.zeros((h_img, w_img), dtype=np.float32)
 
             for face_landmarks in results.multi_face_landmarks:
                 landmarks = face_landmarks.landmark
@@ -226,35 +229,49 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
 
                 # 1. Fill Face Oval (skin area)
                 face_pts = get_pts(_FACEMESH_OVAL)
-                face_mask = np.zeros((h_img, w_img), dtype=np.uint8)
-                cv2.fillConvexPoly(face_mask, cv2.convexHull(face_pts), 255)
+                face_mask_raw = np.zeros((h_img, w_img), dtype=np.uint8)
+                cv2.fillConvexPoly(face_mask_raw, cv2.convexHull(face_pts), 255)
 
-                # 2. Subtract Eyes, Eyebrows, Lips from skin mask
-                for feature_indices in [_FACEMESH_LEFT_EYE, _FACEMESH_RIGHT_EYE, _FACEMESH_LIPS, _FACEMESH_LEFT_EYEBROW, _FACEMESH_RIGHT_EYEBROW]:
+                # 2. Build feature exclusion mask (Eyes, Eyebrows, Lips)
+                no_smooth_mask = np.zeros((h_img, w_img), dtype=np.uint8)
+                eye_mask_raw = np.zeros((h_img, w_img), dtype=np.uint8)
+
+                for feature_indices in [_FACEMESH_LEFT_EYE, _FACEMESH_RIGHT_EYE, _FACEMESH_LEFT_EYEBROW, _FACEMESH_RIGHT_EYEBROW, _FACEMESH_LIPS]:
                     pts = get_pts(feature_indices)
-                    # Dilate non-skin feature mask slightly so edges remain sharp
-                    feature_mask = np.zeros((h_img, w_img), dtype=np.uint8)
-                    cv2.fillPoly(feature_mask, [cv2.convexHull(pts)], 255)
-                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-                    feature_mask = cv2.dilate(feature_mask, kernel, iterations=1)
-                    face_mask[feature_mask > 0] = 0
+                    hull = cv2.convexHull(pts)
+                    cv2.fillPoly(no_smooth_mask, [hull], 255)
+                    if feature_indices in [_FACEMESH_LEFT_EYE, _FACEMESH_RIGHT_EYE, _FACEMESH_LEFT_EYEBROW, _FACEMESH_RIGHT_EYEBROW]:
+                        cv2.fillPoly(eye_mask_raw, [hull], 255)
 
-                # 3. Add to overall float mask
-                skin_mask = np.maximum(skin_mask, face_mask.astype(np.float32) / 255.0)
+                # Dilate feature mask by 15px to protect eyelids, eyelashes & eye contours
+                dil_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+                no_smooth_dilated = cv2.dilate(no_smooth_mask, dil_kernel, iterations=1)
+                eye_mask_dilated = cv2.dilate(eye_mask_raw, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)), iterations=1)
 
-            # 4. Feather skin mask for natural transition
-            blur_kernel = max(7, int(min(w_img, h_img) * 0.02) | 1)
-            skin_mask_blurred = cv2.GaussianBlur(skin_mask, (blur_kernel, blur_kernel), 0)
+                # Skin mask = Face Oval MINUS dilated feature mask
+                skin_mask_face = face_mask_raw.copy()
+                skin_mask_face[no_smooth_dilated > 0] = 0
+
+                skin_mask = np.maximum(skin_mask, skin_mask_face.astype(np.float32) / 255.0)
+                eye_feature_mask = np.maximum(eye_feature_mask, eye_mask_dilated.astype(np.float32) / 255.0)
+
+            # Feather skin mask with small 5px kernel (prevents blur bleed into eyes)
+            skin_mask_blurred = cv2.GaussianBlur(skin_mask, (5, 5), 0)
             skin_mask_3ch = np.stack([skin_mask_blurred] * 3, axis=-1)
 
-            # 5. Composite: Original where non-skin, Smoothed where skin
-            result_bgr = (img_bgr * (1.0 - skin_mask_3ch) + smoothed_bgr * skin_mask_3ch).astype(np.uint8)
+            # Feather eye sharpening mask
+            eye_mask_blurred = cv2.GaussianBlur(eye_feature_mask, (5, 5), 0)
+            eye_mask_3ch = np.stack([eye_mask_blurred] * 3, axis=-1)
 
-            # Convert BGR → RGB PIL Image
-            result_pil = Image.fromarray(cv2.cvtColor(result_bgr, cv2.COLOR_BGR2RGB))
+            # Step 1: Smooth skin where skin_mask > 0
+            res = (img_bgr * (1.0 - skin_mask_3ch) + smoothed_bgr * skin_mask_3ch)
 
-            # Light post-enhancement (skin warmth & subtle brightness)
-            result_pil = ImageEnhance.Brightness(result_pil).enhance(1.03)
+            # Step 2: Sharpen eyes & eyebrows where eye_feature_mask > 0
+            res = (res * (1.0 - eye_mask_3ch * 0.5) + sharpened_bgr * (eye_mask_3ch * 0.5))
+            res = np.clip(res, 0, 255).astype(np.uint8)
+
+            result_pil = Image.fromarray(cv2.cvtColor(res, cv2.COLOR_BGR2RGB))
+            result_pil = ImageEnhance.Brightness(result_pil).enhance(1.02)
             result_pil = ImageEnhance.Color(result_pil).enhance(1.02)
             return result_pil
 
