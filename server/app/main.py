@@ -4,7 +4,7 @@ from pathlib import Path
 
 from app.config import settings
 from app.db import init_db, seed_styles, get_setting
-from app.api import styles, capture, gallery, events, admin, ws, transitions, print_manager, agent
+from app.api import styles, capture, gallery, events, admin, ws, transitions, print_manager, agent, frame_maker
 from app.services.printing import start_print_worker
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,6 +36,7 @@ app.include_router(transitions.router)
 app.include_router(transitions.public_router)
 app.include_router(print_manager.router)
 app.include_router(agent.router)
+app.include_router(frame_maker.router)
 
 @app.get("/download/{job_id}")
 def download_alias(job_id: str):
@@ -45,7 +46,7 @@ def download_alias(job_id: str):
 def health():
     return {
         "status": "ok", 
-        "version": "0.30.0",
+        "version": "0.42.0",
         "custom_css": get_setting("custom_css", "")
     }
 

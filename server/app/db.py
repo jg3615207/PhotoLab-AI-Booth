@@ -200,6 +200,25 @@ def init_db():
     except sqlite3.OperationalError:
         pass
     try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS frame_templates (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                canvas_json TEXT DEFAULT '{}',
+                target_width INTEGER DEFAULT 1200,
+                target_height INTEGER DEFAULT 1800,
+                thumbnail TEXT DEFAULT '',
+                frame_png TEXT DEFAULT '',
+                category TEXT DEFAULT 'custom',
+                tags TEXT DEFAULT '[]',
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+    except sqlite3.OperationalError:
+        pass
+    try:
         conn.execute("ALTER TABLE events ADD COLUMN frame_path TEXT DEFAULT ''")
     except sqlite3.OperationalError:
         pass

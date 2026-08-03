@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAdminLang } from '../context/AdminLangContext';
 import PhotoCompareTool from './PhotoCompareTool';
+import FrameMakerTool from './FrameMakerTool';
 
 interface UsefulLink {
   id: string;
@@ -43,6 +44,7 @@ export default function ToolsTab({ onOpenAgent }: ToolsTabProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showCompareTool, setShowCompareTool] = useState(false);
+  const [showFrameMaker, setShowFrameMaker] = useState(true);
 
   const filteredWebsites = USEFUL_WEBSITES.filter(site => {
     const q = searchTerm.toLowerCase();
@@ -141,6 +143,68 @@ export default function ToolsTab({ onOpenAgent }: ToolsTabProps) {
           >
             ⚡ {isZh ? '立即開啟 AI 創作 Agent' : 'Launch AI Style Agent'}
           </button>
+        )}
+      </div>
+
+      {/* Photo Frame Maker Tool Section */}
+      <div style={{
+        background: 'rgba(13, 13, 26, 0.8)',
+        borderRadius: '12px',
+        marginBottom: '24px',
+        border: '1px solid rgba(168,85,247,0.3)',
+        overflow: 'hidden'
+      }}>
+        <div
+          onClick={() => setShowFrameMaker(!showFrameMaker)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '20px 24px',
+            cursor: 'pointer',
+            background: showFrameMaker ? 'rgba(168,85,247,0.08)' : 'transparent',
+            transition: 'background 0.2s'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '24px' }}>🖼️</span>
+            <div>
+              <h3 style={{ color: '#a855f7', fontSize: '18px', margin: 0, fontWeight: 700 }}>
+                {isZh ? '相框設計師 (Photo Frame Maker Studio)' : 'Photo Frame Maker Studio'}
+              </h3>
+              <p style={{ color: '#888', fontSize: '12px', margin: '4px 0 0' }}>
+                {isZh
+                  ? '視覺化相框設計：文字標題、邊框飾條、相片鏤空區、貼圖裝飾、AI 助手設計建議與一鍵套用至風格/活動'
+                  : 'Visual frame designer: custom text, borders, photo cutout slots, sticker collection, AI suggestions, direct apply to styles/events'
+                }
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{
+              fontSize: '11px',
+              background: 'rgba(168,85,247,0.15)',
+              color: '#a855f7',
+              border: '1px solid rgba(168,85,247,0.3)',
+              padding: '3px 10px',
+              borderRadius: '12px',
+              fontWeight: 600
+            }}>
+              {isZh ? '新功能' : 'New Feature'}
+            </span>
+            <span style={{
+              fontSize: '18px',
+              color: '#a855f7',
+              transform: showFrameMaker ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.3s ease'
+            }}>▼</span>
+          </div>
+        </div>
+
+        {showFrameMaker && (
+          <div style={{ padding: '16px', borderTop: '1px solid rgba(168,85,247,0.15)' }}>
+            <FrameMakerTool />
+          </div>
         )}
       </div>
 
