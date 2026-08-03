@@ -807,7 +807,60 @@ export default function FrameMakerTool() {
     }
   };
 
-  // AI Suggest
+  // AI Generate Frame Artwork Background
+  const [aiGenPrompt, setAiGenPrompt] = useState('Golden floral frame border with luxury sparkles');
+  const [aiTab, setAiTab] = useState<'theme' | 'artwork'>('artwork');
+
+  const handleAiGenerateFrameImage = async () => {
+    setAiLoading(true);
+    try {
+      const res = await fetch('/api/frame-maker/ai-generate-background', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: aiGenPrompt || `${aiEventType} ${aiTheme}`,
+          aspect_ratio: targetWidth > targetHeight ? "3:2" : "2:3",
+          v2_model: "nb2-cheap"
+        })
+      });
+      const data = await res.json();
+      setAiLoading(false);
+
+      if (data.status === 'ok' && data.image_url) {
+        setShowAiModal(false);
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = data.image_url;
+        img.onload = () => {
+          const bgLayer: FrameElement = {
+            id: `ai_bg_${Date.now()}`,
+            type: 'image',
+            x: 0,
+            y: 0,
+            width: targetWidth,
+            height: targetHeight,
+            rotation: 0,
+            opacity: 1,
+            visible: true,
+            imageUrl: data.image_url,
+            imageObj: img
+          };
+          // Insert at index 0 (behind other layers)
+          const updated = [bgLayer, ...elements.filter(e => !e.id.startsWith('ai_bg_'))];
+          updateElementsState(updated);
+          setSelectedId(bgLayer.id);
+        };
+        alert(isZh ? '✨ AI 繪製相框圖案完成！已自動套用至背景圖層。' : '✨ AI Frame Artwork generated and applied to canvas!');
+      } else {
+        alert(isZh ? 'AI 繪製失敗: ' + (data.detail || '未知錯誤') : 'AI Frame generation failed: ' + (data.detail || 'Unknown error'));
+      }
+    } catch (e) {
+      setAiLoading(false);
+      alert(isZh ? 'AI 繪製請求發生錯誤' : 'Error requesting AI frame generation');
+    }
+  };
+
+  // AI Suggest Theme
   const handleAiSuggest = async () => {
     setAiLoading(true);
     try {
@@ -1228,32 +1281,99 @@ export default function FrameMakerTool() {
       {/* AI Assistant Modal */}
       {showAiModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: '#121324', border: '1px solid rgba(168,85,247,0.4)', borderRadius: '16px', padding: '24px', width: '420px', color: '#fff' }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: '18px', color: '#a855f7' }}>🤖 {isZh ? 'AI 相框設計助手' : 'AI Frame Design Assistant'}</h3>
-            <p style={{ fontSize: '12px', color: '#aaa', margin: '0 0 16px' }}>
-              {isZh ? '輸入活動類型與主題，AI 將自動生成對應配色、文字標題與背景主題' : 'Provide your event concept and AI will curate color palettes, titles, and layout themes'}
-            </p>
+          <div style={{ background: '#121324', border: '1px solid rgba(168,85,247,0.4)', borderRadius: '16px', padding: '24px', width: '460px', color: '#fff', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: '18px', color: '#a855f7', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              🤖 {isZh ? 'AI 相框設計助手' : 'AI Frame Design Assistant'}
+            </h3>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
-              <div>
-                <label style={{ display: 'block', color: '#ccc', marginBottom: '4px' }}>{isZh ? '活動類型' : 'Event Type'}</label>
-                <input type="text" value={aiEventType} onChange={e => setAiEventType(e.target.value)} placeholder="e.g. Wedding, Birthday, Annual Gala" style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#000', color: '#fff', border: '1px solid #333' }} />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', color: '#ccc', marginBottom: '4px' }}>{isZh ? '風格氛圍' : 'Theme / Mood'}</label>
-                <input type="text" value={aiTheme} onChange={e => setAiTheme(e.target.value)} placeholder="e.g. Elegant Gold, Cyberpunk Neon, Vintage" style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#000', color: '#fff', border: '1px solid #333' }} />
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-                <button onClick={() => setShowAiModal(false)} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer' }}>
-                  {isZh ? '取消' : 'Cancel'}
-                </button>
-                <button onClick={handleAiSuggest} disabled={aiLoading} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'linear-gradient(135deg, #a855f7, #6366f1)', border: 'none', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                  {aiLoading ? (isZh ? '生成中...' : 'Generating...') : (isZh ? '套用建議' : 'Apply AI Design')}
-                </button>
-              </div>
+            {/* Modal Tabs */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', background: 'rgba(0,0,0,0.4)', padding: '4px', borderRadius: '8px' }}>
+              <button
+                onClick={() => setAiTab('artwork')}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: aiTab === 'artwork' ? 'linear-gradient(135deg, #a855f7, #6366f1)' : 'transparent',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                🎨 {isZh ? 'AI 繪製相框圖案 (Artwork)' : 'AI Frame Artwork'}
+              </button>
+              <button
+                onClick={() => setAiTab('theme')}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: aiTab === 'theme' ? 'linear-gradient(135deg, #a855f7, #6366f1)' : 'transparent',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                💡 {isZh ? '主題配色與文字 (Theme & Text)' : 'Theme & Text Ideas'}
+              </button>
             </div>
+
+            {aiTab === 'artwork' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
+                <p style={{ fontSize: '12px', color: '#aaa', margin: 0 }}>
+                  {isZh ? '輸入想要的裝飾飾條與主題，AI 將自動繪製一張高解析度相框背景圖片並套用至畫布！' : 'Describe your desired decorative frame border and AI will render a high-res frame artwork image via RunningHub T2I!'}
+                </p>
+
+                <div>
+                  <label style={{ display: 'block', color: '#ccc', marginBottom: '4px', fontSize: '12px' }}>{isZh ? 'AI 相框繪圖提示詞 (Frame Prompt)' : 'Frame Artwork Prompt'}</label>
+                  <textarea
+                    rows={3}
+                    value={aiGenPrompt}
+                    onChange={e => setAiGenPrompt(e.target.value)}
+                    placeholder="e.g. Golden ornate wedding frame border, white roses, luxury sparkles, baroque metallic trim"
+                    style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#000', color: '#fff', border: '1px solid #333', resize: 'vertical', fontSize: '12px' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                  <button onClick={() => setShowAiModal(false)} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer' }}>
+                    {isZh ? '取消' : 'Cancel'}
+                  </button>
+                  <button onClick={handleAiGenerateFrameImage} disabled={aiLoading} style={{ flex: 1.5, padding: '10px', borderRadius: '8px', background: 'linear-gradient(135deg, #a855f7, #6366f1)', border: 'none', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                    {aiLoading ? (isZh ? '繪製中 (約15秒)...' : 'Rendering (15s)...') : (isZh ? '✨ 立即繪製 AI 相框圖案' : '✨ Render AI Frame Artwork')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
+                <p style={{ fontSize: '12px', color: '#aaa', margin: 0 }}>
+                  {isZh ? '輸入活動類型與主題，AI 將自動生成對應配色、文字標題與背景主題' : 'Provide your event concept and AI will curate color palettes, titles, and layout themes'}
+                </p>
+
+                <div>
+                  <label style={{ display: 'block', color: '#ccc', marginBottom: '4px', fontSize: '12px' }}>{isZh ? '活動類型' : 'Event Type'}</label>
+                  <input type="text" value={aiEventType} onChange={e => setAiEventType(e.target.value)} placeholder="e.g. Wedding, Birthday, Annual Gala" style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#000', color: '#fff', border: '1px solid #333' }} />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', color: '#ccc', marginBottom: '4px', fontSize: '12px' }}>{isZh ? '風格氛圍' : 'Theme / Mood'}</label>
+                  <input type="text" value={aiTheme} onChange={e => setAiTheme(e.target.value)} placeholder="e.g. Elegant Gold, Cyberpunk Neon, Vintage" style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#000', color: '#fff', border: '1px solid #333' }} />
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                  <button onClick={() => setShowAiModal(false)} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer' }}>
+                    {isZh ? '取消' : 'Cancel'}
+                  </button>
+                  <button onClick={handleAiSuggest} disabled={aiLoading} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'linear-gradient(135deg, #a855f7, #6366f1)', border: 'none', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                    {aiLoading ? (isZh ? '生成中...' : 'Generating...') : (isZh ? '套用文字與配色建議' : 'Apply Theme & Text')}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

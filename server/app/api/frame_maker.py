@@ -288,3 +288,51 @@ def upload_asset(file: UploadFile = File(...)):
         f.write(file.file.read())
 
     return {"status": "ok", "url": f"/api/frame-maker/assets/{asset_id}", "name": Path(file.filename).stem}
+
+
+class AIFrameGenRequest(BaseModel):
+    prompt: str
+    aspect_ratio: Optional[str] = "2:3"
+    v2_model: Optional[str] = "nb2-cheap"
+
+
+@router.post("/ai-generate-background")
+def ai_generate_frame_background(req: AIFrameGenRequest):
+    """Generates an AI decorative frame border background image using RunningHub V2 T2I."""
+    from app.providers.runninghub_v2 import RunningHubV2Provider
+
+    full_prompt = (
+        f"Photo booth frame border overlay, {req.prompt.strip()}, "
+        f"ornate decorative frame borders, gold metallic details, luxury aesthetic, 4k high definition"
+    )
+
+    provider = RunningHubV2Provider()
+    try:
+        result = provider.generate_ref_image(
+            prompt=full_prompt,
+            aspect_ratio=req.aspect_ratio or "2:3",
+            resolution="2k",
+            v2_model=req.v2_model or "nb2-cheap",
+        )
+    except Exception as e:
+        raise HTTPException(500, f"AI frame image generation failed: {str(e)}")
+
+    bg_id = f"ai_frame_{uuid.uuid4().hex[:8]}.jpg"
+    dest_path = ASSETS_DIR / bg_id
+
+    try:
+        import httpx
+        r = httpx.get(result.image_url, timeout=60)
+        r.raise_for_status()
+        with open(dest_path, "wb") as f:
+            f.write(r.content)
+    except Exception as e:
+        raise HTTPException(500, f"Failed to download generated AI frame image: {str(e)}")
+
+    return {
+        "status": "ok",
+        "image_url": f"/api/frame-maker/assets/{bg_id}",
+        "cost_money": result.cost_money,
+        "cost_time": result.cost_time
+    }
+
