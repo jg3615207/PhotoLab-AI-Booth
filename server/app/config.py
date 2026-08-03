@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o"
     public_base_url: str = ""
 
-    upload_dir: str = str(Path(__file__).parent.parent / "data" / "uploads")
+    upload_dir: str = str(Path(__file__).parent.parent / "data" / "inputs")
     output_dir: str = str(Path(__file__).parent.parent / "data" / "outputs")
     print_dir: str = str(Path(__file__).parent.parent / "data" / "prints")
     db_path: str = str(Path(__file__).parent.parent / "data" / "booth.db")

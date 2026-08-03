@@ -151,3 +151,7 @@
 [2026-08-03 13:11:50] Memory threshold exceeded: 2082.28MB > 2048MB. Initiating clean restart...
 [2026-08-03 13:11:50] Starting backend: C:\AI\VibeCoding\PhotoLab\server\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8765 --reload
 [2026-08-03 13:13:34] Watchdog stopped by user keyboard interrupt.
+[2026-08-03 13:15:43] Watchdog Auto-Restarter active.
+[2026-08-03 13:15:43] Starting backend: C:\AI\VibeCoding\PhotoLab\server\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8765 --reload
+[2026-08-03 13:16:43] Memory threshold exceeded: 3477.43MB > 2048MB. Initiating clean restart...
+[2026-08-03 13:16:43] Starting backend: C:\AI\VibeCoding\PhotoLab\server\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8765 --reload

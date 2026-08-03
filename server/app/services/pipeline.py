@@ -398,15 +398,24 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
                 shutil.copy2(save_source, target_path_jpg)
             print(f"Successfully saved local JPG copy to {target_path_jpg}")
 
-            # 2. Save untouched RAW PNG into RAW/ subfolder next to JPGs
+            # 2. Save untouched AI generated RAW image into RAW/ subfolder
             if raw_path and os.path.exists(raw_path):
                 raw_dir = target_dir / "RAW"
                 raw_dir.mkdir(parents=True, exist_ok=True)
-                raw_filename_png = f"{timestamp}_{style_id}_{job_id}.png"
+                raw_filename_png = f"{timestamp}_{style_id}_{job_id}_raw.png"
                 raw_target_path = raw_dir / raw_filename_png
                 import shutil
                 shutil.copy2(raw_path, raw_target_path)
-                print(f"Successfully saved local RAW PNG copy to {raw_target_path}")
+                print(f"Successfully saved untouched AI gen RAW copy to {raw_target_path}")
+
+            # 3. Save original guest camera input photo into INPUT/ subfolder
+            if image_path and os.path.exists(image_path):
+                input_dir = target_dir / "INPUT"
+                input_dir.mkdir(parents=True, exist_ok=True)
+                input_filename_jpg = f"{timestamp}_{style_id}_{job_id}_input.jpg"
+                import shutil
+                shutil.copy2(image_path, input_dir / input_filename_jpg)
+                print(f"Successfully saved original camera INPUT copy to {input_dir / input_filename_jpg}")
     except Exception as e:
         print(f"Failed to save copy to local directory: {e}")
 

@@ -150,12 +150,21 @@ def run_normal_pipeline(job_id: str, style_id: str, image_path: str):
 
             shutil.copy2(print_path, target_path_jpg)
 
-            # Save RAW input photo into RAW/ subfolder
-            if image_path and os.path.exists(image_path):
+            # 2. Save untouched processed photo into RAW/ subfolder
+            if filtered_path and os.path.exists(filtered_path):
                 raw_dir = target_dir / "RAW"
                 raw_dir.mkdir(parents=True, exist_ok=True)
                 raw_filename_jpg = f"{timestamp}_{style_id}_{job_id}_raw.jpg"
-                shutil.copy2(image_path, raw_dir / raw_filename_jpg)
+                shutil.copy2(filtered_path, raw_dir / raw_filename_jpg)
+                print(f"Successfully saved untouched RAW copy to {raw_dir / raw_filename_jpg}")
+
+            # 3. Save original guest camera input photo into INPUT/ subfolder
+            if image_path and os.path.exists(image_path):
+                input_dir = target_dir / "INPUT"
+                input_dir.mkdir(parents=True, exist_ok=True)
+                input_filename_jpg = f"{timestamp}_{style_id}_{job_id}_input.jpg"
+                shutil.copy2(image_path, input_dir / input_filename_jpg)
+                print(f"Successfully saved original camera INPUT copy to {input_dir / input_filename_jpg}")
     except Exception as e:
         print(f"[normal_pipeline] Local save error: {e}")
 
