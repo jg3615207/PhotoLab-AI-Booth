@@ -1083,28 +1083,28 @@ export default function StylesTab() {
 
       {/* Add / Edit Form Modal */}
       {(showAddForm || editingStyle) && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#151525', padding: '28px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', width: '780px', maxWidth: '92vw', maxHeight: '90vh', overflowY: 'auto', overflowX: 'hidden', boxSizing: 'border-box' }}>
-            <h2 style={{ color: '#fff', marginTop: 0, marginBottom: '20px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '16px', boxSizing: 'border-box' }}>
+          <div style={{ background: '#151525', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)', width: '100%', maxWidth: '760px', maxHeight: '90vh', overflowY: 'auto', overflowX: 'hidden', boxSizing: 'border-box' }}>
+            <h2 style={{ color: '#fff', marginTop: 0, marginBottom: '18px', fontSize: '20px' }}>
               {editingStyle ? (isZh ? '編輯風格' : 'Edit Style') : (isZh ? '新增風格' : 'Create New Style')}
             </h2>
 
-            <div style={{ display: 'grid', gap: '14px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%', boxSizing: 'border-box' }}>
               {!editingStyle && (
-                <div>
+                <div style={{ width: '100%', boxSizing: 'border-box' }}>
                   <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '風格 ID' : 'Style ID'}</label>
                   <input type="text" value={fId} onChange={e => setFId(e.target.value)} placeholder="ghibli-dream" style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }} />
                 </div>
               )}
 
-              <div>
+              <div style={{ width: '100%', boxSizing: 'border-box' }}>
                 <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '顯示名稱' : 'Display Name'}</label>
                 <input type="text" value={fName} onChange={e => setFName(e.target.value)} placeholder="吉卜力夢幻" style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }} />
               </div>
 
               {/* Mode Selection */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(102,126,234,0.08)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(102,126,234,0.2)', boxSizing: 'border-box' }}>
-                <div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(102,126,234,0.08)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(102,126,234,0.2)', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ width: '100%', boxSizing: 'border-box' }}>
                   <label style={{ display: 'block', color: '#a3b8ff', fontSize: '13px', marginBottom: '4px', fontWeight: 600 }}>
                     ⚙️ {isZh ? '風格適用模式 (Mode)' : 'Style Applicable Mode'}
                   </label>
@@ -1120,8 +1120,8 @@ export default function StylesTab() {
                 </div>
 
                 {fMode !== 'ai' && (
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <div style={{ width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
                       <label style={{ color: '#68d391', fontSize: '13px', fontWeight: 600 }}>
                         🎞️ {isZh ? '相片濾鏡組合鏈 (Photo Filter Stack)' : 'Photo Filter Stack'}
                       </label>
@@ -1132,23 +1132,23 @@ export default function StylesTab() {
 
                     {/* Active Filter Stack Badges */}
                     {activeFilterList.length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
                         {activeFilterList.map((presetId, idx) => {
                           const fltObj = availableFilters.find(f => f.id === presetId);
                           const displayName = fltObj ? (isZh ? fltObj.name_zh : fltObj.name) : presetId;
 
                           return (
-                            <div key={`${presetId}-${idx}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#121224', border: '1px solid rgba(72,187,120,0.4)', borderRadius: '8px', padding: '8px 12px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#000', background: '#48bb78', width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div key={`${presetId}-${idx}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#121224', border: '1px solid rgba(72,187,120,0.4)', borderRadius: '8px', padding: '8px 12px', width: '100%', boxSizing: 'border-box' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#000', background: '#48bb78', width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                   {idx + 1}
                                 </span>
-                                <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600 }}>
+                                <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {displayName}
                                 </span>
                               </div>
 
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                                 {idx > 0 && (
                                   <button
                                     type="button"
@@ -1183,13 +1183,13 @@ export default function StylesTab() {
                         })}
                       </div>
                     ) : (
-                      <div style={{ padding: '12px', background: '#0d0d1a', border: '1px dashed #444', borderRadius: '8px', color: '#888', fontSize: '12px', textAlign: 'center', marginBottom: '10px' }}>
+                      <div style={{ padding: '12px', background: '#0d0d1a', border: '1px dashed #444', borderRadius: '8px', color: '#888', fontSize: '12px', textAlign: 'center', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
                         {isZh ? '尚未選擇任何濾鏡（將使用原圖色調）' : 'No filters stacked (Original photo output)'}
                       </div>
                     )}
 
                     {/* Add Filter Selector Dropdown */}
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
                       <select
                         value=""
                         onChange={e => {
@@ -1197,7 +1197,7 @@ export default function StylesTab() {
                             handleAddFilterToStack(e.target.value);
                           }
                         }}
-                        style={{ flex: 1, padding: '10px', background: '#0d0d1a', border: '1px solid #48bb78', borderRadius: '6px', color: '#fff', fontSize: '13px' }}
+                        style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #48bb78', borderRadius: '6px', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
                       >
                         <option value="">➕ {isZh ? '點擊選擇新增濾鏡到組合鏈...' : 'Add Filter to Stack...'}</option>
                         {availableFilters.map(flt => (
@@ -1214,10 +1214,10 @@ export default function StylesTab() {
               </div>
 
               {fMode !== 'normal' && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <div style={{ width: '100%', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '6px' }}>
                     <label style={{ color: '#aaa', fontSize: '13px' }}>{isZh ? '提示詞模板 (Prompt Template)' : 'Prompt Template'}</label>
-                    <div style={{ display: 'flex', gap: '6px' }}>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       {previousPrompt !== null && (
                         <button className="btn-secondary" onClick={handleUndoPrompt} style={{ padding: '4px 8px', fontSize: '11px' }}>↩ {isZh ? '復原' : 'Undo'}</button>
                       )}
@@ -1225,17 +1225,17 @@ export default function StylesTab() {
                       <button className="btn-primary" onClick={handleOptimizePrompt} disabled={optimizing} style={{ padding: '4px 8px', fontSize: '11px' }}>✨ {isZh ? '優化提示詞' : 'Optimize Prompt'}</button>
                     </div>
                   </div>
-                  <textarea value={fPrompt} onChange={e => setFPrompt(e.target.value)} rows={4} placeholder="吉卜力動漫風格，保留臉部特徵..." style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', fontFamily: 'inherit' }} />
+                  <textarea value={fPrompt} onChange={e => setFPrompt(e.target.value)} rows={4} placeholder="吉卜力動漫風格，保留臉部特徵..." style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                 </div>
               )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#0d0d1a', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {refPreviewUrl && <img src={refPreviewUrl} style={{ width: '48px', height: '72px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)' }} alt="Ref" />}
-                    <div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#0d0d1a', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                    {refPreviewUrl && <img src={refPreviewUrl} style={{ width: '48px', height: '72px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', flexShrink: 0 }} alt="Ref" />}
+                    <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: '13px', color: '#fff', fontWeight: 600 }}>{isZh ? '參考圖片 (Reference Image)' : 'Reference Image'}</div>
-                      <div style={{ fontSize: '12px', color: '#888' }}>
+                      <div style={{ fontSize: '12px', color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {refFile ? refFile.name : (refPreviewUrl ? (isZh ? '已設定官方參考圖' : 'Active reference set') : (isZh ? '未設定參考圖片' : 'No reference image'))}
                       </div>
                     </div>
@@ -1270,13 +1270,13 @@ export default function StylesTab() {
 
                 {/* Paste URL Input Drawer */}
                 {showUrlInput && (
-                  <div style={{ marginTop: '6px', padding: '10px', background: '#151528', borderRadius: '6px', border: '1px solid #334', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <div style={{ marginTop: '6px', padding: '10px', background: '#151528', borderRadius: '6px', border: '1px solid #334', display: 'flex', gap: '8px', alignItems: 'center', width: '100%', boxSizing: 'border-box', flexWrap: 'wrap' }}>
                     <input 
                       type="text" 
                       value={pastedRefUrl} 
                       onChange={e => setPastedRefUrl(e.target.value)} 
                       placeholder={isZh ? "請貼上圖片網址 (https://.../image.jpg)" : "Paste picture URL (https://.../image.jpg)"} 
-                      style={{ flex: 1, padding: '8px 12px', background: '#0d0d1a', border: '1px solid #444', borderRadius: '6px', color: '#fff', fontSize: '12px' }} 
+                      style={{ flex: 1, minWidth: '200px', padding: '8px 12px', background: '#0d0d1a', border: '1px solid #444', borderRadius: '6px', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }} 
                     />
                     <button 
                       type="button" 
@@ -1292,16 +1292,16 @@ export default function StylesTab() {
 
                 {/* AI Generated Preview Panel */}
                 {aiRefPreview && (
-                  <div style={{ marginTop: '10px', background: 'rgba(255,0,127,0.08)', border: '1px solid rgba(255,0,127,0.4)', borderRadius: '8px', padding: '12px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-                    <img src={aiRefPreview} alt="AI Preview" style={{ width: '80px', height: '120px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #ff007f' }} />
-                    <div style={{ flex: 1 }}>
+                  <div style={{ marginTop: '10px', background: 'rgba(255,0,127,0.08)', border: '1px solid rgba(255,0,127,0.4)', borderRadius: '8px', padding: '12px', display: 'flex', gap: '16px', alignItems: 'center', width: '100%', boxSizing: 'border-box', flexWrap: 'wrap' }}>
+                    <img src={aiRefPreview} alt="AI Preview" style={{ width: '80px', height: '120px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #ff007f', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: '200px' }}>
                       <div style={{ fontSize: '13px', fontWeight: 600, color: '#ff77bc', marginBottom: '4px' }}>
                         ✨ {isZh ? 'AI 參考圖片生成成功！' : 'AI Reference Image Generated!'}
                       </div>
                       <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '10px' }}>
                         {aiRefCost?.time && `${(aiRefCost.time/1000).toFixed(1)}s`} {aiRefCost?.money && `| $${aiRefCost.money.toFixed(4)}`}
                       </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <button 
                           type="button"
                           className="btn-primary" 
@@ -1324,15 +1324,16 @@ export default function StylesTab() {
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                <div>
+              {/* Grid 1: Max People, Aspect Ratio, Resolution */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ minWidth: 0, boxSizing: 'border-box' }}>
                   <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '最多人數' : 'Max People'}</label>
-                  <input type="number" value={fMaxPeople} min={1} max={20} onChange={e => setFMaxPeople(parseInt(e.target.value) || 1)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} />
+                  <input type="number" value={fMaxPeople} min={1} max={20} onChange={e => setFMaxPeople(parseInt(e.target.value) || 1)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }} />
                 </div>
 
-                <div>
+                <div style={{ minWidth: 0, boxSizing: 'border-box' }}>
                   <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '畫面比例' : 'Aspect Ratio'}</label>
-                  <select value={fAspect} onChange={e => setFAspect(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
+                  <select value={fAspect} onChange={e => setFAspect(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}>
                     <option value="1:1">1:1</option>
                     <option value="2:3">2:3</option>
                     <option value="3:2">3:2</option>
@@ -1341,9 +1342,9 @@ export default function StylesTab() {
                   </select>
                 </div>
 
-                <div>
+                <div style={{ minWidth: 0, boxSizing: 'border-box' }}>
                   <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '解析度' : 'Resolution'}</label>
-                  <select value={fResolution} onChange={e => setFResolution(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
+                  <select value={fResolution} onChange={e => setFResolution(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}>
                     <option value="2k">2k</option>
                     <option value="1k">1k</option>
                     <option value="4k">4k</option>
@@ -1351,10 +1352,11 @@ export default function StylesTab() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
+              {/* Grid 2: AI Model & Reveal Transition */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ minWidth: 0, boxSizing: 'border-box' }}>
                   <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? 'AI 模型' : 'V2 AI Model'}</label>
-                  <select value={fV2Model} onChange={e => setFV2Model(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
+                  <select value={fV2Model} onChange={e => setFV2Model(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}>
                     <option value="nb2-cheap">Nano Banana 2 — ~$0.027/2k</option>
                     <option value="nb-pro">Nano Banana Pro — ~$0.035/2k</option>
                     <option value="gpt2-official">GPT Image 2 Official — ~$0.045/2k</option>
@@ -1362,9 +1364,9 @@ export default function StylesTab() {
                   </select>
                 </div>
 
-                <div>
+                <div style={{ minWidth: 0, boxSizing: 'border-box' }}>
                   <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '揭曉動畫' : 'Reveal Transition'}</label>
-                  <select value={fTransition} onChange={e => setFTransition(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}>
+                  <select value={fTransition} onChange={e => setFTransition(e.target.value)} style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}>
                     {transitionsList.map(t => (
                       <option key={t.id} value={t.id}>{t.is_favorite ? `⭐ ${t.name}` : t.name}</option>
                     ))}
@@ -1374,27 +1376,28 @@ export default function StylesTab() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'center' }}>
-                <div>
+              {/* Grid 3: Animated Preview & Checkboxes */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ minWidth: 0, boxSizing: 'border-box' }}>
                   <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '動畫預覽檔名 / URL' : 'Animated Preview File/URL'}</label>
                   <input 
                     type="text" 
                     value={fAnimatedThumb} 
                     onChange={e => setFAnimatedThumb(e.target.value)} 
                     placeholder="e.g., preview.mp4 or preview.gif" 
-                    style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} 
+                    style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }} 
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px', minWidth: 0, boxSizing: 'border-box' }}>
                   <label style={{ display: 'flex', alignItems: 'center', color: '#aaa', fontSize: '13px', cursor: 'pointer', gap: '8px' }}>
                     <input 
                       type="checkbox" 
                       checked={fDynamicPrompt === 1} 
                       onChange={e => setFDynamicPrompt(e.target.checked ? 1 : 0)} 
-                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer', flexShrink: 0 }}
                     />
-                    {isZh ? '👁️ 啟用視覺動態提示詞' : '👁️ Enable Vision Dynamic Prompt'}
+                    <span>{isZh ? '👁️ 啟用視覺動態提示詞' : '👁️ Enable Vision Dynamic Prompt'}</span>
                   </label>
 
                   <label style={{ display: 'flex', alignItems: 'center', color: '#4ecdc4', fontSize: '13px', cursor: 'pointer', gap: '8px', fontWeight: 600 }}>
@@ -1402,15 +1405,15 @@ export default function StylesTab() {
                       type="checkbox" 
                       checked={fMultiFaceCrop === 1} 
                       onChange={e => setFMultiFaceCrop(e.target.checked ? 1 : 0)} 
-                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer', flexShrink: 0 }}
                     />
-                    {isZh ? '✂️ 啟用多面孔裁切與追蹤 (user1, user2...)' : '✂️ Enable Multi-Face Crop & Tracking (user1, user2...)'}
+                    <span>{isZh ? '✂️ 啟用多面孔裁切與追蹤' : '✂️ Enable Multi-Face Crop & Tracking'}</span>
                   </label>
                 </div>
               </div>
             </div>
 
-            <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+            <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'flex-end', width: '100%', boxSizing: 'border-box' }}>
               <button className="btn-secondary" onClick={() => { setShowAddForm(false); setEditingStyle(null); }} style={{ padding: '8px 18px', borderRadius: '8px' }}>{isZh ? '取消' : 'Cancel'}</button>
               <button className="btn-primary" onClick={editingStyle ? handleSaveEdit : handleCreateStyle} style={{ padding: '8px 18px', borderRadius: '8px' }}>
                 {editingStyle ? (isZh ? '儲存變更' : 'Save Changes') : (isZh ? '建立風格' : 'Create Style')}
