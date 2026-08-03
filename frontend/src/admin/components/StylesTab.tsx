@@ -1084,7 +1084,7 @@ export default function StylesTab() {
       {/* Add / Edit Form Modal */}
       {(showAddForm || editingStyle) && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#151525', padding: '28px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', width: '640px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: '#151525', padding: '28px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', width: '780px', maxWidth: '92vw', maxHeight: '90vh', overflowY: 'auto', overflowX: 'hidden', boxSizing: 'border-box' }}>
             <h2 style={{ color: '#fff', marginTop: 0, marginBottom: '20px' }}>
               {editingStyle ? (isZh ? '編輯風格' : 'Edit Style') : (isZh ? '新增風格' : 'Create New Style')}
             </h2>
@@ -1093,17 +1093,17 @@ export default function StylesTab() {
               {!editingStyle && (
                 <div>
                   <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '風格 ID' : 'Style ID'}</label>
-                  <input type="text" value={fId} onChange={e => setFId(e.target.value)} placeholder="ghibli-dream" style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} />
+                  <input type="text" value={fId} onChange={e => setFId(e.target.value)} placeholder="ghibli-dream" style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }} />
                 </div>
               )}
 
               <div>
                 <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>{isZh ? '顯示名稱' : 'Display Name'}</label>
-                <input type="text" value={fName} onChange={e => setFName(e.target.value)} placeholder="吉卜力夢幻" style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff' }} />
+                <input type="text" value={fName} onChange={e => setFName(e.target.value)} placeholder="吉卜力夢幻" style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }} />
               </div>
 
               {/* Mode Selection */}
-              <div style={{ display: 'grid', gridTemplateColumns: fMode !== 'ai' ? '1fr 1fr' : '1fr', gap: '12px', background: 'rgba(102,126,234,0.08)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(102,126,234,0.2)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(102,126,234,0.08)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(102,126,234,0.2)', boxSizing: 'border-box' }}>
                 <div>
                   <label style={{ display: 'block', color: '#a3b8ff', fontSize: '13px', marginBottom: '4px', fontWeight: 600 }}>
                     ⚙️ {isZh ? '風格適用模式 (Mode)' : 'Style Applicable Mode'}
@@ -1111,7 +1111,7 @@ export default function StylesTab() {
                   <select 
                     value={fMode} 
                     onChange={e => setFMode(e.target.value)}
-                    style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #667eea', borderRadius: '6px', color: '#fff', fontWeight: 600 }}
+                    style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #667eea', borderRadius: '6px', color: '#fff', fontWeight: 600, boxSizing: 'border-box' }}
                   >
                     <option value="ai">🤖 {isZh ? '僅限 AI 生成模式 (AI Only)' : 'AI Generation Mode Only'}</option>
                     <option value="normal">📷 {isZh ? '僅限傳統拍貼機模式 (Normal Only)' : 'Normal Photo Booth Only'}</option>
