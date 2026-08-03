@@ -272,6 +272,7 @@ def init_db():
     for col in [
         "mode TEXT DEFAULT 'ai'",
         "filter_preset TEXT DEFAULT ''",
+        "filter_params TEXT DEFAULT '{}'",
         "layout_type TEXT DEFAULT 'single'"
     ]:
         try:

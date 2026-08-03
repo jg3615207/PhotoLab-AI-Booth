@@ -28,16 +28,17 @@ def run_normal_pipeline(job_id: str, style_id: str, image_path: str):
         broadcast_job_update(job_id, "processing")
 
         style_row = db.execute(
-            "SELECT id, filter_preset, layout_type FROM styles WHERE id=?",
+            "SELECT id, filter_preset, filter_params, layout_type FROM styles WHERE id=?",
             (style_id,)
         ).fetchone()
 
         filter_preset = style_row["filter_preset"] if style_row and style_row["filter_preset"] else "none"
+        filter_params = style_row["filter_params"] if style_row and style_row["filter_params"] else "{}"
 
     # Step 1: Apply Photo Filter
     filtered_path = str(output_dir / "filtered.jpg")
     try:
-        apply_filter_file(image_path, filtered_path, filter_preset)
+        apply_filter_file(image_path, filtered_path, filter_preset, filter_params=filter_params)
     except Exception as e:
         print(f"[normal_pipeline] Filter error: {e}, falling back to original")
         filtered_path = image_path

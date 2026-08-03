@@ -23,6 +23,7 @@ interface StyleItem {
   cost_money?: number;
   mode?: string;
   filter_preset?: string;
+  filter_params?: string | Record<string, any>;
   layout_type?: string;
 }
 
@@ -107,6 +108,8 @@ export default function StylesTab() {
   const [fMultiFaceCrop, setFMultiFaceCrop] = useState(0);
   const [fMode, setFMode] = useState('ai');
   const [fFilterPreset, setFFilterPreset] = useState('');
+  const [fFilterParams, setFFilterParams] = useState<Record<string, any>>({});
+  const [activeTooltipKey, setActiveTooltipKey] = useState<string | null>(null);
   const [fLayoutType, setFLayoutType] = useState('single');
   const [transitionsList, setTransitionsList] = useState<any[]>([]);
 
@@ -286,6 +289,7 @@ export default function StylesTab() {
     form.append('multi_face_crop_enabled', fMultiFaceCrop.toString());
     form.append('mode', fMode);
     form.append('filter_preset', fFilterPreset);
+    form.append('filter_params', JSON.stringify(fFilterParams));
     form.append('layout_type', fLayoutType);
 
     const r = await fetch('/api/styles', { method: 'POST', body: form });
@@ -332,6 +336,8 @@ export default function StylesTab() {
     setFMultiFaceCrop(0);
     setFMode('ai');
     setFFilterPreset('');
+    setFFilterParams({});
+    setActiveTooltipKey(null);
     setFLayoutType('single');
     setRefFile(null);
     setRefPreviewUrl(null);
@@ -355,6 +361,12 @@ export default function StylesTab() {
     setFMultiFaceCrop(s.multi_face_crop_enabled || 0);
     setFMode(s.mode || 'ai');
     setFFilterPreset(s.filter_preset || '');
+    try {
+      setFFilterParams(typeof s.filter_params === 'string' ? JSON.parse(s.filter_params || '{}') : (s.filter_params || {}));
+    } catch (e) {
+      setFFilterParams({});
+    }
+    setActiveTooltipKey(null);
     setFLayoutType(s.layout_type || 'single');
 
     if (s.rh_ref_file || s.rh_ref_url) {
@@ -386,6 +398,7 @@ export default function StylesTab() {
     form.append('multi_face_crop_enabled', fMultiFaceCrop.toString());
     form.append('mode', fMode);
     form.append('filter_preset', fFilterPreset);
+    form.append('filter_params', JSON.stringify(fFilterParams));
     form.append('layout_type', fLayoutType);
 
     const r = await fetch(`/api/styles/${editingStyle.id}`, { method: 'PUT', body: form });
@@ -709,6 +722,256 @@ export default function StylesTab() {
     }, 1500);
   };
 
+  const renderFilterParamControl = (
+    key: string,
+    labelZh: string,
+    labelEn: string,
+    min: number,
+    max: number,
+    step: number,
+    defaultVal: number,
+    unit: string,
+    tooltipZh: string,
+    tooltipEn: string
+  ) => {
+    const currentVal = fFilterParams[key] !== undefined ? Number(fFilterParams[key]) : defaultVal;
+    const isTooltipOpen = activeTooltipKey === key;
+
+    return (
+      <div key={key} style={{ background: 'rgba(255,255,255,0.04)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 600 }}>
+              {isZh ? labelZh : labelEn}
+            </span>
+            <button
+              type="button"
+              onClick={() => setActiveTooltipKey(isTooltipOpen ? null : key)}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                border: 'none',
+                background: isTooltipOpen ? '#667eea' : 'rgba(255,255,255,0.2)',
+                color: '#fff',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1
+              }}
+              title={isZh ? "點擊查看參數對風格的具體效果與影響" : "Click to view parameter impact on style"}
+            >
+              ?
+            </button>
+          </div>
+
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#4ecdc4', background: 'rgba(78,205,196,0.15)', padding: '2px 8px', borderRadius: '6px' }}>
+            {currentVal.toFixed(step < 1 ? 2 : 0)}{unit}
+          </span>
+        </div>
+
+        {isTooltipOpen && (
+          <div style={{ background: 'rgba(102,126,234,0.15)', border: '1px solid rgba(102,126,234,0.4)', borderRadius: '6px', padding: '8px 12px', marginBottom: '10px', fontSize: '12px', color: '#a3b8ff', lineHeight: 1.4 }}>
+            💡 {isZh ? tooltipZh : tooltipEn}
+          </div>
+        )}
+
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={currentVal}
+          onChange={e => setFFilterParams(prev => ({ ...prev, [key]: parseFloat(e.target.value) }))}
+          style={{ width: '100%', accentColor: '#4ecdc4', cursor: 'pointer' }}
+        />
+      </div>
+    );
+  };
+
+  const renderFilterCheckboxControl = (
+    key: string,
+    labelZh: string,
+    labelEn: string,
+    defaultVal: boolean,
+    tooltipZh: string,
+    tooltipEn: string
+  ) => {
+    const currentVal = fFilterParams[key] !== undefined ? Boolean(fFilterParams[key]) : defaultVal;
+    const isTooltipOpen = activeTooltipKey === key;
+
+    return (
+      <div key={key} style={{ background: 'rgba(255,255,255,0.04)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#e2e8f0', fontWeight: 600 }}>
+            <input
+              type="checkbox"
+              checked={currentVal}
+              onChange={e => setFFilterParams(prev => ({ ...prev, [key]: e.target.checked }))}
+              style={{ width: '16px', height: '16px', accentColor: '#4ecdc4', cursor: 'pointer' }}
+            />
+            {isZh ? labelZh : labelEn}
+          </label>
+
+          <button
+            type="button"
+            onClick={() => setActiveTooltipKey(isTooltipOpen ? null : key)}
+            style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              border: 'none',
+              background: isTooltipOpen ? '#667eea' : 'rgba(255,255,255,0.2)',
+              color: '#fff',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: 1
+            }}
+            title={isZh ? "點擊查看說明" : "Click for info"}
+          >
+            ?
+          </button>
+        </div>
+
+        {isTooltipOpen && (
+          <div style={{ marginTop: '8px', background: 'rgba(102,126,234,0.15)', border: '1px solid rgba(102,126,234,0.4)', borderRadius: '6px', padding: '8px 12px', fontSize: '12px', color: '#a3b8ff', lineHeight: 1.4 }}>
+            💡 {isZh ? tooltipZh : tooltipEn}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderAdvancedFilterSettings = () => {
+    if (!fFilterPreset || fFilterPreset === 'none') return null;
+
+    const flt = fFilterPreset.toLowerCase();
+
+    return (
+      <div style={{ marginTop: '10px', background: '#0a0a16', border: '1px solid rgba(72,187,120,0.3)', borderRadius: '10px', padding: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: '#68d391', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            ⚙️ {isZh ? '高級濾鏡微調參數 (Advanced Filter Settings)' : 'Advanced Filter Settings'}
+          </div>
+          <span style={{ fontSize: '11px', color: '#888' }}>
+            {isZh ? '點擊 ? 查看參數作用說明' : 'Click ? for parameter explanation'}
+          </span>
+        </div>
+
+        {flt.includes('gfpgan') && (
+          <>
+            {renderFilterParamControl(
+              'gfpgan_weight',
+              '🤖 GFPGAN 修容與特徵保真度 (Weight)',
+              'GFPGAN Restoration Weight',
+              0.0, 1.0, 0.05, 0.50, '',
+              '0.2 = 微雕自然 (80% 原始特徵)；0.5 = 標準美顏 (50% 原始 + 50% AI 重構)；0.8 = 強力女神修容 (80% AI 磨皮與大眼晶亮)。',
+              '0.2 = Subtle touch-up (80% original identity); 0.5 = Standard balance; 0.8 = Strong AI beautification.'
+            )}
+            {renderFilterCheckboxControl(
+              'gfpgan_only_center',
+              '🎯 僅對中央主要人物美顏 (Only Center Face)',
+              'Only Center Face',
+              false,
+              '勾選時僅對畫面正中央的主要人物進行 AI 美顏修容，合照其餘人物保留原始面貌。',
+              'Applies GFPGAN face enhancement only to the primary centered person in group photos.'
+            )}
+          </>
+        )}
+
+        {flt.includes('codeformer') && (
+          renderFilterParamControl(
+            'codeformer_fidelity',
+            '🤖 CodeFormer 碼本保真度 (Fidelity)',
+            'Codebook Fidelity',
+            0.0, 1.0, 0.05, 0.60, '',
+            'CodeFormer Transformer 碼本修復度。1.0 優先還原原始人臉結構細節；0.0 允許 AI 自由發揮重構。建議設定 0.50 - 0.70。',
+            'Codebook fidelity slider. 1.0 prioritizes original facial structure; 0.0 grants full AI reconstruction freedom.'
+          )
+        )}
+
+        {(flt.includes('beauty-face-v2') || flt.includes('facemesh-v2') || flt === 'v2') && (
+          <>
+            {renderFilterParamControl(
+              'v2_mid_freq_suppress',
+              '✨ FabSoften 中頻瑕疵抑制 (Blemish Suppression)',
+              'Mid-Freq Blemish Suppression',
+              0.05, 0.80, 0.05, 0.30, '',
+              '抑制痘痘、紅腫與不均勻膚色的強度。數值越低抹除越強 (0.10 = 強力平滑去瑕疵，0.60 = 保留天然細微特徵)。',
+              'Suppresses skin blemishes, redness, and bumps. Lower values smooth out skin more aggressively.'
+            )}
+            {renderFilterParamControl(
+              'v2_high_freq_restore',
+              '✨ 高頻毛孔與細緻紋理融合 (Pore Restoration)',
+              'High-Freq Pore Restoration',
+              0.0, 1.0, 0.05, 0.35, '',
+              '將照片原本的高頻毛孔與自然肌理重新融合回磨皮後的皮膚，防止傳統美顏的塑膠感/紙片人感。',
+              'Blends natural skin micro-pores back onto smoothed skin to avoid a synthetic plastic look.'
+            )}
+            {renderFilterParamControl(
+              'v2_eye_sharpen',
+              '👁️ 雙眼與眉毛銳化對比 (Eye Sharpening)',
+              'Eye & Eyebrow Sharpening',
+              0.0, 1.0, 0.05, 0.50, '',
+              '針對眼睛、睫毛與眉毛區域的反遮罩銳化強度，讓雙眼保持極致清晰與晶亮神采。',
+              'Unsharp contrast intensity over eyes, eyelids, and eyebrows.'
+            )}
+          </>
+        )}
+
+        {(flt === 'beauty-face' || flt === 'beauty-facemesh' || flt === 'facemesh') && (
+          <>
+            {renderFilterParamControl(
+              'canny_strength',
+              '✨ Canny 邊緣線條融合 (Canny Detail)',
+              'Canny Edge Detail',
+              0.0, 1.0, 0.05, 0.40, '',
+              'Canny 邊緣檢測線條融回膚色的比例，保留面部輪廓與細節。',
+              'Blends original Canny edge lines back into skin.'
+            )}
+            {renderFilterParamControl(
+              'eye_dilation',
+              '👁️ 眼睛保護遮罩擴展像素 (Eye Mask Dilation)',
+              'Eye Mask Dilation Radius',
+              5, 25, 1, 15, 'px',
+              '眼睛與眉毛區域保護遮罩向外擴展的像素範圍，確保眼皮、睫毛與眼周 100% 不受到任何磨皮影響。',
+              'Pixel dilation radius protecting eyelids and eyelashes from skin blur.'
+            )}
+          </>
+        )}
+
+        {flt === 'beauty-soft' && (
+          renderFilterParamControl(
+            'beauty_blend_alpha',
+            '✨ 柔膚磨皮混合比例 (Blend Alpha)',
+            'Smoothing Blend Alpha',
+            0.05, 1.0, 0.05, 0.30, '',
+            '高斯模糊柔膚圖層與原圖的混合比例。',
+            'Blend alpha between smoothed skin layer and original photo.'
+          )
+        )}
+
+        {['vivid', 'warm', 'cool', 'sepia', 'vintage', 'high-contrast', 'film-grain', 'bw', 'grayscale'].includes(flt) && (
+          renderFilterParamControl(
+            'filter_intensity',
+            '🎨 色調濾鏡強度 (Filter Intensity)',
+            'Color Tone Filter Intensity',
+            0.20, 2.0, 0.05, 1.00, 'x',
+            '調整色彩與色調濾鏡的倍數強度。',
+            'Adjusts color tone filter intensity multiplier.'
+          )
+        )}
+      </div>
+    );
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -812,6 +1075,8 @@ export default function StylesTab() {
                         </option>
                       ))}
                     </select>
+
+                    {renderAdvancedFilterSettings()}
                   </div>
                 )}
               </div>

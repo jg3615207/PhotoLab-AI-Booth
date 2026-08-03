@@ -47,6 +47,8 @@ def list_styles(admin: bool = False, mode: str = None):
                 s["mode"] = "ai"
             if "filter_preset" not in s:
                 s["filter_preset"] = ""
+            if "filter_params" not in s or not s["filter_params"]:
+                s["filter_params"] = "{}"
             if "layout_type" not in s:
                 s["layout_type"] = "single"
             result.append(s)
@@ -102,6 +104,7 @@ def create_style(
     multi_face_crop_enabled: int = Form(0),
     mode: str = Form("ai"),
     filter_preset: str = Form(""),
+    filter_params: str = Form("{}"),
     layout_type: str = Form("single"),
 ):
     with get_db() as db:
@@ -109,8 +112,8 @@ def create_style(
         if existing:
             raise HTTPException(400, "Style ID already exists")
         db.execute(
-            "INSERT INTO styles (id, name, max_people, aspect_ratio, prompt_template, resolution, seed, provider, v2_model, v2_quality, transition_type, animated_thumbnail, dynamic_prompt_enabled, multi_face_crop_enabled, mode, filter_preset, layout_type, active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
-            (id, name, max_people, aspect_ratio, prompt_template, resolution, seed or "", provider, v2_model, v2_quality or None, transition_type, animated_thumbnail, dynamic_prompt_enabled, multi_face_crop_enabled, mode, filter_preset, layout_type),
+            "INSERT INTO styles (id, name, max_people, aspect_ratio, prompt_template, resolution, seed, provider, v2_model, v2_quality, transition_type, animated_thumbnail, dynamic_prompt_enabled, multi_face_crop_enabled, mode, filter_preset, filter_params, layout_type, active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
+            (id, name, max_people, aspect_ratio, prompt_template, resolution, seed or "", provider, v2_model, v2_quality or None, transition_type, animated_thumbnail, dynamic_prompt_enabled, multi_face_crop_enabled, mode, filter_preset, filter_params or "{}", layout_type),
         )
     return {"status": "created", "id": id}
 
@@ -132,6 +135,7 @@ def update_style(
     multi_face_crop_enabled: int = Form(None),
     mode: str = Form(None),
     filter_preset: str = Form(None),
+    filter_params: str = Form(None),
     layout_type: str = Form(None),
 ):
     with get_db() as db:
@@ -139,7 +143,7 @@ def update_style(
         if not row:
             raise HTTPException(404)
         updates = {}
-        for k in ["name", "max_people", "aspect_ratio", "prompt_template", "resolution", "seed", "active", "v2_model", "v2_quality", "transition_type", "animated_thumbnail", "dynamic_prompt_enabled", "multi_face_crop_enabled", "mode", "filter_preset", "layout_type"]:
+        for k in ["name", "max_people", "aspect_ratio", "prompt_template", "resolution", "seed", "active", "v2_model", "v2_quality", "transition_type", "animated_thumbnail", "dynamic_prompt_enabled", "multi_face_crop_enabled", "mode", "filter_preset", "filter_params", "layout_type"]:
             v = locals().get(k)
             if v is not None:
                 updates[k] = v

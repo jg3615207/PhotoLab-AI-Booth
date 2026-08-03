@@ -1,4 +1,5 @@
 import random
+import json
 import numpy as np
 from PIL import Image, ImageEnhance, ImageOps, ImageFilter
 
@@ -31,10 +32,17 @@ FILTER_PRESETS = [
 def get_available_filters():
     return FILTER_PRESETS
 
-def apply_filter(pil_img: Image.Image, filter_preset: str) -> Image.Image:
-    """Applies a named filter preset to a PIL Image (RGB format). Returns modified PIL Image."""
+def apply_filter(pil_img: Image.Image, filter_preset: str, filter_params: dict = None) -> Image.Image:
+    """Applies a named filter preset to a PIL Image (RGB format) with optional custom parameters."""
     if not filter_preset or filter_preset == "none":
         return pil_img
+
+    params = filter_params or {}
+    if isinstance(params, str):
+        try:
+            params = json.loads(params)
+        except Exception:
+            params = {}
 
     preset = filter_preset.lower().strip()
 
@@ -42,7 +50,8 @@ def apply_filter(pil_img: Image.Image, filter_preset: str) -> Image.Image:
     if preset in ["bw", "grayscale", "black_and_white"]:
         bw = ImageOps.grayscale(pil_img).convert("RGB")
         enh = ImageEnhance.Contrast(bw)
-        return enh.enhance(1.15)
+        mult = float(params.get("filter_intensity", 1.15))
+        return enh.enhance(mult)
 
     elif preset == "sepia":
         sepia_matrix = (
@@ -63,8 +72,9 @@ def apply_filter(pil_img: Image.Image, filter_preset: str) -> Image.Image:
         return ImageEnhance.Contrast(img).enhance(0.92)
 
     elif preset == "vivid":
+        mult = float(params.get("filter_intensity", 1.40))
         enh_sat = ImageEnhance.Color(pil_img)
-        img = enh_sat.enhance(1.40)
+        img = enh_sat.enhance(mult)
         enh_con = ImageEnhance.Contrast(img)
         return enh_con.enhance(1.20)
 
@@ -85,8 +95,9 @@ def apply_filter(pil_img: Image.Image, filter_preset: str) -> Image.Image:
         return pil_img.convert("RGB", cool_matrix)
 
     elif preset == "high-contrast":
+        mult = float(params.get("filter_intensity", 1.45))
         enh_con = ImageEnhance.Contrast(pil_img)
-        img = enh_con.enhance(1.45)
+        img = enh_con.enhance(mult)
         enh_sat = ImageEnhance.Color(img)
         return enh_sat.enhance(1.10)
 
@@ -101,7 +112,8 @@ def apply_filter(pil_img: Image.Image, filter_preset: str) -> Image.Image:
 
     # ── Beauty Mode Presets (non-AI) ─────────────────────────────────
     elif preset == "beauty-soft":
-        return _beauty_soft(pil_img)
+        alpha = float(params.get("beauty_blend_alpha", 0.30))
+        return _beauty_soft(pil_img, alpha=alpha)
 
     elif preset == "beauty-glow":
         return _beauty_glow(pil_img)
@@ -113,17 +125,25 @@ def apply_filter(pil_img: Image.Image, filter_preset: str) -> Image.Image:
         return _beauty_porcelain(pil_img)
 
     elif preset in ["beauty-face-v2", "beauty-facemesh-v2", "facemesh-v2", "v2"]:
-        return _beauty_facemesh_v2(pil_img)
+        mid_suppress = float(params.get("v2_mid_freq_suppress", 0.30))
+        high_restore = float(params.get("v2_high_freq_restore", 0.35))
+        eye_sharpen = float(params.get("v2_eye_sharpen", 0.50))
+        return _beauty_facemesh_v2(pil_img, mid_suppress=mid_suppress, high_restore=high_restore, eye_sharpen=eye_sharpen)
 
     elif preset in ["beauty-face", "beauty-facemesh", "facemesh"]:
-        return _beauty_facemesh_aware(pil_img)
+        canny_strength = float(params.get("canny_strength", 0.40))
+        eye_dilation = int(params.get("eye_dilation", 15))
+        return _beauty_facemesh_aware(pil_img, canny_strength=canny_strength, eye_dilation=eye_dilation)
 
     # ── Local AI GAN/Transformer Beauty Filters (PyTorch / CUDA) ──────
     elif preset in ["ai-gfpgan", "gfpgan"]:
-        return _ai_gfpgan(pil_img)
+        weight = float(params.get("gfpgan_weight", 0.50))
+        only_center = bool(params.get("gfpgan_only_center", False))
+        return _ai_gfpgan(pil_img, weight=weight, only_center=only_center)
 
     elif preset in ["ai-codeformer", "codeformer"]:
-        return _ai_codeformer(pil_img)
+        fidelity = float(params.get("codeformer_fidelity", 0.60))
+        return _ai_codeformer(pil_img, fidelity=fidelity)
 
     elif preset in ["ai-realesrgan", "realesrgan"]:
         return _ai_realesrgan(pil_img)
@@ -135,10 +155,10 @@ def apply_filter(pil_img: Image.Image, filter_preset: str) -> Image.Image:
 # Beauty helpers (PIL / MediaPipe / OpenCV — pure local computation)
 # ═════════════════════════════════════════════════════════════════════
 
-def _beauty_soft(pil_img: Image.Image) -> Image.Image:
-    """Subtle skin smoothing — light Gaussian blur blended at 30 % with original."""
+def _beauty_soft(pil_img: Image.Image, alpha: float = 0.30) -> Image.Image:
+    """Subtle skin smoothing — light Gaussian blur blended with original."""
     smoothed = pil_img.filter(ImageFilter.GaussianBlur(radius=3))
-    result = Image.blend(pil_img, smoothed, alpha=0.30)
+    result = Image.blend(pil_img, smoothed, alpha=np.clip(alpha, 0.05, 1.0))
     result = ImageEnhance.Brightness(result).enhance(1.03)
     result = ImageEnhance.Color(result).enhance(1.05)
     return result
@@ -214,14 +234,18 @@ def _guided_feathering(mask: np.ndarray, guide_gray: np.ndarray, radius: int = 8
         return cv2.GaussianBlur(mask, (5, 5), 0)
 
 
-def _beauty_facemesh_v2(pil_img: Image.Image) -> Image.Image:
+def _beauty_facemesh_v2(
+    pil_img: Image.Image,
+    mid_suppress: float = 0.30,
+    high_restore: float = 0.35,
+    eye_sharpen: float = 0.50
+) -> Image.Image:
     """
     ✨ 468點智慧美顏 v2 (MediaPipe 468 Mesh + FabSoften 3-Frequency Separation + Guided Feathering).
-    Features:
-    1. MediaPipe 468 3D Face Mesh geometry for 100% accurate feature exclusion.
-    2. True 3-Frequency Separation: Low (lighting/color) + Mid (blemish/acne suppression) + High (skin pores).
-    3. FabSoften Guided Feathering: Edge-preserving skin mask blending via Guided Filtering.
-    4. Hard-zero eye mask protection & 100% original eye pixel composite for razor-sharp eyes.
+    Param customizable:
+    - mid_suppress: Blemishes/acne suppression ratio (0.1 = strong, 0.7 = mild)
+    - high_restore: High-frequency skin pore restoration strength (0.0 - 1.0)
+    - eye_sharpen: Eye & eyebrow contrast sharpening intensity (0.0 - 1.0)
     """
     try:
         import cv2
@@ -254,11 +278,12 @@ def _beauty_facemesh_v2(pil_img: Image.Image) -> Image.Image:
 
             bilateral_bgr = cv2.bilateralFilter(img_bgr, d=9, sigmaColor=75, sigmaSpace=75).astype(np.float32)
 
-            restored_skin = bilateral_bgr + (mid_freq * 0.30) + (high_freq * 1.00)
+            restored_skin = bilateral_bgr + (mid_freq * np.clip(mid_suppress, 0.05, 0.9)) + (high_freq * np.clip(high_restore, 0.0, 1.0))
             restored_skin_bgr = np.clip(restored_skin, 0, 255).astype(np.uint8)
 
             # ── 2. Unsharp sharpening filter directly on ORIGINAL image for eyes ─────
-            sharpen_kernel = np.array([[0, -0.5, 0], [-0.5, 3.0, -0.5], [0, -0.5, 0]], dtype=np.float32)
+            sharpen_factor = np.clip(eye_sharpen, 0.0, 1.0)
+            sharpen_kernel = np.array([[0, -0.4 * sharpen_factor, 0], [-0.4 * sharpen_factor, 1.0 + 3.2 * sharpen_factor, -0.4 * sharpen_factor], [0, -0.4 * sharpen_factor, 0]], dtype=np.float32)
             sharpened_eye_bgr = cv2.filter2D(img_bgr, -1, sharpen_kernel)
 
             # ── 3. Build MediaPipe 468-point face oval & feature masks ──────────────
@@ -322,7 +347,11 @@ def _beauty_facemesh_v2(pil_img: Image.Image) -> Image.Image:
         return _beauty_facemesh_aware(pil_img)
 
 
-def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
+def _beauty_facemesh_aware(
+    pil_img: Image.Image,
+    canny_strength: float = 0.40,
+    eye_dilation: int = 15
+) -> Image.Image:
     """Precision Skin-Only Beauty Filter using Google MediaPipe 468-point Face Mesh."""
     try:
         import cv2
@@ -358,6 +387,9 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
             skin_mask = np.zeros((h_img, w_img), dtype=np.float32)
             eye_exclusion_mask = np.zeros((h_img, w_img), dtype=np.uint8)
 
+            d_size = max(5, int(eye_dilation))
+            dil_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (d_size | 1, d_size | 1))
+
             for face_landmarks in results.multi_face_landmarks:
                 landmarks = face_landmarks.landmark
 
@@ -381,9 +413,8 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
                     if feature_indices in [_FACEMESH_LEFT_EYE, _FACEMESH_RIGHT_EYE, _FACEMESH_LEFT_EYEBROW, _FACEMESH_RIGHT_EYEBROW]:
                         cv2.fillPoly(eye_mask_raw, [hull], 255)
 
-                dil_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (19, 19))
                 no_smooth_dilated = cv2.dilate(no_smooth_mask, dil_kernel, iterations=1)
-                eye_mask_dilated = cv2.dilate(eye_mask_raw, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15)), iterations=1)
+                eye_mask_dilated = cv2.dilate(eye_mask_raw, dil_kernel, iterations=1)
 
                 skin_mask_face = face_mask_raw.copy()
                 skin_mask_face[no_smooth_dilated > 0] = 0
@@ -399,7 +430,8 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
 
             edge_in_skin = edge_overlay * skin_mask_blurred
             edge_in_skin_3ch = np.stack([edge_in_skin] * 3, axis=-1)
-            res = res * (1.0 - edge_in_skin_3ch * 0.4) + img_bgr * (edge_in_skin_3ch * 0.4)
+            c_factor = np.clip(canny_strength, 0.0, 1.0)
+            res = res * (1.0 - edge_in_skin_3ch * c_factor) + img_bgr * (edge_in_skin_3ch * c_factor)
 
             eye_mask_float = (eye_exclusion_mask.astype(np.float32) / 255.0)
             eye_mask_blurred = cv2.GaussianBlur(eye_mask_float, (5, 5), 0)
@@ -446,7 +478,7 @@ def _get_gfpgan_model():
     return _GFPGAN_MODEL if _GFPGAN_MODEL is not False else None
 
 
-def _ai_gfpgan(pil_img: Image.Image) -> Image.Image:
+def _ai_gfpgan(pil_img: Image.Image, weight: float = 0.50, only_center: bool = False) -> Image.Image:
     """🤖 GFPGAN v1.4 Local AI Face Restoration & Enhancement (CUDA accelerated)."""
     try:
         import cv2
@@ -458,8 +490,9 @@ def _ai_gfpgan(pil_img: Image.Image) -> Image.Image:
         cropped_faces, restored_faces, restored_img = gfp.enhance(
             img_bgr,
             has_aligned=False,
-            only_center_face=False,
-            paste_back=True
+            only_center_face=bool(only_center),
+            paste_back=True,
+            weight=np.clip(float(weight), 0.0, 1.0)
         )
 
         if restored_img is not None:
@@ -471,7 +504,7 @@ def _ai_gfpgan(pil_img: Image.Image) -> Image.Image:
         return _beauty_facemesh_v2(pil_img)
 
 
-def _ai_codeformer(pil_img: Image.Image) -> Image.Image:
+def _ai_codeformer(pil_img: Image.Image, fidelity: float = 0.60) -> Image.Image:
     """🤖 CodeFormer Local AI Face Restoration with Tunable Fidelity (w=0.6)."""
     import tempfile, os
     try:
@@ -486,7 +519,7 @@ def _ai_codeformer(pil_img: Image.Image) -> Image.Image:
             background_enhance=False,
             face_upsample=False,
             upscale=1,
-            codeformer_fidelity=0.6
+            codeformer_fidelity=np.clip(float(fidelity), 0.0, 1.0)
         )
         try:
             if os.path.exists(tmp_path):
@@ -577,9 +610,9 @@ def _beauty_opencv_fallback(pil_img: Image.Image) -> Image.Image:
         return _beauty_soft(pil_img)
 
 
-def apply_filter_file(src_path: str, dest_path: str, filter_preset: str) -> str:
-    """Reads src_path image, applies filter_preset, saves to dest_path. Returns dest_path."""
+def apply_filter_file(src_path: str, dest_path: str, filter_preset: str, filter_params: dict = None) -> str:
+    """Reads src_path image, applies filter_preset with parameters, saves to dest_path. Returns dest_path."""
     img = Image.open(src_path).convert("RGB")
-    filtered = apply_filter(img, filter_preset)
+    filtered = apply_filter(img, filter_preset, filter_params)
     filtered.save(dest_path, "JPEG", quality=95)
     return dest_path
