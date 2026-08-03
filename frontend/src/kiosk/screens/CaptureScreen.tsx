@@ -14,8 +14,7 @@ function parseAspectRatio(ratioStr?: string): { targetW: number; targetH: number
   return { targetW: w, targetH: h, ratioVal: w / h, cssRatio: `${w}/${h}` };
 }
 
-function computeVideoCrop(vw: number, vh: number, targetW: number, targetH: number) {
-  const targetRatio = targetW / targetH;
+function computeVideoCrop(vw: number, vh: number, targetRatio: number) {
   const videoRatio = vw / vh;
 
   let cropX = 0;
@@ -24,12 +23,12 @@ function computeVideoCrop(vw: number, vh: number, targetW: number, targetH: numb
   let cropH = vh;
 
   if (videoRatio > targetRatio) {
-    // Video is wider than target aspect ratio -> crop horizontally
+    // Video stream is wider than rendered container -> crop sides horizontally
     cropH = vh;
     cropW = vh * targetRatio;
     cropX = (vw - cropW) / 2.0;
   } else {
-    // Video is taller than target aspect ratio -> crop vertically
+    // Video stream is taller than rendered container -> crop top/bottom vertically
     cropW = vw;
     cropH = vw / targetRatio;
     cropY = (vh - cropH) / 2.0;
@@ -49,6 +48,7 @@ export default function CaptureScreen() {
   const [activeFilter, setActiveFilter] = useState('none');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   const targetFaceCount = selectedStyle?.max_people || 1;
   const multiCropEnabled = selectedStyle?.multi_face_crop_enabled === 1;
@@ -67,6 +67,16 @@ export default function CaptureScreen() {
   const gestureEnabled = session?.enable_gesture_capture !== 0;
 
   const { targetW, targetH, cssRatio } = parseAspectRatio(selectedStyle?.aspect_ratio);
+
+  const getLiveContainerRatio = (): number => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        return rect.width / rect.height;
+      }
+    }
+    return targetW / targetH;
+  };
 
   useHandsTracker(videoRef.current, isMirrored, () => {
     if (countdown === null && !error) {
@@ -93,7 +103,8 @@ export default function CaptureScreen() {
 
     const vw = video.videoWidth;
     const vh = video.videoHeight;
-    const { cropX, cropY, cropW, cropH } = computeVideoCrop(vw, vh, targetW, targetH);
+    const liveRatio = getLiveContainerRatio();
+    const { cropX, cropY, cropW, cropH } = computeVideoCrop(vw, vh, liveRatio);
 
     canvas.width = video.clientWidth || 600;
     canvas.height = video.clientHeight || 900;
@@ -224,7 +235,8 @@ export default function CaptureScreen() {
       }
     }
 
-    const { cropX, cropY, cropW, cropH } = computeVideoCrop(sourceW, sourceH, targetW, targetH);
+    const liveRatio = getLiveContainerRatio();
+    const { cropX, cropY, cropW, cropH } = computeVideoCrop(sourceW, sourceH, liveRatio);
 
     canvas.width = Math.round(cropW);
     canvas.height = Math.round(cropH);
@@ -246,7 +258,7 @@ export default function CaptureScreen() {
         cropX, cropY, cropW, cropH,
         0, 0, canvas.width, canvas.height
       );
-      console.log(`[Capture API] Native High-Res Photo Captured: ${canvas.width}x${canvas.height} (Sensor Frame: ${sourceW}x${sourceH})`);
+      console.log(`[Capture API] Native High-Res Photo Captured: ${canvas.width}x${canvas.height} (Live Box Ratio: ${liveRatio.toFixed(4)})`);
       setCapturedImage(canvas.toDataURL('image/jpeg', 0.98));
       setScreen('preview');
     }
@@ -256,7 +268,19 @@ export default function CaptureScreen() {
     <div className="screen active" style={{ display: 'flex' }}>
       {flash && <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'white', zIndex: 9999 }} />}
       
-      <div className="capture-container" style={{ position: 'relative', aspectRatio: cssRatio }}>
+      <div 
+        ref={containerRef}
+        className="capture-container" 
+        style={{ 
+          position: 'relative', 
+          aspectRatio: cssRatio, 
+          height: '60vh', 
+          maxHeight: '650px', 
+          maxWidth: '90vw', 
+          width: 'auto', 
+          margin: '0 auto' 
+        }}
+      >
         {countMismatch && multiCropEnabled && (
           <div style={{ position: 'absolute', top: '70px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,152,0,0.95)', color: '#000', padding: '10px 18px', borderRadius: '12px', zIndex: 30, fontWeight: 700, fontSize: '13px', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '90%', textAlign: 'center' }}>
             ⚠️ {isZh 
