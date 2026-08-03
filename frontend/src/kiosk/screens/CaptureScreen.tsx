@@ -201,23 +201,22 @@ export default function CaptureScreen() {
   const capturePhoto = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (video && canvas) {
+    if (video && canvas && video.videoWidth > 0 && video.videoHeight > 0) {
+      const videoW = video.videoWidth;
+      const videoH = video.videoHeight;
+
       const videoTrack = stream?.getVideoTracks()[0];
       const settings = videoTrack?.getSettings();
+      const trackH = settings?.height || 1080;
 
-      const trackW = settings?.width || 0;
-      const trackH = settings?.height || 0;
-      const videoW = video.videoWidth || 0;
-      const videoH = video.videoHeight || 0;
+      // Compute exact proportional crop rectangle in video element coordinate space
+      const { cropX, cropY, cropW, cropH } = computeVideoCrop(videoW, videoH, targetW, targetH);
 
-      // Force minimum sensor resolution target of 1920x1080 (or higher if 4K)
-      const vw = Math.max(trackW, videoW, 1920);
-      const vh = Math.max(trackH, videoH, 1080);
+      // Target scale multiplier to ensure output canvas is full 1080p/4K resolution
+      const scale = Math.max(1.0, trackH / videoH);
+      canvas.width = Math.round(cropW * scale);
+      canvas.height = Math.round(cropH * scale);
 
-      const { cropX, cropY, cropW, cropH } = computeVideoCrop(vw, vh, targetW, targetH);
-
-      canvas.width = Math.round(cropW);
-      canvas.height = Math.round(cropH);
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.imageSmoothingEnabled = true;
@@ -230,20 +229,12 @@ export default function CaptureScreen() {
           ctx.scale(-1, 1);
         }
 
-        const scaleToVideoX = (videoW > 0 && vw > 0) ? (videoW / vw) : 1;
-        const scaleToVideoY = (videoH > 0 && vh > 0) ? (videoH / vh) : 1;
-
-        const srcX = cropX * scaleToVideoX;
-        const srcY = cropY * scaleToVideoY;
-        const srcW = cropW * scaleToVideoX;
-        const srcH = cropH * scaleToVideoY;
-
         ctx.drawImage(
           video,
-          srcX, srcY, srcW, srcH,
+          cropX, cropY, cropW, cropH,
           0, 0, canvas.width, canvas.height
         );
-        console.log(`[Capture API] High-Res 1080p+ Photo Captured: ${canvas.width}x${canvas.height} (Sensor Stream: ${vw}x${vh})`);
+        console.log(`[Capture API] Proportional 1080p+ Photo Captured: ${canvas.width}x${canvas.height} (Aspect Ratio: ${(canvas.width/canvas.height).toFixed(4)})`);
         setCapturedImage(canvas.toDataURL('image/jpeg', 0.98));
         setScreen('preview');
       }
