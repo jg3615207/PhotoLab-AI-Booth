@@ -41,7 +41,7 @@ export default function CaptureScreen() {
   const { setScreen, setCapturedImage, lang, session, selectedStyle } = useKiosk();
   const isZh = lang === 'zh-Hant';
 
-  const { videoRef, error, isMirrored, resolutionInfo, startCamera, stopCamera, toggleMirror, stream } = useCamera();
+  const { videoRef, error, isMirrored, resolutionInfo, devices, selectedDeviceId, setSelectedDeviceId, startCamera, stopCamera, toggleMirror, stream } = useCamera();
   const [countdown, setCountdown] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
@@ -56,6 +56,27 @@ export default function CaptureScreen() {
   const multiCropEnabled = selectedStyle?.multi_face_crop_enabled === 1;
 
   const { faceCount, faceBoxes, countMismatch } = useFaceDetection(videoRef.current, targetFaceCount, true);
+
+  // Screen Wake Lock API to prevent kiosk display from sleeping during events
+  useEffect(() => {
+    let wakeLock: any = null;
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator && (navigator as any).wakeLock) {
+          wakeLock = await (navigator as any).wakeLock.request('screen');
+          console.log('[Kiosk] Screen Wake Lock active');
+        }
+      } catch (err) {
+        console.warn('[Kiosk] Wake Lock request skipped:', err);
+      }
+    };
+    requestWakeLock();
+    return () => {
+      if (wakeLock && wakeLock.release) {
+        wakeLock.release().catch(() => {});
+      }
+    };
+  }, []);
 
   const filters = [
     { id: 'none', nameZh: '原始', nameEn: 'Normal', css: 'none' },
@@ -344,7 +365,36 @@ export default function CaptureScreen() {
           </div>
         )}
 
-        <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 25, display: 'flex', gap: '8px' }}>
+        <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 25, display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {devices.length > 0 && (
+            <select
+              value={selectedDeviceId}
+              onChange={(e) => {
+                const newId = e.target.value;
+                setSelectedDeviceId(newId);
+                startCamera(newId);
+              }}
+              style={{
+                background: 'rgba(0,0,0,0.6)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.3)',
+                padding: '6px 10px',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: 700,
+                backdropFilter: 'blur(6px)',
+                cursor: 'pointer',
+                maxWidth: '150px'
+              }}
+            >
+              {devices.map((d, idx) => (
+                <option key={d.deviceId || idx} value={d.deviceId} style={{ background: '#111', color: '#fff' }}>
+                  📷 {d.label || `Camera ${idx + 1}`}
+                </option>
+              ))}
+            </select>
+          )}
+
           <button 
             onClick={() => setIsFullFrame(!isFullFrame)} 
             style={{ 

@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAdminLang } from '../context/AdminLangContext';
+import { useToast } from '../context/ToastContext';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface StyleItem {
   id: string;
@@ -36,6 +38,7 @@ interface V2Model {
 export default function StylesTab() {
   const { lang } = useAdminLang();
   const isZh = lang === 'zh-Hant';
+  const { showToast } = useToast();
 
   const [styles, setStyles] = useState<StyleItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +49,43 @@ export default function StylesTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [modeFilter, setModeFilter] = useState<string>('all');
   const [availableFilters, setAvailableFilters] = useState<any[]>([]);
+
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<string | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
+
+  const handleExportStyle = (s: StyleItem) => {
+    window.open(`/api/styles/${encodeURIComponent(s.id)}/export`, '_blank');
+    showToast(isZh ? `已匯出風格 「${s.name}」` : `Exported style "${s.name}"`, 'success');
+  };
+
+  const handleCopyPrompt = (prompt?: string) => {
+    if (!prompt) return;
+    navigator.clipboard.writeText(prompt);
+    showToast(isZh ? '已複製提示詞到剪貼簿！' : 'Prompt copied to clipboard!', 'success');
+  };
+
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const res = await fetch('/api/styles/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        showToast(isZh ? '風格 JSON 匯入成功！' : 'Style JSON imported successfully!', 'success');
+        loadStyles();
+      } else {
+        showToast(isZh ? '匯入失敗' : 'Import failed', 'error');
+      }
+    } catch (err: any) {
+      showToast(isZh ? `JSON 解析失敗: ${err.message}` : `JSON parse error: ${err.message}`, 'error');
+    }
+    if (importFileRef.current) importFileRef.current.value = '';
+  };
 
   // Live Style Maker & Real-Time Filter Preview State
   const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null);
@@ -481,32 +521,19 @@ export default function StylesTab() {
     loadStyles();
   };
 
-  const handleDeleteStyle = async (id: string) => {
-    if (!window.confirm(isZh ? "您確定要永久刪除此風格嗎？此動作無法復原！" : "Are you sure you want to permanently delete this style? This action cannot be undone!")) {
-      return;
-    }
+  const confirmDeleteStyle = async (id: string) => {
     const r = await fetch(`/api/styles/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (r.ok) {
+      showToast(isZh ? '已成功刪除風格！' : 'Style deleted successfully!', 'success');
       if (editingStyle && editingStyle.id === id) {
         setShowAddForm(false);
         setEditingStyle(null);
       }
       loadStyles();
     } else {
-      let errMsg = 'Error';
-      try {
-        const text = await r.text();
-        try {
-          const err = JSON.parse(text);
-          errMsg = err.detail || JSON.stringify(err);
-        } catch (e) {
-          errMsg = text;
-        }
-      } catch (e) {
-        errMsg = r.statusText || 'Error';
-      }
-      alert((isZh ? "刪除風格失敗: " : "Delete style failed: ") + errMsg);
+      showToast(isZh ? '刪除風格失敗' : 'Delete style failed', 'error');
     }
+    setDeleteConfirmTarget(null);
   };
 
   const handleOptimizePrompt = async () => {
@@ -1180,6 +1207,20 @@ export default function StylesTab() {
               outline: 'none'
             }}
           />
+          <input
+            type="file"
+            ref={importFileRef}
+            onChange={handleImportFileChange}
+            style={{ display: 'none' }}
+            accept=".json"
+          />
+          <button
+            className="btn-secondary"
+            onClick={() => importFileRef.current?.click()}
+            style={{ padding: '10px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            📥 {isZh ? '匯入 JSON' : 'Import JSON'}
+          </button>
           <button className="btn-primary" onClick={() => { resetForm(); setShowAddForm(true); }} style={{ padding: '10px 20px', borderRadius: '8px' }}>
             + {isZh ? '新增風格' : 'New Style'}
           </button>
@@ -1576,7 +1617,7 @@ export default function StylesTab() {
                 {editingStyle && (
                   <button 
                     type="button" 
-                    onClick={() => handleDeleteStyle(editingStyle.id)} 
+                    onClick={() => setDeleteConfirmTarget(editingStyle.id)} 
                     style={{ padding: '8px 16px', borderRadius: '8px', background: 'rgba(245,101,101,0.2)', color: '#feb2b2', border: '1px solid rgba(245,101,101,0.4)', fontWeight: 600, cursor: 'pointer' }}
                   >
                     🗑️ {isZh ? '刪除風格' : 'Delete Style'}
@@ -1988,9 +2029,15 @@ export default function StylesTab() {
               </div>
 
               <div style={{ display: 'flex', gap: '6px' }}>
-                <button className="btn-secondary" onClick={() => handleUploadFrame(s.id)} style={{ padding: '6px 10px', fontSize: '12px' }}>{isZh ? '邊框 PNG' : 'Frame PNG'}</button>
+                <button className="btn-secondary" onClick={() => handleCopyPrompt(s.prompt_template)} title={isZh ? '複製提示詞到剪貼簿' : 'Copy prompt template'} style={{ padding: '6px 8px', fontSize: '12px' }}>
+                  📝 {isZh ? '提示詞' : 'Prompt'}
+                </button>
+                <button className="btn-secondary" onClick={() => handleUploadFrame(s.id)} style={{ padding: '6px 10px', fontSize: '12px' }}>{isZh ? '邊框' : 'Frame'}</button>
                 <button className="btn-primary" onClick={() => openEditModal(s)} style={{ padding: '6px 12px', fontSize: '12px' }}>{isZh ? '編輯' : 'Edit'}</button>
                 <button className="btn-secondary" onClick={() => handleCloneStyle(s)} style={{ padding: '6px 10px', fontSize: '12px' }}>📋 {isZh ? '複製' : 'Clone'}</button>
+                <button className="btn-secondary" onClick={() => handleExportStyle(s)} title={isZh ? '匯出為 .photolab-style.json' : 'Export style JSON'} style={{ padding: '6px 8px', fontSize: '12px' }}>
+                  📤 {isZh ? '匯出' : 'Export'}
+                </button>
                 <button className="btn-secondary" onClick={() => openTestModal(s)} style={{ padding: '6px 10px', fontSize: '12px' }}>{isZh ? '測試' : 'Test'}</button>
                 {s.active ? (
                   <button onClick={() => handleToggleActive(s.id, false)} style={{ padding: '6px 10px', fontSize: '12px', background: '#8b2020', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>{isZh ? '隱藏' : 'Hide'}</button>
@@ -1998,7 +2045,7 @@ export default function StylesTab() {
                   <button className="btn-primary" onClick={() => handleToggleActive(s.id, true)} style={{ padding: '6px 10px', fontSize: '12px' }}>{isZh ? '顯示' : 'Show'}</button>
                 )}
                 <button 
-                  onClick={() => handleDeleteStyle(s.id)} 
+                  onClick={() => setDeleteConfirmTarget(s.id)} 
                   style={{ padding: '6px 10px', fontSize: '12px', background: 'rgba(245,101,101,0.2)', color: '#feb2b2', border: '1px solid rgba(245,101,101,0.4)', borderRadius: '6px', cursor: 'pointer' }}
                   title={isZh ? "永久刪除此風格" : "Permanently Delete Style"}
                 >
@@ -2017,6 +2064,14 @@ export default function StylesTab() {
           <img src={lightboxUrl} style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: '12px' }} alt="Full view" />
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirmTarget !== null}
+        title={isZh ? '刪除風格' : 'Delete Style'}
+        message={isZh ? '您確定要永久刪除此風格嗎？此動作將無法復原！' : 'Are you sure you want to permanently delete this style? This cannot be undone!'}
+        onConfirm={() => deleteConfirmTarget && confirmDeleteStyle(deleteConfirmTarget)}
+        onCancel={() => setDeleteConfirmTarget(null)}
+      />
     </div>
   );
 }

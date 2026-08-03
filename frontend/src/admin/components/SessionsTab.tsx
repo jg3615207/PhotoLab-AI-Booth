@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAdminLang } from '../context/AdminLangContext';
+import { useToast } from '../context/ToastContext';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface StyleItem {
   id: string;
@@ -32,6 +34,7 @@ interface SessionItem {
 export default function SessionsTab() {
   const { lang } = useAdminLang();
   const isZh = lang === 'zh-Hant';
+  const { showToast } = useToast();
 
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [styles, setStyles] = useState<StyleItem[]>([]);
@@ -40,6 +43,32 @@ export default function SessionsTab() {
   const [editMode, setEditMode] = useState(false);
   const [qrModalSession, setQrModalSession] = useState<SessionItem | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<string | null>(null);
+
+  const handleExportCSV = () => {
+    if (sessions.length === 0) return showToast(isZh ? '無活動資料可供匯出' : 'No event sessions to export', 'info');
+    
+    const headers = ['ID', 'Name', 'Booth Mode', 'Jobs Count', 'Active', 'Created/Status'];
+    const rows = sessions.map(s => [
+      `"${s.id}"`,
+      `"${s.name.replace(/"/g, '""')}"`,
+      `"${s.booth_mode || 'ai'}"`,
+      s.jobs_count || 0,
+      s.active ? 'Yes' : 'No',
+      s.archived ? 'Archived' : 'Active'
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `photolab_sessions_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(isZh ? '已成功匯出 Sessions CSV 報表！' : 'Exported Sessions CSV successfully!', 'success');
+  };
 
   // Form State
   const [formId, setFormId] = useState('');
@@ -211,6 +240,35 @@ export default function SessionsTab() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleCloneEvent = async (eventId: string) => {
+    try {
+      const res = await fetch(`/api/events/${eventId}/clone`, { method: 'POST' });
+      if (res.ok) {
+        showToast(isZh ? '活動複製成功！' : 'Event cloned successfully!', 'success');
+        loadData();
+      } else {
+        showToast(isZh ? '複製活動失敗' : 'Clone event failed', 'error');
+      }
+    } catch (err: any) {
+      showToast(isZh ? `複製失敗: ${err.message}` : `Clone error: ${err.message}`, 'error');
+    }
+  };
+
+  const confirmDeleteEvent = async (eventId: string) => {
+    try {
+      const r = await fetch(`/api/events/${eventId}`, { method: 'DELETE' });
+      if (r.ok) {
+        showToast(isZh ? '活動已刪除！' : 'Event deleted!', 'success');
+        loadData();
+      } else {
+        showToast(isZh ? '刪除失敗' : 'Delete failed', 'error');
+      }
+    } catch (err: any) {
+      showToast(isZh ? `刪除錯誤: ${err.message}` : `Delete error: ${err.message}`, 'error');
+    }
+    setDeleteConfirmTarget(null);
   };
 
   const handleFileUpload = async (type: 'logo' | 'frame', e: React.ChangeEvent<HTMLInputElement>) => {
@@ -507,9 +565,12 @@ export default function SessionsTab() {
       )}
 
       {/* Bulk action buttons */}
-      <div style={{ marginBottom: '16px', display: 'flex', gap: '12px' }}>
+      <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <button onClick={handleBulkArchive} className="btn-secondary" style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '6px' }}>{isZh ? '歸檔所選' : 'Archive Selected'}</button>
         <button onClick={handleBulkDelete} style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '6px', background: '#8b2020', color: '#fff', border: 'none', cursor: 'pointer' }}>{isZh ? '刪除所選' : 'Delete Selected'}</button>
+        <button onClick={handleExportCSV} className="btn-secondary" style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          📥 {isZh ? '匯出 CSV 報表' : 'Export CSV Report'}
+        </button>
       </div>
 
       {/* Sessions List */}
@@ -553,7 +614,7 @@ export default function SessionsTab() {
                 </div>
               )}
             </div>
-            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button className="btn-secondary" onClick={() => openEditForm(s)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>{isZh ? '編輯' : 'Edit'}</button>
               <button className="btn-secondary" onClick={() => cloneSession(s)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>{isZh ? '複製' : 'Clone'}</button>
               <button className="btn-secondary" onClick={() => setQrModalSession(s)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>
@@ -564,6 +625,9 @@ export default function SessionsTab() {
               ) : (
                 <button className="btn-primary" onClick={() => handleToggleActive(s.id, true)} style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '4px' }}>{isZh ? '啟用' : 'Enable'}</button>
               )}
+              <button onClick={() => setDeleteConfirmTarget(s.id)} style={{ padding: '4px 8px', fontSize: '12px', borderRadius: '4px', background: 'rgba(255,75,43,0.2)', border: '1px solid rgba(255,75,43,0.4)', color: '#ff4b2b', cursor: 'pointer', fontWeight: 600 }}>
+                🗑️ {isZh ? '刪除' : 'Delete'}
+              </button>
             </div>
           </div>
         ))}
@@ -621,6 +685,15 @@ export default function SessionsTab() {
           </div>
         );
       })()}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirmTarget !== null}
+        title={isZh ? '刪除場次' : 'Delete Session'}
+        message={isZh ? '您確定要刪除此活動場次嗎？此動作無法復原！' : 'Are you sure you want to delete this event session? This cannot be undone!'}
+        onConfirm={() => deleteConfirmTarget && confirmDeleteEvent(deleteConfirmTarget)}
+        onCancel={() => setDeleteConfirmTarget(null)}
+      />
     </div>
   );
 }

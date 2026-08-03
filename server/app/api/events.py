@@ -206,13 +206,39 @@ def get_event_logo(event_id: str):
             return FileResponse(row["logo_path"])
     raise HTTPException(404, "Logo not found")
 
-@router.get("/{event_id}/frame")
-def get_event_frame(event_id: str):
+@router.post("/{event_id}/clone")
+def clone_event(event_id: str):
     with get_db() as db:
-        row = db.execute("SELECT frame_path FROM events WHERE id=?", (event_id,)).fetchone()
-        if row and row["frame_path"] and os.path.exists(row["frame_path"]):
-            return FileResponse(row["frame_path"])
-    raise HTTPException(404, "Frame not found")
+        row = db.execute("SELECT * FROM events WHERE id=?", (event_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Original event not found")
+        
+        event_dict = dict(row)
+        import uuid
+        new_id = f"{event_id}_copy_{uuid.uuid4().hex[:4]}"
+        new_name = f"{event_dict.get('name', 'Event')} (Copy)"
+        
+        db.execute("""
+            INSERT INTO events (
+                id, name, allowed_styles, allow_auto_print, logo_path, 
+                event_name_overlay, frame_cap, expire_date, active, 
+                frame_path, enable_filters, retake_limit, qr_bg_color, 
+                qr_fg_color, enable_gesture_capture, gen_failsafe_enabled, 
+                gen_failsafe_timeout, booth_mode
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            new_id, new_name, event_dict.get("allowed_styles", "[]"), 
+            event_dict.get("allow_auto_print", 1), event_dict.get("logo_path", ""),
+            event_dict.get("event_name_overlay", ""), event_dict.get("frame_cap", 0),
+            event_dict.get("expire_date", ""), event_dict.get("active", 1),
+            event_dict.get("frame_path", ""), event_dict.get("enable_filters", 0),
+            event_dict.get("retake_limit", 3), event_dict.get("qr_bg_color", "#ffffff"),
+            event_dict.get("qr_fg_color", "#000000"), event_dict.get("enable_gesture_capture", 1),
+            event_dict.get("gen_failsafe_enabled", 0), event_dict.get("gen_failsafe_timeout", 35),
+            event_dict.get("booth_mode", "ai")
+        ))
+        
+    return {"status": "cloned", "new_event_id": new_id, "new_name": new_name}
 
 def uuid_file_part():
     import uuid

@@ -288,6 +288,79 @@ def delete_style(style_id: str):
         
     return {"status": "deleted"}
 
+
+@router.get("/{style_id}/export")
+def export_style(style_id: str):
+    import base64
+    from urllib.parse import unquote
+    actual_id = unquote(style_id)
+    with get_db() as db:
+        row = db.execute("SELECT * FROM styles WHERE id=?", (actual_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Style not found")
+        style_data = dict(row)
+
+    ref_b64 = None
+    style_dir = STYLES_DIR / actual_id
+    ref_path = style_dir / "ref.jpg"
+    if not ref_path.exists():
+        ref_path = style_dir / "thumb.jpg"
+
+    if ref_path.exists():
+        with open(ref_path, "rb") as f:
+            ref_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+    return {
+        "version": "1.0",
+        "style": style_data,
+        "ref_image_base64": ref_b64
+    }
+
+
+class ImportStyleRequest(BaseModel):
+    version: Optional[str] = "1.0"
+    style: dict
+    ref_image_base64: Optional[str] = None
+
+
+@router.post("/import")
+def import_style(payload: ImportStyleRequest):
+    import base64
+    style_dict = payload.style
+    style_id = style_dict.get("id") or f"style_{uuid.uuid4().hex[:8]}"
+    name = style_dict.get("name") or "Imported Style"
+
+    with get_db() as db:
+        db.execute(
+            """INSERT INTO styles (id, name, max_people, aspect_ratio, prompt_template, resolution, seed, active, v2_model, v2_quality, mode, filter_preset, filter_params, layout_type)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(id) DO UPDATE SET
+               name=excluded.name, max_people=excluded.max_people, aspect_ratio=excluded.aspect_ratio,
+               prompt_template=excluded.prompt_template, resolution=excluded.resolution,
+               v2_model=excluded.v2_model, v2_quality=excluded.v2_quality, mode=excluded.mode,
+               filter_preset=excluded.filter_preset, filter_params=excluded.filter_params, layout_type=excluded.layout_type""",
+            (
+                style_id, name, style_dict.get("max_people", 1), style_dict.get("aspect_ratio", "2:3"),
+                style_dict.get("prompt_template", ""), style_dict.get("resolution", "2k"),
+                style_dict.get("seed", ""), style_dict.get("active", 1),
+                style_dict.get("v2_model", "nb2-cheap"), style_dict.get("v2_quality", "medium"),
+                style_dict.get("mode", "ai"), style_dict.get("filter_preset", ""),
+                str(style_dict.get("filter_params", "{}")), style_dict.get("layout_type", "single")
+            )
+        )
+
+    if payload.ref_image_base64:
+        try:
+            b64_str = payload.ref_image_base64
+            if "," in b64_str:
+                b64_str = b64_str.split(",", 1)[1]
+            img_bytes = base64.b64decode(b64_str)
+            _process_and_save_ref_image(style_id, img_bytes)
+        except Exception as e:
+            print(f"[import_style] Ref image save error: {e}")
+
+    return {"status": "imported", "style_id": style_id}
+
 def _process_and_save_ref_image(style_id: str, content: bytes) -> dict:
     pil = Image.open(io.BytesIO(content)).convert("RGB")
     max_dim = 2048
@@ -821,4 +894,4 @@ def serve_style_file(file_path: str):
     base_dir = STYLES_DIR.resolve()
     if not path.is_relative_to(base_dir) or not path.exists():
         raise HTTPException(404, "File not found")
-    return FileResponse(str(path))
+    return FileResponse(str(path), headers={"Cache-Control": "public, max-age=86400"})
