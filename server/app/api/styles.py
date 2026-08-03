@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from typing import Optional
 from pathlib import Path
@@ -59,6 +59,56 @@ def list_filter_presets():
     """Returns available color/effect filter presets for Normal photo booth mode."""
     from app.services.filters import get_available_filters
     return get_available_filters()
+
+
+@router.post("/preview-filter")
+async def preview_filter(
+    file: Optional[UploadFile] = File(None),
+    style_id: Optional[str] = Form(None),
+    filter_preset: str = Form(""),
+    filter_params: str = Form("{}")
+):
+    """Fast live filter preview endpoint (~50ms) for real-time visual style editing."""
+    from app.services.filters import apply_filter
+    import json
+
+    params_dict = {}
+    if filter_params:
+        try:
+            params_dict = json.loads(filter_params)
+        except Exception:
+            params_dict = {}
+
+    pil_img = None
+
+    if file:
+        content = await file.read()
+        pil_img = Image.open(io.BytesIO(content)).convert("RGB")
+    elif style_id:
+        style_dir = STYLES_DIR / style_id
+        ref_path = style_dir / "ref.jpg"
+        thumb_path = style_dir / "thumb.jpg"
+        if ref_path.exists():
+            pil_img = Image.open(str(ref_path)).convert("RGB")
+        elif thumb_path.exists():
+            pil_img = Image.open(str(thumb_path)).convert("RGB")
+
+    if pil_img is None:
+        pil_img = Image.new("RGB", (600, 600), (220, 180, 150))
+
+    # Resize to maximum 800px for ultra-fast ~50ms preview rendering
+    max_dim = 800
+    w, h = pil_img.size
+    if max(w, h) > max_dim:
+        ratio = max_dim / float(max(w, h))
+        pil_img = pil_img.resize((int(w * ratio), int(h * ratio)), Image.LANCZOS)
+
+    processed_img = apply_filter(pil_img, filter_preset, params_dict)
+
+    buf = io.BytesIO()
+    processed_img.save(buf, format="JPEG", quality=88)
+    buf.seek(0)
+    return Response(content=buf.getvalue(), media_type="image/jpeg")
 
 class PreloadRequest(BaseModel):
     style_id: Optional[str] = None

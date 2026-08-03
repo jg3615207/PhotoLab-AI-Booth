@@ -47,6 +47,12 @@ export default function StylesTab() {
   const [modeFilter, setModeFilter] = useState<string>('all');
   const [availableFilters, setAvailableFilters] = useState<any[]>([]);
 
+  // Live Style Maker & Real-Time Filter Preview State
+  const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null);
+  const [livePreviewLoading, setLivePreviewLoading] = useState(false);
+  const [liveCustomPhoto, setLiveCustomPhoto] = useState<File | null>(null);
+  const [liveCustomPhotoUrl, setLiveCustomPhotoUrl] = useState<string | null>(null);
+
   useEffect(() => {
     fetch('/api/styles/filters')
       .then(r => r.json())
@@ -125,6 +131,40 @@ export default function StylesTab() {
   const [generatingRef, setGeneratingRef] = useState(false);
   const [aiRefPreview, setAiRefPreview] = useState<string | null>(null);
   const [aiRefCost, setAiRefCost] = useState<{ time?: number; money?: number } | null>(null);
+
+  useEffect(() => {
+    if (!showAddForm && !editingStyle) return;
+
+    const timer = setTimeout(async () => {
+      setLivePreviewLoading(true);
+      try {
+        const form = new FormData();
+        if (liveCustomPhoto) {
+          form.append('file', liveCustomPhoto);
+        } else if (editingStyle?.id) {
+          form.append('style_id', editingStyle.id);
+        }
+        form.append('filter_preset', fFilterPreset || '');
+        form.append('filter_params', JSON.stringify(fFilterParams));
+
+        const res = await fetch('/api/styles/preview-filter', {
+          method: 'POST',
+          body: form
+        });
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          setLivePreviewUrl(url);
+        }
+      } catch (e) {
+        console.error("Live preview error:", e);
+      } finally {
+        setLivePreviewLoading(false);
+      }
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [fFilterPreset, fFilterParams, showAddForm, editingStyle, liveCustomPhoto]);
 
   const handleGenerateAiRef = async () => {
     if (!fPrompt.trim()) {
@@ -1271,6 +1311,59 @@ export default function StylesTab() {
                           </option>
                         ))}
                       </select>
+                    </div>
+
+                    {/* ⚡ Real-Time Live Style Preview Box */}
+                    <div style={{ background: '#0a0a14', border: '1px solid rgba(78,205,196,0.3)', borderRadius: '10px', padding: '14px', marginTop: '12px', marginBottom: '12px', width: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '16px' }}>⚡</span>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#4ecdc4' }}>
+                            {isZh ? '即時視覺效果預覽 (Live Real-Time Preview)' : 'Live Filter & Shaping Preview'}
+                          </span>
+                          {livePreviewLoading && (
+                            <span style={{ fontSize: '11px', color: '#a3b8ff' }}>
+                              {isZh ? '⚡ 運算中...' : 'Processing...'}
+                            </span>
+                          )}
+                        </div>
+
+                        <label style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          📷 {isZh ? '上傳測試人像' : 'Upload Test Face'}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={e => {
+                              if (e.target.files?.[0]) {
+                                const file = e.target.files[0];
+                                setLiveCustomPhoto(file);
+                                setLiveCustomPhotoUrl(URL.createObjectURL(file));
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'center', background: '#000', borderRadius: '8px', padding: '10px', minHeight: '180px' }}>
+                        {livePreviewUrl ? (
+                          <div style={{ position: 'relative', display: 'inline-block' }}>
+                            <img
+                              src={livePreviewUrl}
+                              alt="Live preview"
+                              style={{ maxHeight: '240px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px', cursor: 'pointer' }}
+                              onClick={() => setLightboxUrl(livePreviewUrl)}
+                            />
+                            <span style={{ position: 'absolute', bottom: '6px', right: '6px', background: 'rgba(0,0,0,0.75)', color: '#4ecdc4', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(78,205,196,0.4)', fontWeight: 700 }}>
+                              🔍 {isZh ? '點擊大圖查看' : 'Click to View'}
+                            </span>
+                          </div>
+                        ) : (
+                          <div style={{ color: '#666', fontSize: '12px', textAlign: 'center' }}>
+                            {isZh ? '滑動下方任何參數即可即時檢視微整形與濾鏡效果' : 'Adjust sliders below for live face shaping preview'}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {renderAdvancedFilterSettings()}
