@@ -913,6 +913,14 @@ export default function StylesTab() {
                     '0.2 = Subtle touch-up (80% original identity); 0.5 = Standard balance; 0.8 = Strong AI beautification.'
                   )}
                   {renderFilterCheckboxControl(
+                    'gfpgan_preserve_eye_color',
+                    '👁️ 眼睛原色與瞳孔保護 (Preserve Eye Color & Iris)',
+                    'Preserve Original Eye Color & Iris',
+                    true,
+                    '自動檢測人眼與瞳孔邊界，將原圖 100% 正確的眼睛顏色、瞳孔細節與虹膜光澤融合回 GFPGAN 臉部，防止 AI 生成導致眼睛變色或偏藍偏灰。',
+                    'Automatically detects eye landmarks and blends 100% original pupil colors, iris details, and reflections back onto GFPGAN face to prevent AI eye discoloration.'
+                  )}
+                  {renderFilterCheckboxControl(
                     'gfpgan_only_center',
                     '🎯 僅對中央主要人物美顏 (Only Center Face)',
                     'Only Center Face',

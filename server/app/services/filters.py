@@ -152,7 +152,8 @@ def _apply_filter_single(pil_img: Image.Image, filter_preset: str, filter_params
     elif preset in ["ai-gfpgan", "gfpgan"]:
         weight = float(params.get("gfpgan_weight", 0.50))
         only_center = bool(params.get("gfpgan_only_center", False))
-        return _ai_gfpgan(pil_img, weight=weight, only_center=only_center)
+        preserve_eye_color = bool(params.get("gfpgan_preserve_eye_color", True))
+        return _ai_gfpgan(pil_img, weight=weight, only_center=only_center, preserve_eye_color=preserve_eye_color)
 
     elif preset in ["ai-codeformer", "codeformer"]:
         fidelity = float(params.get("codeformer_fidelity", 0.60))
@@ -493,27 +494,74 @@ def _get_gfpgan_model():
     return _GFPGAN_MODEL if _GFPGAN_MODEL is not False else None
 
 
-def _ai_gfpgan(pil_img: Image.Image, weight: float = 0.50, only_center: bool = False) -> Image.Image:
-    """🤖 GFPGAN v1.4 Local AI Face Restoration & Enhancement (CUDA accelerated)."""
+def _ai_gfpgan(
+    pil_img: Image.Image,
+    weight: float = 0.50,
+    only_center: bool = False,
+    preserve_eye_color: bool = True
+) -> Image.Image:
+    """🤖 GFPGAN v1.4 Local AI Face Restoration & Enhancement (CUDA accelerated with Eye Color Preservation)."""
     try:
         import cv2
+        import torch
+        from torchvision.transforms.functional import normalize
+        from basicsr.utils import img2tensor, tensor2img
+
         gfp = _get_gfpgan_model()
         if gfp is None:
             return _beauty_facemesh_v2(pil_img)
 
-        img_bgr = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
-        cropped_faces, restored_faces, restored_img = gfp.enhance(
-            img_bgr,
-            has_aligned=False,
-            only_center_face=bool(only_center),
-            paste_back=True,
-            weight=np.clip(float(weight), 0.0, 1.0)
-        )
+        img_rgb = np.array(pil_img)
+        img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+
+        # ── 1. Clean face helper state and align faces ──────────────────────────
+        gfp.face_helper.clean_all()
+        gfp.face_helper.read_image(img_bgr)
+        gfp.face_helper.get_face_landmarks_5(only_center_face=bool(only_center), eye_dist_threshold=5)
+        gfp.face_helper.align_warp_face()
+
+        if len(gfp.face_helper.cropped_faces) == 0:
+            return _beauty_facemesh_v2(pil_img)
+
+        # ── 2. Build 512x512 aligned eye preservation mask ─────────────────────
+        eye_mask_512 = np.zeros((512, 512), dtype=np.float32)
+        cv2.circle(eye_mask_512, (192, 240), 36, 1.0, -1)
+        cv2.circle(eye_mask_512, (320, 240), 36, 1.0, -1)
+        eye_mask_512 = cv2.GaussianBlur(eye_mask_512, (17, 17), 0)
+        eye_mask_3ch = np.stack([eye_mask_512] * 3, axis=-1)
+
+        # ── 3. Run GFPGAN Inference & Preserve Original Eye Colors ────────────
+        for cropped_face in gfp.face_helper.cropped_faces:
+            cropped_face_t = img2tensor(cropped_face / 255., bgr2rgb=True, float32=True)
+            normalize(cropped_face_t, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True)
+            cropped_face_t = cropped_face_t.unsqueeze(0).to(gfp.device)
+
+            try:
+                output = gfp.gfpgan(cropped_face_t, return_rgb=False, weight=np.clip(float(weight), 0.0, 1.0))[0]
+                restored_face = tensor2img(output.squeeze(0), rgb2bgr=True, min_max=(-1, 1))
+            except Exception as err:
+                print(f"[GFPGAN] Inference error: {err}")
+                restored_face = cropped_face
+
+            restored_face = restored_face.astype('uint8')
+
+            # ── Eye Color & Pupil Preservation ──────────────────────────────
+            if preserve_eye_color:
+                # Blend 100% original photo eye color, pupil & iris back onto restored face
+                restored_face = (restored_face.astype(np.float32) * (1.0 - eye_mask_3ch) + cropped_face.astype(np.float32) * eye_mask_3ch)
+                restored_face = np.clip(restored_face, 0, 255).astype(np.uint8)
+
+            gfp.face_helper.add_restored_face(restored_face)
+
+        # ── 4. Paste restored faces back to background image ───────────────────
+        gfp.face_helper.get_inverse_affine(None)
+        restored_img = gfp.face_helper.paste_faces_to_input_image()
 
         if restored_img is not None:
             res_rgb = cv2.cvtColor(restored_img, cv2.COLOR_BGR2RGB)
             return Image.fromarray(res_rgb)
         return _beauty_facemesh_v2(pil_img)
+
     except Exception as e:
         print(f"[GFPGAN Filter] Error: {e}")
         return _beauty_facemesh_v2(pil_img)
