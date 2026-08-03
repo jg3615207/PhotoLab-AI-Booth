@@ -4,6 +4,40 @@ import { useCamera } from '../hooks/useCamera';
 import { useHandsTracker } from '../hooks/useHandsTracker';
 import { useFaceDetection } from '../hooks/useFaceDetection';
 
+function parseAspectRatio(ratioStr?: string): { targetW: number; targetH: number; ratioVal: number; cssRatio: string } {
+  if (!ratioStr || !ratioStr.includes(':')) {
+    return { targetW: 2, targetH: 3, ratioVal: 2 / 3, cssRatio: '2/3' };
+  }
+  const parts = ratioStr.split(':').map(s => Number(s.trim()));
+  const w = parts[0] > 0 ? parts[0] : 2;
+  const h = parts[1] > 0 ? parts[1] : 3;
+  return { targetW: w, targetH: h, ratioVal: w / h, cssRatio: `${w}/${h}` };
+}
+
+function computeVideoCrop(vw: number, vh: number, targetW: number, targetH: number) {
+  const targetRatio = targetW / targetH;
+  const videoRatio = vw / vh;
+
+  let cropX = 0;
+  let cropY = 0;
+  let cropW = vw;
+  let cropH = vh;
+
+  if (videoRatio > targetRatio) {
+    // Video is wider than target aspect ratio -> crop horizontally
+    cropH = vh;
+    cropW = vh * targetRatio;
+    cropX = (vw - cropW) / 2.0;
+  } else {
+    // Video is taller than target aspect ratio -> crop vertically
+    cropW = vw;
+    cropH = vw / targetRatio;
+    cropY = (vh - cropH) / 2.0;
+  }
+
+  return { cropX, cropY, cropW, cropH };
+}
+
 export default function CaptureScreen() {
   const { setScreen, setCapturedImage, lang, session, selectedStyle } = useKiosk();
   const isZh = lang === 'zh-Hant';
@@ -32,6 +66,8 @@ export default function CaptureScreen() {
   const showFilters = session?.enable_filters === 1 || session?.enable_filters === true;
   const gestureEnabled = session?.enable_gesture_capture !== 0;
 
+  const { targetW, targetH, cssRatio } = parseAspectRatio(selectedStyle?.aspect_ratio);
+
   useHandsTracker(videoRef.current, isMirrored, () => {
     if (countdown === null && !error) {
       startCountdown();
@@ -43,11 +79,11 @@ export default function CaptureScreen() {
     return () => stopCamera();
   }, []);
 
-  // Live face tracking bounding box canvas overlay
+  // Live face tracking bounding box canvas overlay (aligned with video crop)
   useEffect(() => {
     const canvas = overlayCanvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video) return;
+    if (!canvas || !video || !video.videoWidth || !video.videoHeight) return;
 
     if (!faceBoxes || faceBoxes.length === 0) {
       const ctx = canvas.getContext('2d');
@@ -55,22 +91,29 @@ export default function CaptureScreen() {
       return;
     }
 
-    canvas.width = video.clientWidth || 1080;
-    canvas.height = video.clientHeight || 1920;
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const { cropX, cropY, cropW, cropH } = computeVideoCrop(vw, vh, targetW, targetH);
+
+    canvas.width = video.clientWidth || 600;
+    canvas.height = video.clientHeight || 900;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const scaleX = canvas.width / (video.videoWidth || 1);
-    const scaleY = canvas.height / (video.videoHeight || 1);
+    const scaleX = canvas.width / cropW;
+    const scaleY = canvas.height / cropH;
 
     faceBoxes.forEach((box) => {
-      let rx = box.x * scaleX;
+      const croppedBoxX = box.x - cropX;
+      const croppedBoxY = box.y - cropY;
+
+      let rx = croppedBoxX * scaleX;
       if (isMirrored) {
-        rx = canvas.width - (box.x + box.width) * scaleX;
+        rx = canvas.width - (croppedBoxX + box.width) * scaleX;
       }
-      const ry = box.y * scaleY;
+      const ry = croppedBoxY * scaleY;
       const rw = box.width * scaleX;
       const rh = box.height * scaleY;
 
@@ -110,7 +153,7 @@ export default function CaptureScreen() {
       ctx.fillStyle = '#000';
       ctx.fillText(labelText, rx + 7, tagY + 15);
     });
-  }, [faceBoxes, isMirrored]);
+  }, [faceBoxes, isMirrored, targetW, targetH]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -158,9 +201,13 @@ export default function CaptureScreen() {
   const capturePhoto = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (video && canvas) {
-      canvas.width = video.videoWidth || 1080;
-      canvas.height = video.videoHeight || 1920;
+    if (video && canvas && video.videoWidth > 0 && video.videoHeight > 0) {
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const { cropX, cropY, cropW, cropH } = computeVideoCrop(vw, vh, targetW, targetH);
+
+      canvas.width = Math.round(cropW);
+      canvas.height = Math.round(cropH);
       const ctx = canvas.getContext('2d');
       if (ctx) {
         if (currentFilterCSS !== 'none') {
@@ -170,8 +217,13 @@ export default function CaptureScreen() {
           ctx.translate(canvas.width, 0);
           ctx.scale(-1, 1);
         }
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        setCapturedImage(canvas.toDataURL('image/jpeg', 0.95));
+        ctx.drawImage(
+          video,
+          cropX, cropY, cropW, cropH,
+          0, 0, canvas.width, canvas.height
+        );
+        console.log(`[Capture API] Photo captured at HD resolution ${canvas.width}x${canvas.height} (Aspect ratio ${selectedStyle?.aspect_ratio || '2:3'})`);
+        setCapturedImage(canvas.toDataURL('image/jpeg', 0.96));
         setScreen('preview');
       }
     }
@@ -181,7 +233,7 @@ export default function CaptureScreen() {
     <div className="screen active" style={{ display: 'flex' }}>
       {flash && <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'white', zIndex: 9999 }} />}
       
-      <div className="capture-container" style={{ position: 'relative' }}>
+      <div className="capture-container" style={{ position: 'relative', aspectRatio: cssRatio }}>
         {countMismatch && multiCropEnabled && (
           <div style={{ position: 'absolute', top: '70px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,152,0,0.95)', color: '#000', padding: '10px 18px', borderRadius: '12px', zIndex: 30, fontWeight: 700, fontSize: '13px', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '90%', textAlign: 'center' }}>
             ⚠️ {isZh 
