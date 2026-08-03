@@ -897,6 +897,27 @@ export default function StylesTab() {
           )
         )}
 
+        {flt.includes('realesrgan') && (
+          <>
+            {renderFilterParamControl(
+              'realesrgan_outscale',
+              '🤖 Real-ESRGAN 畫質放大倍率 (Outscale)',
+              'Outscale Factor',
+              1.0, 2.0, 0.1, 1.0, 'x',
+              'AI 超高解析度放大倍數。1.0x 為保持原圖尺寸僅進行細部畫質與毛孔清晰化；2.0x 為 2 倍 AI 超高解析度放大。',
+              '1.0x = native resolution clarity boost, 2.0x = 2x HD upscale for high-resolution printing.'
+            )}
+            {renderFilterParamControl(
+              'realesrgan_tile',
+              '🧱 GPU 分塊大小 (Tile Size)',
+              'GPU Tile Size',
+              0, 800, 100, 400, 'px',
+              '顯卡 GPU 分塊運算區塊大小。設定 0 為全圖單次直推運算（RTX 2080 Ti 顯卡速度最快）；設定 400 為分區處理避免顯存不足。',
+              'GPU tile size. 0 = full image pass (fastest on high VRAM GPUs); 400 = tile mode to save VRAM.'
+            )}
+          </>
+        )}
+
         {(flt.includes('beauty-face-v2') || flt.includes('facemesh-v2') || flt === 'v2') && (
           <>
             {renderFilterParamControl(

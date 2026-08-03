@@ -146,7 +146,9 @@ def apply_filter(pil_img: Image.Image, filter_preset: str, filter_params: dict =
         return _ai_codeformer(pil_img, fidelity=fidelity)
 
     elif preset in ["ai-realesrgan", "realesrgan"]:
-        return _ai_realesrgan(pil_img)
+        outscale = float(params.get("realesrgan_outscale", 1.0))
+        tile = int(params.get("realesrgan_tile", 400))
+        return _ai_realesrgan(pil_img, outscale=outscale, tile=tile)
 
     return pil_img
 
@@ -538,7 +540,7 @@ def _ai_codeformer(pil_img: Image.Image, fidelity: float = 0.60) -> Image.Image:
         return _beauty_facemesh_v2(pil_img)
 
 
-def _ai_realesrgan(pil_img: Image.Image) -> Image.Image:
+def _ai_realesrgan(pil_img: Image.Image, outscale: float = 1.0, tile: int = 400) -> Image.Image:
     """🤖 Real-ESRGAN Local AI Clarity & Super-Resolution Pass."""
     try:
         import cv2
@@ -551,12 +553,12 @@ def _ai_realesrgan(pil_img: Image.Image) -> Image.Image:
             scale=2,
             model_path='https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth',
             model=model,
-            tile=400,
+            tile=int(tile),
             tile_pad=10,
             pre_pad=0,
             half=True
         )
-        output, _ = upsampler.enhance(img_bgr, outscale=1)
+        output, _ = upsampler.enhance(img_bgr, outscale=float(outscale))
         res_rgb = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
         return Image.fromarray(res_rgb)
     except Exception as e:
