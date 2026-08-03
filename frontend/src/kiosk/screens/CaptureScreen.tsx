@@ -42,7 +42,7 @@ export default function CaptureScreen() {
   const { setScreen, setCapturedImage, lang, session, selectedStyle } = useKiosk();
   const isZh = lang === 'zh-Hant';
 
-  const { videoRef, error, isMirrored, startCamera, stopCamera, toggleMirror } = useCamera();
+  const { videoRef, error, isMirrored, resolutionInfo, startCamera, stopCamera, toggleMirror } = useCamera();
   const [countdown, setCountdown] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
@@ -271,9 +271,15 @@ export default function CaptureScreen() {
           </>
         )}
         
+        {resolutionInfo && (
+          <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 20, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', color: '#00f2fe', border: '1px solid rgba(0,242,254,0.4)', padding: '5px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
+            📹 {resolutionInfo.width >= 3840 ? '4K UHD' : (resolutionInfo.width >= 1920 ? '1080p Full HD' : `${resolutionInfo.width}p`)} ({resolutionInfo.width}x{resolutionInfo.height})
+          </div>
+        )}
+
         <button 
           onClick={toggleMirror} 
-          style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 10, background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer' }}
+          style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 20, background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer' }}
         >
           {isZh ? '鏡像 ⇄' : 'Mirror ⇄'}
         </button>

@@ -7,6 +7,7 @@ export function useCamera() {
   const [isMirrored, setIsMirrored] = useState(false);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [resolutionInfo, setResolutionInfo] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     navigator.mediaDevices?.enumerateDevices()
@@ -26,29 +27,37 @@ export function useCamera() {
         stream.getTracks().forEach(t => t.stop());
       }
 
-      // Resolution preference tiers: 4K UHD -> 1080p Full HD -> 720p HD -> Loose fallback
+      // Resolution preference tiers specifically formatted for OBS Virtual Cam & Windows DirectShow
       const resolutionTiers: MediaTrackConstraints[] = [
-        // Tier 1: 4K UHD
+        // Tier 1: 1080p Full HD Ideal (Standard for OBS Virtual Cam & webcams)
         {
           ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }),
-          width: { ideal: 3840, min: 1920 },
-          height: { ideal: 2160, min: 1080 }
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
         },
-        // Tier 2: 1080p Full HD
+        // Tier 2: 4K UHD Ideal
         {
           ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }),
-          width: { ideal: 1920, min: 1280 },
-          height: { ideal: 1080, min: 720 }
+          width: { ideal: 3840 },
+          height: { ideal: 2160 }
         },
-        // Tier 3: 720p HD
+        // Tier 3: Fixed 1920x1080
+        {
+          ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }),
+          width: 1920,
+          height: 1080
+        },
+        // Tier 4: 720p HD Ideal
         {
           ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }),
           width: { ideal: 1280 },
           height: { ideal: 720 }
         },
-        // Tier 4: Basic device match
+        // Tier 5: Loose device match with 1080p preference
         {
-          ...(deviceId ? { deviceId } : { facingMode: 'user' })
+          ...(deviceId ? { deviceId } : { facingMode: 'user' }),
+          width: 1920,
+          height: 1080
         }
       ];
 
@@ -66,18 +75,42 @@ export function useCamera() {
       }
 
       if (!newStream) {
-        newStream = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId } : true });
+        newStream = await navigator.mediaDevices.getUserMedia({ 
+          video: deviceId ? { deviceId, width: 1920, height: 1080 } : { width: 1920, height: 1080 } 
+        });
       }
 
       const videoTrack = newStream.getVideoTracks()[0];
       if (videoTrack) {
+        // Attempt to apply 1920x1080 constraint explicitly on track
+        try {
+          await videoTrack.applyConstraints({ width: { ideal: 1920 }, height: { ideal: 1080 } });
+        } catch (e) {
+          try {
+            await videoTrack.applyConstraints({ width: 1920, height: 1080 });
+          } catch (e2) {}
+        }
+
         const settings = videoTrack.getSettings();
-        console.log(`[Camera API] High-Res Stream Active: ${settings.width}x${settings.height} @ ${settings.frameRate || 30}fps`);
+        const w = settings.width || 1920;
+        const h = settings.height || 1080;
+        console.log(`[Camera API] Stream Active: ${w}x${h} @ ${settings.frameRate || 30}fps`);
+        setResolutionInfo({ width: w, height: h });
       }
 
       setStream(newStream);
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current) {
+            const vw = videoRef.current.videoWidth;
+            const vh = videoRef.current.videoHeight;
+            console.log(`[Camera API] Video Metadata Loaded: ${vw}x${vh}`);
+            if (vw > 0 && vh > 0) {
+              setResolutionInfo({ width: vw, height: vh });
+            }
+          }
+        };
       }
       setError(null);
     } catch (err) {
@@ -90,6 +123,7 @@ export function useCamera() {
     if (stream) {
       stream.getTracks().forEach(t => t.stop());
       setStream(null);
+      setResolutionInfo(null);
     }
   };
 
@@ -109,6 +143,7 @@ export function useCamera() {
     devices,
     selectedDeviceId,
     setSelectedDeviceId,
+    resolutionInfo,
     startCamera,
     stopCamera,
     toggleMirror
