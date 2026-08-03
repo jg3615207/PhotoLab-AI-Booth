@@ -198,46 +198,57 @@ export default function CaptureScreen() {
     }, 1000);
   };
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (video && canvas && video.videoWidth > 0 && video.videoHeight > 0) {
-      const videoW = video.videoWidth;
-      const videoH = video.videoHeight;
+    if (!video || !canvas) return;
 
-      const videoTrack = stream?.getVideoTracks()[0];
-      const settings = videoTrack?.getSettings();
-      const trackH = settings?.height || 1080;
+    let sourceDrawable: CanvasImageSource = video;
+    let sourceW = video.videoWidth || 1920;
+    let sourceH = video.videoHeight || 1080;
 
-      // Compute exact proportional crop rectangle in video element coordinate space
-      const { cropX, cropY, cropW, cropH } = computeVideoCrop(videoW, videoH, targetW, targetH);
-
-      // Target scale multiplier to ensure output canvas is full 1080p/4K resolution
-      const scale = Math.max(1.0, trackH / videoH);
-      canvas.width = Math.round(cropW * scale);
-      canvas.height = Math.round(cropH * scale);
-
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        if (currentFilterCSS !== 'none') {
-          ctx.filter = currentFilterCSS;
+    // Grab raw uncompressed 1080p/4K hardware sensor frame via ImageCapture API
+    const videoTrack = stream?.getVideoTracks()[0];
+    if (videoTrack && (window as any).ImageCapture) {
+      try {
+        const imageCapture = new (window as any).ImageCapture(videoTrack);
+        const frameBitmap = await imageCapture.grabFrame();
+        if (frameBitmap && frameBitmap.width >= 1280 && frameBitmap.height >= 720) {
+          sourceDrawable = frameBitmap;
+          sourceW = frameBitmap.width;
+          sourceH = frameBitmap.height;
+          console.log(`[Capture API] ImageCapture grabbed RAW 1080p+ hardware sensor frame: ${sourceW}x${sourceH}`);
         }
-        if (isMirrored) {
-          ctx.translate(canvas.width, 0);
-          ctx.scale(-1, 1);
-        }
-
-        ctx.drawImage(
-          video,
-          cropX, cropY, cropW, cropH,
-          0, 0, canvas.width, canvas.height
-        );
-        console.log(`[Capture API] Proportional 1080p+ Photo Captured: ${canvas.width}x${canvas.height} (Aspect Ratio: ${(canvas.width/canvas.height).toFixed(4)})`);
-        setCapturedImage(canvas.toDataURL('image/jpeg', 0.98));
-        setScreen('preview');
+      } catch (err) {
+        console.warn("[Capture API] ImageCapture.grabFrame fallback to video element:", err);
       }
+    }
+
+    const { cropX, cropY, cropW, cropH } = computeVideoCrop(sourceW, sourceH, targetW, targetH);
+
+    canvas.width = Math.round(cropW);
+    canvas.height = Math.round(cropH);
+
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      if (currentFilterCSS !== 'none') {
+        ctx.filter = currentFilterCSS;
+      }
+      if (isMirrored) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+
+      ctx.drawImage(
+        sourceDrawable,
+        cropX, cropY, cropW, cropH,
+        0, 0, canvas.width, canvas.height
+      );
+      console.log(`[Capture API] Native High-Res Photo Captured: ${canvas.width}x${canvas.height} (Sensor Frame: ${sourceW}x${sourceH})`);
+      setCapturedImage(canvas.toDataURL('image/jpeg', 0.98));
+      setScreen('preview');
     }
   };
 
@@ -266,6 +277,8 @@ export default function CaptureScreen() {
               ref={videoRef} 
               autoPlay 
               playsInline 
+              width={1920}
+              height={1080}
               style={{ width: '100%', height: '100%', objectFit: 'cover', transform: isMirrored ? 'scaleX(-1)' : 'scaleX(1)', filter: currentFilterCSS }} 
             />
             <canvas
