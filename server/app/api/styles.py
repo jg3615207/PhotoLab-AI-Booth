@@ -60,6 +60,32 @@ def list_filter_presets():
     from app.services.filters import get_available_filters
     return get_available_filters()
 
+class PreloadRequest(BaseModel):
+    style_id: Optional[str] = None
+    filter_preset: Optional[str] = None
+
+@router.post("/preload")
+def preload_style_model(req: PreloadRequest):
+    """Preloads PyTorch CUDA models (GFPGAN, CodeFormer, Real-ESRGAN) into GPU VRAM in background.
+    
+    Called by Kiosk as soon as a user selects or hovers a style, ensuring 0 model-load latency
+    when the photo is taken!
+    """
+    filter_preset = req.filter_preset
+    if req.style_id and not filter_preset:
+        with get_db() as db:
+            row = db.execute("SELECT filter_preset FROM styles WHERE id=?", (req.style_id,)).fetchone()
+            if row and row["filter_preset"]:
+                filter_preset = row["filter_preset"]
+
+    if filter_preset:
+        from app.services.filters import preload_filter_models
+        import threading
+        threading.Thread(target=preload_filter_models, args=(filter_preset,), daemon=True).start()
+        return {"status": "preloading", "filter_preset": filter_preset}
+
+    return {"status": "skipped"}
+
 class ReorderRequest(BaseModel):
     ids: list[str]
 

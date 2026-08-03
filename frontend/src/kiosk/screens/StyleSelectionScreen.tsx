@@ -41,10 +41,24 @@ export default function StyleSelectionScreen() {
       });
   }, [session, isZh]);
 
+  const triggerPreload = (styleObj: StyleData) => {
+    fetch('/api/styles/preload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ style_id: styleObj.id, filter_preset: styleObj.filter_preset })
+    }).catch(() => {});
+  };
+
   const handleSelectStyle = (styleObj: StyleData) => {
+    triggerPreload(styleObj);
     setSelectedStyleId(styleObj.id);
     setSelectedStyle(styleObj);
     setScreen('capture');
+  };
+
+  const handleHoverStyle = (styleObj: StyleData) => {
+    setHoveredStyleId(styleObj.id);
+    triggerPreload(styleObj);
   };
 
   return (
@@ -63,11 +77,11 @@ export default function StyleSelectionScreen() {
               key={s.id} 
               className="style-card" 
               onClick={() => handleSelectStyle(s)}
-              onMouseEnter={() => setHoveredStyleId(s.id)}
+              onMouseEnter={() => handleHoverStyle(s)}
               onMouseLeave={() => setHoveredStyleId(null)}
-              onPointerEnter={() => setHoveredStyleId(s.id)}
+              onPointerEnter={() => handleHoverStyle(s)}
               onPointerLeave={() => setHoveredStyleId(null)}
-              onTouchStart={() => setHoveredStyleId(s.id)}
+              onTouchStart={() => handleHoverStyle(s)}
               onTouchEnd={() => setTimeout(() => setHoveredStyleId(null), 3000)}
             >
               {isHovered && s.animated_thumbnail ? (

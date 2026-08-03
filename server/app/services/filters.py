@@ -601,24 +601,67 @@ def _ai_codeformer(pil_img: Image.Image, fidelity: float = 0.60) -> Image.Image:
         return _beauty_facemesh_v2(pil_img)
 
 
+_REALESRGAN_MODEL = None
+
+def _get_realesrgan_model(tile: int = 400):
+    global _REALESRGAN_MODEL
+    if _REALESRGAN_MODEL is None:
+        try:
+            import torch
+            from realesrgan import RealESRGANer
+            from basicsr.archs.rrdbnet_arch import RRDBNet
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=2)
+            _REALESRGAN_MODEL = RealESRGANer(
+                scale=2,
+                model_path='https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth',
+                model=model,
+                tile=int(tile),
+                tile_pad=10,
+                pre_pad=0,
+                half=True,
+                device=device
+            )
+            print(f"[GPU Preload] Real-ESRGAN x2plus successfully preloaded into GPU ({device})!")
+        except Exception as e:
+            print(f"[RealESRGAN] Error initializing model: {e}")
+            _REALESRGAN_MODEL = False
+    return _REALESRGAN_MODEL if _REALESRGAN_MODEL is not False else None
+
+
+def preload_filter_models(filter_preset: str):
+    """Preloads PyTorch CUDA models directly into GPU VRAM in background.
+    
+    Ensures 0 PyTorch loading delay during real-time photo capture!
+    """
+    if not filter_preset or filter_preset == "none":
+        return
+
+    presets = [p.strip().lower() for p in filter_preset.split(",") if p.strip()]
+    for p in presets:
+        if "gfpgan" in p:
+            print(f"[GPU Preload] 🚀 Warming up GFPGAN model into GPU VRAM for filter '{p}'...")
+            _get_gfpgan_model()
+        if "codeformer" in p:
+            print(f"[GPU Preload] 🚀 Warming up CodeFormer model for filter '{p}'...")
+            try:
+                import codeformer.app
+            except Exception as e:
+                print(f"[GPU Preload] CodeFormer preload error: {e}")
+        if "realesrgan" in p:
+            print(f"[GPU Preload] 🚀 Warming up Real-ESRGAN model into GPU VRAM for filter '{p}'...")
+            _get_realesrgan_model()
+
+
 def _ai_realesrgan(pil_img: Image.Image, outscale: float = 1.0, tile: int = 400) -> Image.Image:
     """🤖 Real-ESRGAN Local AI Clarity & Super-Resolution Pass."""
     try:
         import cv2
-        from realesrgan import RealESRGANer
-        from basicsr.archs.rrdbnet_arch import RRDBNet
+        upsampler = _get_realesrgan_model(tile=tile)
+        if upsampler is None:
+            return _beauty_facemesh_v2(pil_img)
 
         img_bgr = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
-        model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=2)
-        upsampler = RealESRGANer(
-            scale=2,
-            model_path='https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth',
-            model=model,
-            tile=int(tile),
-            tile_pad=10,
-            pre_pad=0,
-            half=True
-        )
         output, _ = upsampler.enhance(img_bgr, outscale=float(outscale))
         res_rgb = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
         return Image.fromarray(res_rgb)
