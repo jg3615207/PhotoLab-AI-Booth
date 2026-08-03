@@ -445,8 +445,12 @@ export default function StylesTab() {
     if (!window.confirm(isZh ? "您確定要永久刪除此風格嗎？此動作無法復原！" : "Are you sure you want to permanently delete this style? This action cannot be undone!")) {
       return;
     }
-    const r = await fetch(`/api/styles/${id}`, { method: 'DELETE' });
+    const r = await fetch(`/api/styles/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (r.ok) {
+      if (editingStyle && editingStyle.id === id) {
+        setShowAddForm(false);
+        setEditingStyle(null);
+      }
       loadStyles();
     } else {
       let errMsg = 'Error';
@@ -1474,11 +1478,24 @@ export default function StylesTab() {
               </div>
             </div>
 
-            <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'flex-end', width: '100%', boxSizing: 'border-box' }}>
-              <button className="btn-secondary" onClick={() => { setShowAddForm(false); setEditingStyle(null); }} style={{ padding: '8px 18px', borderRadius: '8px' }}>{isZh ? '取消' : 'Cancel'}</button>
-              <button className="btn-primary" onClick={editingStyle ? handleSaveEdit : handleCreateStyle} style={{ padding: '8px 18px', borderRadius: '8px' }}>
-                {editingStyle ? (isZh ? '儲存變更' : 'Save Changes') : (isZh ? '建立風格' : 'Create Style')}
-              </button>
+            <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'space-between', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
+              <div>
+                {editingStyle && (
+                  <button 
+                    type="button" 
+                    onClick={() => handleDeleteStyle(editingStyle.id)} 
+                    style={{ padding: '8px 16px', borderRadius: '8px', background: 'rgba(245,101,101,0.2)', color: '#feb2b2', border: '1px solid rgba(245,101,101,0.4)', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    🗑️ {isZh ? '刪除風格' : 'Delete Style'}
+                  </button>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button className="btn-secondary" onClick={() => { setShowAddForm(false); setEditingStyle(null); }} style={{ padding: '8px 18px', borderRadius: '8px' }}>{isZh ? '取消' : 'Cancel'}</button>
+                <button className="btn-primary" onClick={editingStyle ? handleSaveEdit : handleCreateStyle} style={{ padding: '8px 18px', borderRadius: '8px' }}>
+                  {editingStyle ? (isZh ? '儲存變更' : 'Save Changes') : (isZh ? '建立風格' : 'Create Style')}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1887,6 +1904,13 @@ export default function StylesTab() {
                 ) : (
                   <button className="btn-primary" onClick={() => handleToggleActive(s.id, true)} style={{ padding: '6px 10px', fontSize: '12px' }}>{isZh ? '顯示' : 'Show'}</button>
                 )}
+                <button 
+                  onClick={() => handleDeleteStyle(s.id)} 
+                  style={{ padding: '6px 10px', fontSize: '12px', background: 'rgba(245,101,101,0.2)', color: '#feb2b2', border: '1px solid rgba(245,101,101,0.4)', borderRadius: '6px', cursor: 'pointer' }}
+                  title={isZh ? "永久刪除此風格" : "Permanently Delete Style"}
+                >
+                  🗑️ {isZh ? '刪除' : 'Delete'}
+                </button>
               </div>
             </div>
             );

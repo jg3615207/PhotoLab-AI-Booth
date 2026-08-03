@@ -223,10 +223,16 @@ def patch_style(style_id: str, body: StylePatch):
 @router.delete("/{style_id}")
 def delete_style(style_id: str):
     import shutil
+    from urllib.parse import unquote
+    actual_id = unquote(style_id)
     with get_db() as db:
-        db.execute("DELETE FROM styles WHERE id=?", (style_id,))
+        try:
+            db.execute("UPDATE sessions SET style_id=NULL WHERE style_id=?", (actual_id,))
+        except Exception:
+            pass
+        db.execute("DELETE FROM styles WHERE id=?", (actual_id,))
     
-    style_dir = STYLES_DIR / style_id
+    style_dir = STYLES_DIR / actual_id
     if style_dir.exists():
         shutil.rmtree(style_dir, ignore_errors=True)
         
