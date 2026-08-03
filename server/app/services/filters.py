@@ -22,6 +22,7 @@ FILTER_PRESETS = [
     {"id": "beauty-porcelain", "name": "✨ Porcelain", "name_zh": "✨ 瓷肌美顏", "description": "Strong smoothing, magazine-cover skin"},
     {"id": "beauty-face", "name": "✨ Face Mesh Beauty", "name_zh": "✨ 468點智慧美顏", "description": "MediaPipe FaceMesh skin smoothing + Canny edge detail"},
     {"id": "beauty-face-v2", "name": "✨ FabSoften 468 Beauty v2", "name_zh": "✨ 468點智慧美顏 v2", "description": "MediaPipe 468 Mesh + FabSoften 3-frequency texture restoration & zero-blur eyes"},
+    {"id": "face-shaping", "name": "✨ 微整形與五官彩妝", "name_zh": "✨ 微整形與五官彩妝", "description": "Eye enlargement, V-line face slimming, smile corner lift, rosy blush, & lip tint"},
 
     # ── Local AI GAN/Transformer Beauty Models (PyTorch CUDA) ────────
     {"id": "ai-gfpgan", "name": "🤖 GFPGAN AI 智慧修容", "name_zh": "🤖 GFPGAN AI 智慧修容", "description": "Tencent GFPGAN v1.4 face restoration & blemish removal"},
@@ -147,6 +148,23 @@ def _apply_filter_single(pil_img: Image.Image, filter_preset: str, filter_params
         canny_strength = float(params.get("canny_strength", 0.40))
         eye_dilation = int(params.get("eye_dilation", 15))
         return _beauty_facemesh_aware(pil_img, canny_strength=canny_strength, eye_dilation=eye_dilation)
+
+    elif preset in ["face-shaping", "face-makeup", "makeup", "shaping"]:
+        eye_enlarge = float(params.get("eye_enlarge", 0.0))
+        face_slim = float(params.get("face_slim", 0.0))
+        smile_lift = float(params.get("smile_lift", 0.0))
+        blush_intensity = float(params.get("blush_intensity", 0.0))
+        lip_tint_intensity = float(params.get("lip_tint_intensity", 0.0))
+        eye_brighten = float(params.get("eye_brighten", 0.0))
+        return _apply_face_shaping_and_makeup(
+            pil_img,
+            eye_enlarge=eye_enlarge,
+            face_slim=face_slim,
+            smile_lift=smile_lift,
+            blush_intensity=blush_intensity,
+            lip_tint_intensity=lip_tint_intensity,
+            eye_brighten=eye_brighten
+        )
 
     # ── Local AI GAN/Transformer Beauty Filters (PyTorch / CUDA) ──────
     elif preset in ["ai-gfpgan", "gfpgan"]:
@@ -714,6 +732,151 @@ def _beauty_opencv_fallback(pil_img: Image.Image) -> Image.Image:
 
     except Exception:
         return _beauty_soft(pil_img)
+
+
+def _apply_face_shaping_and_makeup(
+    pil_img: Image.Image,
+    eye_enlarge: float = 0.0,
+    face_slim: float = 0.0,
+    smile_lift: float = 0.0,
+    blush_intensity: float = 0.0,
+    lip_tint_intensity: float = 0.0,
+    eye_brighten: float = 0.0
+) -> Image.Image:
+    """✨ Geometric Face Reshaping & Cosmetic Makeup using facial keypoint landmarks."""
+    if (eye_enlarge <= 0 and face_slim <= 0 and smile_lift <= 0 and
+        blush_intensity <= 0 and lip_tint_intensity <= 0 and eye_brighten <= 0):
+        return pil_img
+
+    try:
+        import cv2
+        from facexlib.utils.face_restoration_helper import FaceRestoreHelper
+
+        img_rgb = np.array(pil_img)
+        h_img, w_img = img_rgb.shape[:2]
+        img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+
+        helper = FaceRestoreHelper(1, max(h_img, w_img))
+        helper.clean_all()
+        helper.read_image(img_bgr)
+        helper.get_face_landmarks_5(only_center_face=False, eye_dist_threshold=5)
+
+        if len(helper.all_landmarks_5) == 0:
+            return pil_img
+
+        res_bgr = img_bgr.copy()
+
+        for lms in helper.all_landmarks_5:
+            eye_l = (float(lms[0][0]), float(lms[0][1]))
+            eye_r = (float(lms[1][0]), float(lms[1][1]))
+            nose = (float(lms[2][0]), float(lms[2][1]))
+            mouth_l = (float(lms[3][0]), float(lms[3][1]))
+            mouth_r = (float(lms[4][0]), float(lms[4][1]))
+
+            eye_dist = float(np.hypot(eye_r[0] - eye_l[0], eye_r[1] - eye_l[1]))
+            if eye_dist < 10:
+                continue
+
+            # ── 1. Geometric Grid Warping (Eye Enlarge, Face Slim, Smile Lift) ──
+            if eye_enlarge > 0 or face_slim > 0 or smile_lift > 0:
+                map_x, map_y = np.meshgrid(np.arange(w_img), np.arange(h_img))
+                map_x = map_x.astype(np.float32)
+                map_y = map_y.astype(np.float32)
+
+                # 👁️ Eye Enlargement
+                if eye_enlarge > 0:
+                    radius = eye_dist * 0.40
+                    factor = float(np.clip(eye_enlarge, 0.0, 1.0)) * 0.40
+                    for cx, cy in [eye_l, eye_r]:
+                        dx = map_x - cx
+                        dy = map_y - cy
+                        r = np.sqrt(dx**2 + dy**2)
+                        mask = r < radius
+                        if np.any(mask):
+                            dist_norm = r[mask] / radius
+                            scale = 1.0 + factor * ((1.0 - dist_norm)**2)
+                            map_x[mask] = cx + dx[mask] / scale
+                            map_y[mask] = cy + dy[mask] / scale
+
+                # 💎 V-Line Face Slimming
+                if face_slim > 0:
+                    center_x = (eye_l[0] + eye_r[0]) / 2.0
+                    slim_factor = float(np.clip(face_slim, 0.0, 1.0)) * 0.25
+                    jaw_radius = eye_dist * 0.90
+                    jaw_l = (eye_l[0] - eye_dist * 0.30, (mouth_l[1] + nose[1]) / 2.0)
+                    jaw_r = (eye_r[0] + eye_dist * 0.30, (mouth_r[1] + nose[1]) / 2.0)
+                    for jx, jy in [jaw_l, jaw_r]:
+                        dir_x = center_x - jx
+                        dx = map_x - jx
+                        dy = map_y - jy
+                        r = np.sqrt(dx**2 + dy**2)
+                        weight = np.exp(-(r**2) / (2.0 * (jaw_radius / 2.0)**2))
+                        map_x -= dir_x * slim_factor * weight
+
+                # 😊 Smile Lift
+                if smile_lift > 0:
+                    lift_amount = eye_dist * 0.15 * float(np.clip(smile_lift, 0.0, 1.0))
+                    smile_radius = eye_dist * 0.35
+                    for mx, my in [mouth_l, mouth_r]:
+                        dx = map_x - mx
+                        dy = map_y - my
+                        r = np.sqrt(dx**2 + dy**2)
+                        weight = np.exp(-(r**2) / (2.0 * (smile_radius / 2.0)**2))
+                        map_y -= lift_amount * weight
+
+                res_bgr = cv2.remap(res_bgr, map_x, map_y, cv2.INTER_LINEAR)
+
+            # ── 2. Cosmetic Layer Overlays (Rosy Blush, Lip Tint, Eye Brighten) ──
+            # 🌸 Rosy Cheek Blush
+            if blush_intensity > 0:
+                blush_val = float(np.clip(blush_intensity, 0.0, 1.0))
+                cheek_l = (int(eye_l[0] - eye_dist * 0.10), int(eye_l[1] + eye_dist * 0.55))
+                cheek_r = (int(eye_r[0] + eye_dist * 0.10), int(eye_r[1] + eye_dist * 0.55))
+                blush_mask = np.zeros((h_img, w_img), dtype=np.float32)
+                b_radius = int(eye_dist * 0.30)
+                cv2.circle(blush_mask, cheek_l, b_radius, 1.0, -1)
+                cv2.circle(blush_mask, cheek_r, b_radius, 1.0, -1)
+                blur_k = (b_radius | 1) * 2 + 1
+                blush_mask = cv2.GaussianBlur(blush_mask, (blur_k, blur_k), 0)
+                blush_color = np.array([130, 110, 245], dtype=np.float32)  # Soft rosy pink BGR
+                blush_3ch = np.stack([blush_mask] * 3, axis=-1) * blush_val * 0.45
+                res_bgr = (res_bgr.astype(np.float32) * (1.0 - blush_3ch) + blush_color * blush_3ch)
+                res_bgr = np.clip(res_bgr, 0, 255).astype(np.uint8)
+
+            # 💋 Lip Tint
+            if lip_tint_intensity > 0:
+                lip_val = float(np.clip(lip_tint_intensity, 0.0, 1.0))
+                lip_cx = int((mouth_l[0] + mouth_r[0]) / 2.0)
+                lip_cy = int((mouth_l[1] + mouth_r[1]) / 2.0)
+                rx = int(eye_dist * 0.35)
+                ry = int(eye_dist * 0.16)
+                lip_mask = np.zeros((h_img, w_img), dtype=np.float32)
+                cv2.ellipse(lip_mask, (lip_cx, lip_cy), (rx, ry), 0, 0, 360, 1.0, -1)
+                lip_mask = cv2.GaussianBlur(lip_mask, (11, 11), 0)
+                lip_color = np.array([60, 50, 210], dtype=np.float32)  # Rose Red BGR
+                lip_3ch = np.stack([lip_mask] * 3, axis=-1) * lip_val * 0.40
+                res_bgr = (res_bgr.astype(np.float32) * (1.0 - lip_3ch) + lip_color * lip_3ch)
+                res_bgr = np.clip(res_bgr, 0, 255).astype(np.uint8)
+
+            # 🧿 Eye Brightening
+            if eye_brighten > 0:
+                eb_val = float(np.clip(eye_brighten, 0.0, 1.0))
+                eb_mask = np.zeros((h_img, w_img), dtype=np.float32)
+                e_r = int(eye_dist * 0.22)
+                cv2.circle(eb_mask, (int(eye_l[0]), int(eye_l[1])), e_r, 1.0, -1)
+                cv2.circle(eb_mask, (int(eye_r[0]), int(eye_r[1])), e_r, 1.0, -1)
+                eb_mask = cv2.GaussianBlur(eb_mask, (9, 9), 0)
+                eb_3ch = np.stack([eb_mask] * 3, axis=-1) * eb_val * 0.25
+                brightened = cv2.addWeighted(res_bgr, 1.20, res_bgr, 0, 10)
+                res_bgr = (res_bgr.astype(np.float32) * (1.0 - eb_3ch) + brightened.astype(np.float32) * eb_3ch)
+                res_bgr = np.clip(res_bgr, 0, 255).astype(np.uint8)
+
+        res_rgb = cv2.cvtColor(res_bgr, cv2.COLOR_BGR2RGB)
+        return Image.fromarray(res_rgb)
+
+    except Exception as e:
+        print(f"[Face Shaping Filter] Error: {e}")
+        return pil_img
 
 
 def apply_filter_file(src_path: str, dest_path: str, filter_preset: str, filter_params: dict = None) -> str:

@@ -963,6 +963,59 @@ export default function StylesTab() {
                 </>
               )}
 
+              {(flt.includes('shaping') || flt.includes('makeup') || flt === 'face-shaping') && (
+                <>
+                  {renderFilterParamControl(
+                    'eye_enlarge',
+                    '👁️ 大眼晶亮效果 (Eye Enlargement)',
+                    'Eye Enlargement',
+                    0.0, 1.0, 0.05, 0.0, '',
+                    '根據人眼中心進行光滑局部徑向網格擴展，0.0 = 原圖大小；0.3 = 自然亮眼大眼 (+12%)；0.6 = 強效網美大眼 (+24%)。',
+                    '0.0 = Original size; 0.3 = Subtle natural eye enlarge (+12%); 0.6 = Prominent enlargement (+24%).'
+                  )}
+                  {renderFilterParamControl(
+                    'face_slim',
+                    '💎 V臉瘦臉修容 (V-Line Face Slimming)',
+                    'V-Line Face Slimming',
+                    0.0, 1.0, 0.05, 0.0, '',
+                    '沿下巴輪廓與下顎骨進行向內緊緻收攏，0.0 = 原圖臉型；0.3 = 自然小V臉 (-8%)；0.6 = 上鏡精緻V臉 (-16%)。',
+                    '0.0 = Original jawline; 0.3 = Natural subtle V-line (-8%); 0.6 = Refined contouring (-16%).'
+                  )}
+                  {renderFilterParamControl(
+                    'smile_lift',
+                    '😊 微笑嘴角上揚 (Smile Corner Lift)',
+                    'Smile Corner Lift',
+                    0.0, 1.0, 0.05, 0.0, '',
+                    '將左右嘴角關鍵點微幅向上向外拉升，增添親切自信的陽光微笑神韻。0.0 = 保持原表情；0.5 = 甜美微揚微笑。',
+                    'Lifts outer mouth corners upward for a cheerful expression. 0.0 = neutral expression, 0.5 = subtle sweet smile.'
+                  )}
+                  {renderFilterParamControl(
+                    'blush_intensity',
+                    '🌸 顴骨好氣色腮紅 (Rosy Cheek Blush)',
+                    'Rosy Cheek Blush',
+                    0.0, 1.0, 0.05, 0.0, '',
+                    '根據顴骨點精準渲染高斯柔焦玫瑰粉采腮紅，提升拍攝人物面色紅潤好氣色與層次感。',
+                    'Renders Gaussian soft-focus rosy pink blush over cheekbones for a healthy radiant glow.'
+                  )}
+                  {renderFilterParamControl(
+                    'lip_tint_intensity',
+                    '💋 玫瑰潤澤唇彩 (Lip Tint & Gloss)',
+                    'Lip Tint & Gloss',
+                    0.0, 1.0, 0.05, 0.0, '',
+                    '自動貼合唇部邊界並疊加玫瑰暖紅薄透唇彩，增添唇部水潤光澤與顯色度。',
+                    'Applies semi-transparent rose lip tint onto mouth contours with smooth edge blending.'
+                  )}
+                  {renderFilterParamControl(
+                    'eye_brighten',
+                    '🧿 眼白提亮與瞳孔光澤 (Eye White Brightening)',
+                    'Eye White Brightening',
+                    0.0, 1.0, 0.05, 0.0, '',
+                    '提亮眼白區域並強加瞳孔星芒光澤與立體對比度，使眼神更加睿智清澈。',
+                    'Boosts sclera brightness and sharpens iris reflection for radiant eyes.'
+                  )}
+                </>
+              )}
+
               {(flt.includes('beauty-face-v2') || flt.includes('facemesh-v2') || flt === 'v2') && (
                 <>
                   {renderFilterParamControl(
