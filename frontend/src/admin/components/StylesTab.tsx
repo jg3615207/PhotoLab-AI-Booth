@@ -722,6 +722,34 @@ export default function StylesTab() {
     }, 1500);
   };
 
+  const activeFilterList = fFilterPreset
+    ? fFilterPreset.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+
+  const handleAddFilterToStack = (presetId: string) => {
+    if (!presetId || presetId === 'none') {
+      setFFilterPreset('');
+      return;
+    }
+    const newList = [...activeFilterList, presetId];
+    setFFilterPreset(newList.join(','));
+  };
+
+  const handleRemoveFilterFromStack = (idx: number) => {
+    const newList = activeFilterList.filter((_, i) => i !== idx);
+    setFFilterPreset(newList.join(','));
+  };
+
+  const handleMoveFilterInStack = (idx: number, direction: number) => {
+    const targetIdx = idx + direction;
+    if (targetIdx < 0 || targetIdx >= activeFilterList.length) return;
+    const newList = [...activeFilterList];
+    const temp = newList[idx];
+    newList[idx] = newList[targetIdx];
+    newList[targetIdx] = temp;
+    setFFilterPreset(newList.join(','));
+  };
+
   const renderFilterParamControl = (
     key: string,
     labelZh: string,
@@ -850,9 +878,7 @@ export default function StylesTab() {
   };
 
   const renderAdvancedFilterSettings = () => {
-    if (!fFilterPreset || fFilterPreset === 'none') return null;
-
-    const flt = fFilterPreset.toLowerCase();
+    if (activeFilterList.length === 0) return null;
 
     return (
       <div style={{ marginTop: '10px', background: '#0a0a16', border: '1px solid rgba(72,187,120,0.3)', borderRadius: '10px', padding: '14px' }}>
@@ -865,130 +891,144 @@ export default function StylesTab() {
           </span>
         </div>
 
-        {flt.includes('gfpgan') && (
-          <>
-            {renderFilterParamControl(
-              'gfpgan_weight',
-              '🤖 GFPGAN 修容與特徵保真度 (Weight)',
-              'GFPGAN Restoration Weight',
-              0.0, 1.0, 0.05, 0.50, '',
-              '0.2 = 微雕自然 (80% 原始特徵)；0.5 = 標準美顏 (50% 原始 + 50% AI 重構)；0.8 = 強力女神修容 (80% AI 磨皮與大眼晶亮)。',
-              '0.2 = Subtle touch-up (80% original identity); 0.5 = Standard balance; 0.8 = Strong AI beautification.'
-            )}
-            {renderFilterCheckboxControl(
-              'gfpgan_only_center',
-              '🎯 僅對中央主要人物美顏 (Only Center Face)',
-              'Only Center Face',
-              false,
-              '勾選時僅對畫面正中央的主要人物進行 AI 美顏修容，合照其餘人物保留原始面貌。',
-              'Applies GFPGAN face enhancement only to the primary centered person in group photos.'
-            )}
-          </>
-        )}
+        {activeFilterList.map((fltRaw, idx) => {
+          const flt = fltRaw.toLowerCase();
+          const fltObj = availableFilters.find(f => f.id === fltRaw);
+          const filterTitle = fltObj ? (isZh ? fltObj.name_zh : fltObj.name) : fltRaw;
 
-        {flt.includes('codeformer') && (
-          renderFilterParamControl(
-            'codeformer_fidelity',
-            '🤖 CodeFormer 碼本保真度 (Fidelity)',
-            'Codebook Fidelity',
-            0.0, 1.0, 0.05, 0.60, '',
-            'CodeFormer Transformer 碼本修復度。1.0 優先還原原始人臉結構細節；0.0 允許 AI 自由發揮重構。建議設定 0.50 - 0.70。',
-            'Codebook fidelity slider. 1.0 prioritizes original facial structure; 0.0 grants full AI reconstruction freedom.'
-          )
-        )}
+          return (
+            <div key={`param-section-${fltRaw}-${idx}`} style={{ marginBottom: '12px', borderBottom: idx < activeFilterList.length - 1 ? '1px solid rgba(255,255,255,0.08)' : 'none', paddingBottom: '8px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#4ecdc4', marginBottom: '8px' }}>
+                #{idx + 1} {filterTitle}
+              </div>
 
-        {flt.includes('realesrgan') && (
-          <>
-            {renderFilterParamControl(
-              'realesrgan_outscale',
-              '🤖 Real-ESRGAN 畫質放大倍率 (Outscale)',
-              'Outscale Factor',
-              1.0, 2.0, 0.1, 1.0, 'x',
-              'AI 超高解析度放大倍數。1.0x 為保持原圖尺寸僅進行細部畫質與毛孔清晰化；2.0x 為 2 倍 AI 超高解析度放大。',
-              '1.0x = native resolution clarity boost, 2.0x = 2x HD upscale for high-resolution printing.'
-            )}
-            {renderFilterParamControl(
-              'realesrgan_tile',
-              '🧱 GPU 分塊大小 (Tile Size)',
-              'GPU Tile Size',
-              0, 800, 100, 400, 'px',
-              '顯卡 GPU 分塊運算區塊大小。設定 0 為全圖單次直推運算（RTX 2080 Ti 顯卡速度最快）；設定 400 為分區處理避免顯存不足。',
-              'GPU tile size. 0 = full image pass (fastest on high VRAM GPUs); 400 = tile mode to save VRAM.'
-            )}
-          </>
-        )}
+              {flt.includes('gfpgan') && (
+                <>
+                  {renderFilterParamControl(
+                    'gfpgan_weight',
+                    '🤖 GFPGAN 修容與特徵保真度 (Weight)',
+                    'GFPGAN Restoration Weight',
+                    0.0, 1.0, 0.05, 0.50, '',
+                    '0.2 = 微雕自然 (80% 原始特徵)；0.5 = 標準美顏 (50% 原始 + 50% AI 重構)；0.8 = 強力女神修容 (80% AI 磨皮與大眼晶亮)。',
+                    '0.2 = Subtle touch-up (80% original identity); 0.5 = Standard balance; 0.8 = Strong AI beautification.'
+                  )}
+                  {renderFilterCheckboxControl(
+                    'gfpgan_only_center',
+                    '🎯 僅對中央主要人物美顏 (Only Center Face)',
+                    'Only Center Face',
+                    false,
+                    '勾選時僅對畫面正中央的主要人物進行 AI 美顏修容，合照其餘人物保留原始面貌。',
+                    'Applies GFPGAN face enhancement only to the primary centered person in group photos.'
+                  )}
+                </>
+              )}
 
-        {(flt.includes('beauty-face-v2') || flt.includes('facemesh-v2') || flt === 'v2') && (
-          <>
-            {renderFilterParamControl(
-              'v2_mid_freq_suppress',
-              '✨ FabSoften 中頻瑕疵抑制 (Blemish Suppression)',
-              'Mid-Freq Blemish Suppression',
-              0.05, 0.80, 0.05, 0.30, '',
-              '抑制痘痘、紅腫與不均勻膚色的強度。數值越低抹除越強 (0.10 = 強力平滑去瑕疵，0.60 = 保留天然細微特徵)。',
-              'Suppresses skin blemishes, redness, and bumps. Lower values smooth out skin more aggressively.'
-            )}
-            {renderFilterParamControl(
-              'v2_high_freq_restore',
-              '✨ 高頻毛孔與細緻紋理融合 (Pore Restoration)',
-              'High-Freq Pore Restoration',
-              0.0, 1.0, 0.05, 0.35, '',
-              '將照片原本的高頻毛孔與自然肌理重新融合回磨皮後的皮膚，防止傳統美顏的塑膠感/紙片人感。',
-              'Blends natural skin micro-pores back onto smoothed skin to avoid a synthetic plastic look.'
-            )}
-            {renderFilterParamControl(
-              'v2_eye_sharpen',
-              '👁️ 雙眼與眉毛銳化對比 (Eye Sharpening)',
-              'Eye & Eyebrow Sharpening',
-              0.0, 1.0, 0.05, 0.50, '',
-              '針對眼睛、睫毛與眉毛區域的反遮罩銳化強度，讓雙眼保持極致清晰與晶亮神采。',
-              'Unsharp contrast intensity over eyes, eyelids, and eyebrows.'
-            )}
-          </>
-        )}
+              {flt.includes('codeformer') && (
+                renderFilterParamControl(
+                  'codeformer_fidelity',
+                  '🤖 CodeFormer 碼本保真度 (Fidelity)',
+                  'Codebook Fidelity',
+                  0.0, 1.0, 0.05, 0.60, '',
+                  'CodeFormer Transformer 碼本修復度。1.0 優先還原原始人臉結構細節；0.0 允許 AI 自由發揮重構。建議設定 0.50 - 0.70。',
+                  'Codebook fidelity slider. 1.0 prioritizes original facial structure; 0.0 grants full AI reconstruction freedom.'
+                )
+              )}
 
-        {(flt === 'beauty-face' || flt === 'beauty-facemesh' || flt === 'facemesh') && (
-          <>
-            {renderFilterParamControl(
-              'canny_strength',
-              '✨ Canny 邊緣線條融合 (Canny Detail)',
-              'Canny Edge Detail',
-              0.0, 1.0, 0.05, 0.40, '',
-              'Canny 邊緣檢測線條融回膚色的比例，保留面部輪廓與細節。',
-              'Blends original Canny edge lines back into skin.'
-            )}
-            {renderFilterParamControl(
-              'eye_dilation',
-              '👁️ 眼睛保護遮罩擴展像素 (Eye Mask Dilation)',
-              'Eye Mask Dilation Radius',
-              5, 25, 1, 15, 'px',
-              '眼睛與眉毛區域保護遮罩向外擴展的像素範圍，確保眼皮、睫毛與眼周 100% 不受到任何磨皮影響。',
-              'Pixel dilation radius protecting eyelids and eyelashes from skin blur.'
-            )}
-          </>
-        )}
+              {flt.includes('realesrgan') && (
+                <>
+                  {renderFilterParamControl(
+                    'realesrgan_outscale',
+                    '🤖 Real-ESRGAN 畫質放大倍率 (Outscale)',
+                    'Outscale Factor',
+                    1.0, 2.0, 0.1, 1.0, 'x',
+                    'AI 超高解析度放大倍數。1.0x 為保持原圖尺寸僅進行細部畫質與毛孔清晰化；2.0x 為 2 倍 AI 超高解析度放大。',
+                    '1.0x = native resolution clarity boost, 2.0x = 2x HD upscale for high-resolution printing.'
+                  )}
+                  {renderFilterParamControl(
+                    'realesrgan_tile',
+                    '🧱 GPU 分塊大小 (Tile Size)',
+                    'GPU Tile Size',
+                    0, 800, 100, 400, 'px',
+                    '顯卡 GPU 分塊運算區塊大小。設定 0 為全圖單次直推運算（RTX 2080 Ti 顯卡速度最快）；設定 400 為分區處理避免顯存不足。',
+                    'GPU tile size. 0 = full image pass (fastest on high VRAM GPUs); 400 = tile mode to save VRAM.'
+                  )}
+                </>
+              )}
 
-        {flt === 'beauty-soft' && (
-          renderFilterParamControl(
-            'beauty_blend_alpha',
-            '✨ 柔膚磨皮混合比例 (Blend Alpha)',
-            'Smoothing Blend Alpha',
-            0.05, 1.0, 0.05, 0.30, '',
-            '高斯模糊柔膚圖層與原圖的混合比例。',
-            'Blend alpha between smoothed skin layer and original photo.'
-          )
-        )}
+              {(flt.includes('beauty-face-v2') || flt.includes('facemesh-v2') || flt === 'v2') && (
+                <>
+                  {renderFilterParamControl(
+                    'v2_mid_freq_suppress',
+                    '✨ FabSoften 中頻瑕疵抑制 (Blemish Suppression)',
+                    'Mid-Freq Blemish Suppression',
+                    0.05, 0.80, 0.05, 0.30, '',
+                    '抑制痘痘、紅腫與不均勻膚色的強度。數值越低抹除越強 (0.10 = 強力平滑去瑕疵，0.60 = 保留天然細微特徵)。',
+                    'Suppresses skin blemishes, redness, and bumps. Lower values smooth out skin more aggressively.'
+                  )}
+                  {renderFilterParamControl(
+                    'v2_high_freq_restore',
+                    '✨ 高頻毛孔與細緻紋理融合 (Pore Restoration)',
+                    'High-Freq Pore Restoration',
+                    0.0, 1.0, 0.05, 0.35, '',
+                    '將照片原本的高頻毛孔與自然肌理重新融合回磨皮後的皮膚，防止傳統美顏的塑膠感/紙片人感。',
+                    'Blends natural skin micro-pores back onto smoothed skin to avoid a synthetic plastic look.'
+                  )}
+                  {renderFilterParamControl(
+                    'v2_eye_sharpen',
+                    '👁️ 雙眼與眉毛銳化對比 (Eye Sharpening)',
+                    'Eye & Eyebrow Sharpening',
+                    0.0, 1.0, 0.05, 0.50, '',
+                    '針對眼睛、睫毛與眉毛區域的反遮罩銳化強度，讓雙眼保持極致清晰與晶亮神采。',
+                    'Unsharp contrast intensity over eyes, eyelids, and eyebrows.'
+                  )}
+                </>
+              )}
 
-        {['vivid', 'warm', 'cool', 'sepia', 'vintage', 'high-contrast', 'film-grain', 'bw', 'grayscale'].includes(flt) && (
-          renderFilterParamControl(
-            'filter_intensity',
-            '🎨 色調濾鏡強度 (Filter Intensity)',
-            'Color Tone Filter Intensity',
-            0.20, 2.0, 0.05, 1.00, 'x',
-            '調整色彩與色調濾鏡的倍數強度。',
-            'Adjusts color tone filter intensity multiplier.'
-          )
-        )}
+              {(flt === 'beauty-face' || flt === 'beauty-facemesh' || flt === 'facemesh') && (
+                <>
+                  {renderFilterParamControl(
+                    'canny_strength',
+                    '✨ Canny 邊緣線條融合 (Canny Detail)',
+                    'Canny Edge Detail',
+                    0.0, 1.0, 0.05, 0.40, '',
+                    'Canny 邊緣檢測線條融回膚色的比例，保留面部輪廓與細節。',
+                    'Blends original Canny edge lines back into skin.'
+                  )}
+                  {renderFilterParamControl(
+                    'eye_dilation',
+                    '👁️ 眼睛保護遮罩擴展像素 (Eye Mask Dilation)',
+                    'Eye Mask Dilation Radius',
+                    5, 25, 1, 15, 'px',
+                    '眼睛與眉毛區域保護遮罩向外擴展的像素範圍，確保眼皮、睫毛與眼周 100% 不受到任何磨皮影響。',
+                    'Pixel dilation radius protecting eyelids and eyelashes from skin blur.'
+                  )}
+                </>
+              )}
+
+              {flt === 'beauty-soft' && (
+                renderFilterParamControl(
+                  'beauty_blend_alpha',
+                  '✨ 柔膚磨皮混合比例 (Blend Alpha)',
+                  'Smoothing Blend Alpha',
+                  0.05, 1.0, 0.05, 0.30, '',
+                  '高斯模糊柔膚圖層與原圖的混合比例。',
+                  'Blend alpha between smoothed skin layer and original photo.'
+                )
+              )}
+
+              {['vivid', 'warm', 'cool', 'sepia', 'vintage', 'high-contrast', 'film-grain', 'bw', 'grayscale'].includes(flt) && (
+                renderFilterParamControl(
+                  'filter_intensity',
+                  '🎨 色調濾鏡強度 (Filter Intensity)',
+                  'Color Tone Filter Intensity',
+                  0.20, 2.0, 0.05, 1.00, 'x',
+                  '調整色彩與色調濾鏡的倍數強度。',
+                  'Adjusts color tone filter intensity multiplier.'
+                )
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -1081,21 +1121,92 @@ export default function StylesTab() {
 
                 {fMode !== 'ai' && (
                   <div>
-                    <label style={{ display: 'block', color: '#68d391', fontSize: '13px', marginBottom: '4px', fontWeight: 600 }}>
-                      🎞️ {isZh ? '預設相片濾鏡 (Filter Preset)' : 'Photo Filter Preset'}
-                    </label>
-                    <select
-                      value={fFilterPreset}
-                      onChange={e => setFFilterPreset(e.target.value)}
-                      style={{ width: '100%', padding: '10px', background: '#0d0d1a', border: '1px solid #48bb78', borderRadius: '6px', color: '#fff' }}
-                    >
-                      <option value="">{isZh ? '無 (原圖色調)' : 'None (Original)'}</option>
-                      {availableFilters.map(flt => (
-                        <option key={flt.id} value={flt.id}>
-                          {isZh ? flt.name_zh : flt.name} — {flt.description}
-                        </option>
-                      ))}
-                    </select>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ color: '#68d391', fontSize: '13px', fontWeight: 600 }}>
+                        🎞️ {isZh ? '相片濾鏡組合鏈 (Photo Filter Stack)' : 'Photo Filter Stack'}
+                      </label>
+                      <span style={{ fontSize: '11px', color: '#888' }}>
+                        {isZh ? '可疊加多重美顏與色調濾鏡' : 'Stack multiple beauty & tone filters'}
+                      </span>
+                    </div>
+
+                    {/* Active Filter Stack Badges */}
+                    {activeFilterList.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
+                        {activeFilterList.map((presetId, idx) => {
+                          const fltObj = availableFilters.find(f => f.id === presetId);
+                          const displayName = fltObj ? (isZh ? fltObj.name_zh : fltObj.name) : presetId;
+
+                          return (
+                            <div key={`${presetId}-${idx}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#121224', border: '1px solid rgba(72,187,120,0.4)', borderRadius: '8px', padding: '8px 12px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#000', background: '#48bb78', width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  {idx + 1}
+                                </span>
+                                <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600 }}>
+                                  {displayName}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {idx > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveFilterInStack(idx, -1)}
+                                    style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', cursor: 'pointer' }}
+                                    title={isZh ? "向上移" : "Move Up"}
+                                  >
+                                    ⬆
+                                  </button>
+                                )}
+                                {idx < activeFilterList.length - 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveFilterInStack(idx, 1)}
+                                    style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', cursor: 'pointer' }}
+                                    title={isZh ? "向下移" : "Move Down"}
+                                  >
+                                    ⬇
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveFilterFromStack(idx)}
+                                  style={{ background: 'rgba(245,101,101,0.2)', border: '1px solid rgba(245,101,101,0.4)', color: '#feb2b2', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', cursor: 'pointer', marginLeft: '4px' }}
+                                  title={isZh ? "移除此濾鏡" : "Remove"}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ padding: '12px', background: '#0d0d1a', border: '1px dashed #444', borderRadius: '8px', color: '#888', fontSize: '12px', textAlign: 'center', marginBottom: '10px' }}>
+                        {isZh ? '尚未選擇任何濾鏡（將使用原圖色調）' : 'No filters stacked (Original photo output)'}
+                      </div>
+                    )}
+
+                    {/* Add Filter Selector Dropdown */}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select
+                        value=""
+                        onChange={e => {
+                          if (e.target.value) {
+                            handleAddFilterToStack(e.target.value);
+                          }
+                        }}
+                        style={{ flex: 1, padding: '10px', background: '#0d0d1a', border: '1px solid #48bb78', borderRadius: '6px', color: '#fff', fontSize: '13px' }}
+                      >
+                        <option value="">➕ {isZh ? '點擊選擇新增濾鏡到組合鏈...' : 'Add Filter to Stack...'}</option>
+                        {availableFilters.map(flt => (
+                          <option key={flt.id} value={flt.id}>
+                            {isZh ? flt.name_zh : flt.name} — {flt.description}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
                     {renderAdvancedFilterSettings()}
                   </div>

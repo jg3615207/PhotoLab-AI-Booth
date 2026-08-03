@@ -33,10 +33,23 @@ def get_available_filters():
     return FILTER_PRESETS
 
 def apply_filter(pil_img: Image.Image, filter_preset: str, filter_params: dict = None) -> Image.Image:
-    """Applies a named filter preset to a PIL Image (RGB format) with optional custom parameters."""
+    """Applies a named filter preset (or comma-separated list of stacked filter presets) to a PIL Image."""
     if not filter_preset or filter_preset == "none":
         return pil_img
 
+    if isinstance(filter_preset, str) and "," in filter_preset:
+        presets = [p.strip() for p in filter_preset.split(",") if p.strip()]
+        res = pil_img
+        for p in presets:
+            if p and p != "none":
+                res = _apply_filter_single(res, p, filter_params)
+        return res
+
+    return _apply_filter_single(pil_img, filter_preset, filter_params)
+
+
+def _apply_filter_single(pil_img: Image.Image, filter_preset: str, filter_params: dict = None) -> Image.Image:
+    """Applies a single filter preset with custom parameters."""
     params = filter_params or {}
     if isinstance(params, str):
         try:
