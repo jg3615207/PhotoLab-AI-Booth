@@ -46,6 +46,8 @@ export default function CaptureScreen() {
   const [flash, setFlash] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
   const [activeFilter, setActiveFilter] = useState('none');
+  const [isFullFrame, setIsFullFrame] = useState(true); // Default to 100% Full Uncropped Camera Sensor Frame
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,7 +68,23 @@ export default function CaptureScreen() {
   const showFilters = session?.enable_filters === 1 || session?.enable_filters === true;
   const gestureEnabled = session?.enable_gesture_capture !== 0;
 
-  const { targetW, targetH, cssRatio } = parseAspectRatio(selectedStyle?.aspect_ratio);
+  const { targetW, targetH, cssRatio: styleCssRatio } = parseAspectRatio(selectedStyle?.aspect_ratio);
+
+  // Compute effective ratio based on isFullFrame setting
+  const getEffectiveRatio = (): { cssRatio: string; ratioVal: number } => {
+    if (isFullFrame) {
+      if (resolutionInfo && resolutionInfo.width > 0 && resolutionInfo.height > 0) {
+        return {
+          cssRatio: `${resolutionInfo.width}/${resolutionInfo.height}`,
+          ratioVal: resolutionInfo.width / resolutionInfo.height
+        };
+      }
+      return { cssRatio: '16/9', ratioVal: 16 / 9 };
+    }
+    return { cssRatio: styleCssRatio, ratioVal: targetW / targetH };
+  };
+
+  const { cssRatio, ratioVal } = getEffectiveRatio();
 
   const getLiveContainerRatio = (): number => {
     if (containerRef.current) {
@@ -75,7 +93,7 @@ export default function CaptureScreen() {
         return rect.width / rect.height;
       }
     }
-    return targetW / targetH;
+    return ratioVal;
   };
 
   useHandsTracker(videoRef.current, isMirrored, () => {
@@ -326,12 +344,32 @@ export default function CaptureScreen() {
           </div>
         )}
 
-        <button 
-          onClick={toggleMirror} 
-          style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 20, background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer' }}
-        >
-          {isZh ? '鏡像 ⇄' : 'Mirror ⇄'}
-        </button>
+        <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 25, display: 'flex', gap: '8px' }}>
+          <button 
+            onClick={() => setIsFullFrame(!isFullFrame)} 
+            style={{ 
+              background: isFullFrame ? 'linear-gradient(135deg, #00f2fe, #4facfe)' : 'rgba(0,0,0,0.6)', 
+              color: isFullFrame ? '#000' : '#fff', 
+              border: '1px solid rgba(255,255,255,0.3)', 
+              padding: '6px 12px', 
+              borderRadius: '8px', 
+              cursor: 'pointer', 
+              fontSize: '11px', 
+              fontWeight: 700, 
+              backdropFilter: 'blur(6px)',
+              boxShadow: isFullFrame ? '0 4px 12px rgba(0,242,254,0.4)' : 'none'
+            }}
+          >
+            {isFullFrame ? (isZh ? '🖼️ 全畫幅 (無裁切)' : '🖼️ Full Frame') : (isZh ? `✂️ 風格比例 (${selectedStyle?.aspect_ratio || '2:3'})` : `✂️ Style Crop`)}
+          </button>
+
+          <button 
+            onClick={toggleMirror} 
+            style={{ background: 'rgba(0,0,0,0.6)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, backdropFilter: 'blur(6px)' }}
+          >
+            {isZh ? '鏡像 ⇄' : 'Mirror ⇄'}
+          </button>
+        </div>
         
         {countdown !== null && (
           <div className="countdown-overlay active">
