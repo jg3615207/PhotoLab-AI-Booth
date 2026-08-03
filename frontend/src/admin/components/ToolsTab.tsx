@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAdminLang } from '../context/AdminLangContext';
+import PhotoCompareTool from './PhotoCompareTool';
 
 interface UsefulLink {
   id: string;
@@ -41,6 +42,7 @@ export default function ToolsTab({ onOpenAgent }: ToolsTabProps) {
   const isZh = lang === 'zh-Hant';
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showCompareTool, setShowCompareTool] = useState(false);
 
   const filteredWebsites = USEFUL_WEBSITES.filter(site => {
     const q = searchTerm.toLowerCase();
@@ -139,6 +141,72 @@ export default function ToolsTab({ onOpenAgent }: ToolsTabProps) {
           >
             ⚡ {isZh ? '立即開啟 AI 創作 Agent' : 'Launch AI Style Agent'}
           </button>
+        )}
+      </div>
+
+      {/* Photo Compare Tool Section */}
+      <div style={{
+        background: 'rgba(13, 13, 26, 0.8)',
+        borderRadius: '12px',
+        marginBottom: '24px',
+        border: '1px solid rgba(78,205,196,0.2)',
+        overflow: 'hidden'
+      }}>
+        <div
+          onClick={() => setShowCompareTool(!showCompareTool)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '20px 24px',
+            cursor: 'pointer',
+            background: showCompareTool ? 'rgba(78,205,196,0.08)' : 'transparent',
+            transition: 'background 0.2s'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '24px' }}>🔍</span>
+            <div>
+              <h3 style={{ color: '#4ecdc4', fontSize: '18px', margin: 0, fontWeight: 700 }}>
+                {isZh ? '照片比較工具 (Photo Compare Tool)' : 'Photo Compare Tool'}
+              </h3>
+              <p style={{ color: '#888', fontSize: '12px', margin: '4px 0 0' }}>
+                {isZh
+                  ? '多模式 A/B 對比：滑動分割、並排、差異疊加、洋蔥皮透視、面部放大、像素檢測、即時直方圖'
+                  : 'Multi-mode A/B comparison: sweep, side-by-side, diff overlay, onion skin, face zoom, pixel inspector, live histogram'
+                }
+              </p>
+            </div>
+          </div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}>
+            <span style={{
+              fontSize: '11px',
+              background: 'rgba(78,205,196,0.15)',
+              color: '#4ecdc4',
+              border: '1px solid rgba(78,205,196,0.3)',
+              padding: '3px 10px',
+              borderRadius: '12px',
+              fontWeight: 600
+            }}>
+              {isZh ? '內建工具' : 'Built-in Tool'}
+            </span>
+            <span style={{
+              fontSize: '18px',
+              color: '#4ecdc4',
+              transform: showCompareTool ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.3s ease'
+            }}>▼</span>
+          </div>
+        </div>
+
+        {showCompareTool && (
+          <div style={{ height: '75vh', borderTop: '1px solid rgba(78,205,196,0.15)' }}>
+            <PhotoCompareTool />
+          </div>
         )}
       </div>
 
