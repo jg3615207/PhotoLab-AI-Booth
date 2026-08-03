@@ -305,13 +305,16 @@ def seed_styles():
 def seed_normal_styles():
     with get_db() as db:
         beauty_styles = [
-            ("beauty-facemesh-v2", "✨ 468點智慧美顏 v2", 1, "both", "beauty-face-v2", "single", 1),
-            ("beauty-facemesh", "✨ 468點智慧美顏", 1, "both", "beauty-face", "single", 2),
-            ("beauty-soft", "✨ 柔膚自然", 1, "both", "beauty-soft", "single", 3),
-            ("beauty-glow", "✨ 夢幻柔光", 1, "both", "beauty-glow", "single", 4),
-            ("beauty-bright", "✨ 明亮人像", 1, "both", "beauty-bright", "single", 5),
-            ("beauty-porcelain", "✨ 瓷肌美顏", 1, "both", "beauty-porcelain", "single", 6),
-            ("normal-classic", "📷 經典拍貼 (原圖)", 1, "both", "none", "single", 7),
+            ("ai-gfpgan", "🤖 GFPGAN AI 智慧修容", 1, "both", "ai-gfpgan", "single", 1),
+            ("ai-codeformer", "🤖 CodeFormer AI 靈魂修容", 1, "both", "ai-codeformer", "single", 2),
+            ("ai-realesrgan", "🤖 Real-ESRGAN AI 極致清晰", 1, "both", "ai-realesrgan", "single", 3),
+            ("beauty-facemesh-v2", "✨ 468點智慧美顏 v2", 1, "both", "beauty-face-v2", "single", 4),
+            ("beauty-facemesh", "✨ 468點智慧美顏", 1, "both", "beauty-face", "single", 5),
+            ("beauty-soft", "✨ 柔膚自然", 1, "both", "beauty-soft", "single", 6),
+            ("beauty-glow", "✨ 夢幻柔光", 1, "both", "beauty-glow", "single", 7),
+            ("beauty-bright", "✨ 明亮人像", 1, "both", "beauty-bright", "single", 8),
+            ("beauty-porcelain", "✨ 瓷肌美顏", 1, "both", "beauty-porcelain", "single", 9),
+            ("normal-classic", "📷 經典拍貼 (原圖)", 1, "both", "none", "single", 10),
         ]
         for sid, name, max_p, mode, flt, layout, order in beauty_styles:
             db.execute(

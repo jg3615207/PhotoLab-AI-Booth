@@ -27,3 +27,9 @@ output/
 server/watchdog.log
 frontend/node_modules/
 frontend/dist/
+*.pth
+*.pt
+*.onnx
+**/weights/
+server/CodeFormer/
+server/gfpgan/

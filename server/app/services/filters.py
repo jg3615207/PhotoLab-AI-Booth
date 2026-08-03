@@ -14,13 +14,18 @@ FILTER_PRESETS = [
     {"id": "high-contrast", "name": "High Contrast", "name_zh": "高對比", "description": "Dramatic high contrast"},
     {"id": "film-grain", "name": "Film Grain", "name_zh": "顆粒底片", "description": "Analog film with subtle texture"},
 
-    # ── Beauty Mode Presets (non-AI) ─────────────────────────────────
+    # ── Non-AI Algorithmic Beauty Mode Presets ───────────────────────
     {"id": "beauty-soft", "name": "✨ Soft Skin", "name_zh": "✨ 柔膚自然", "description": "Subtle skin smoothing, natural look"},
     {"id": "beauty-glow", "name": "✨ Dreamy Glow", "name_zh": "✨ 夢幻柔光", "description": "Soft-focus portrait glow effect"},
     {"id": "beauty-bright", "name": "✨ Bright Portrait", "name_zh": "✨ 明亮人像", "description": "Brightened, warm, clean portrait"},
     {"id": "beauty-porcelain", "name": "✨ Porcelain", "name_zh": "✨ 瓷肌美顏", "description": "Strong smoothing, magazine-cover skin"},
     {"id": "beauty-face", "name": "✨ Face Mesh Beauty", "name_zh": "✨ 468點智慧美顏", "description": "MediaPipe FaceMesh skin smoothing + Canny edge detail"},
     {"id": "beauty-face-v2", "name": "✨ FabSoften 468 Beauty v2", "name_zh": "✨ 468點智慧美顏 v2", "description": "MediaPipe 468 Mesh + FabSoften 3-frequency texture restoration & zero-blur eyes"},
+
+    # ── Local AI GAN/Transformer Beauty Models (PyTorch CUDA) ────────
+    {"id": "ai-gfpgan", "name": "🤖 GFPGAN AI 智慧修容", "name_zh": "🤖 GFPGAN AI 智慧修容", "description": "Tencent GFPGAN v1.4 face restoration & blemish removal"},
+    {"id": "ai-codeformer", "name": "🤖 CodeFormer AI 靈魂修容", "name_zh": "🤖 CodeFormer AI 靈魂修容", "description": "Transformer-based CodeFormer facial restoration"},
+    {"id": "ai-realesrgan", "name": "🤖 Real-ESRGAN AI 極致清晰", "name_zh": "🤖 Real-ESRGAN AI 極致清晰", "description": "Real-ESRGAN local face super-resolution & detail enhancement"},
 ]
 
 def get_available_filters():
@@ -112,6 +117,16 @@ def apply_filter(pil_img: Image.Image, filter_preset: str) -> Image.Image:
 
     elif preset in ["beauty-face", "beauty-facemesh", "facemesh"]:
         return _beauty_facemesh_aware(pil_img)
+
+    # ── Local AI GAN/Transformer Beauty Filters (PyTorch / CUDA) ──────
+    elif preset in ["ai-gfpgan", "gfpgan"]:
+        return _ai_gfpgan(pil_img)
+
+    elif preset in ["ai-codeformer", "codeformer"]:
+        return _ai_codeformer(pil_img)
+
+    elif preset in ["ai-realesrgan", "realesrgan"]:
+        return _ai_realesrgan(pil_img)
 
     return pil_img
 
@@ -232,20 +247,13 @@ def _beauty_facemesh_v2(pil_img: Image.Image) -> Image.Image:
             gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
 
             # ── 1. True 3-Frequency Separation (FabSoften Architecture) ──────────────
-            # Low Frequency (L): Overall lighting & skin color (large blur)
             low_freq = cv2.GaussianBlur(img_float, (21, 21), 0)
-            
-            # Mid Frequency (M): Blemishes, acne, redness, skin bumps (medium blur minus low)
             mid_guide = cv2.GaussianBlur(img_float, (7, 7), 0)
             mid_freq = mid_guide - low_freq
-            
-            # High Frequency (H): Micro skin pores, fine hair, sharp details (original minus medium blur)
             high_freq = img_float - mid_guide
 
-            # Edge-preserving bilateral filter for base skin smoothing
             bilateral_bgr = cv2.bilateralFilter(img_bgr, d=9, sigmaColor=75, sigmaSpace=75).astype(np.float32)
 
-            # Suppress Mid-Frequency blemishes by 70%, preserve 100% High-Frequency skin pores
             restored_skin = bilateral_bgr + (mid_freq * 0.30) + (high_freq * 1.00)
             restored_skin_bgr = np.clip(restored_skin, 0, 255).astype(np.uint8)
 
@@ -266,12 +274,10 @@ def _beauty_facemesh_v2(pil_img: Image.Image) -> Image.Image:
                         for idx in indices
                     ], dtype=np.int32)
 
-                # Face Oval
                 face_pts = get_pts(_FACEMESH_OVAL)
                 face_mask_raw = np.zeros((h_img, w_img), dtype=np.uint8)
                 cv2.fillConvexPoly(face_mask_raw, cv2.convexHull(face_pts), 255)
 
-                # Feature Exclusion (Eyes, Eyebrows, Lips)
                 no_smooth_mask = np.zeros((h_img, w_img), dtype=np.uint8)
                 eye_mask_raw = np.zeros((h_img, w_img), dtype=np.uint8)
 
@@ -282,7 +288,6 @@ def _beauty_facemesh_v2(pil_img: Image.Image) -> Image.Image:
                     if feature_indices in [_FACEMESH_LEFT_EYE, _FACEMESH_RIGHT_EYE, _FACEMESH_LEFT_EYEBROW, _FACEMESH_RIGHT_EYEBROW]:
                         cv2.fillPoly(eye_mask_raw, [hull], 255)
 
-                # Dilate feature mask by 19px to protect eyelids, eyelashes & eye contours
                 dil_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (19, 19))
                 no_smooth_dilated = cv2.dilate(no_smooth_mask, dil_kernel, iterations=1)
                 eye_mask_dilated = cv2.dilate(eye_mask_raw, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15)), iterations=1)
@@ -295,22 +300,16 @@ def _beauty_facemesh_v2(pil_img: Image.Image) -> Image.Image:
 
             # ── 4. FabSoften Guided Feathering for smooth skin edge transitions ─────
             skin_mask_guided = _guided_feathering(skin_mask, gray, radius=8, eps=1e-3)
-
-            # CRITICAL SAFETY LOCK: Strictly ZERO OUT skin mask inside the dilated eye/feature region!
-            # This guarantees guided feathering NEVER bleeds skin blur into eyes/eyelashes.
             skin_mask_guided[eye_exclusion_mask > 0] = 0.0
             skin_mask_3ch = np.stack([skin_mask_guided] * 3, axis=-1)
 
             # ── 5. Composite: Smooth skin on cheeks, 100% UNBLURRED + SHARPENED on eyes ────
-            # Apply FabSoften 3-Frequency restored skin ONLY where skin_mask_3ch > 0
             res = (img_bgr * (1.0 - skin_mask_3ch) + restored_skin_bgr * skin_mask_3ch)
 
-            # Eye Sharpening Overlay: Force 100% UNBLURRED + SHARPENED original eye pixels over eyes!
             eye_mask_float = (eye_exclusion_mask.astype(np.float32) / 255.0)
             eye_mask_blurred = cv2.GaussianBlur(eye_mask_float, (5, 5), 0)
             eye_mask_3ch = np.stack([eye_mask_blurred] * 3, axis=-1)
 
-            # Directly blend sharpened original eye pixels onto res (100% zero blur guarantee!)
             res = (res * (1.0 - eye_mask_3ch) + sharpened_eye_bgr * eye_mask_3ch)
             res = np.clip(res, 0, 255).astype(np.uint8)
 
@@ -324,10 +323,7 @@ def _beauty_facemesh_v2(pil_img: Image.Image) -> Image.Image:
 
 
 def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
-    """
-    Precision Skin-Only Beauty Filter using Google MediaPipe 468-point Face Mesh.
-    Zero-blur eye protection + Canny edge detail overlay.
-    """
+    """Precision Skin-Only Beauty Filter using Google MediaPipe 468-point Face Mesh."""
     try:
         import cv2
         import mediapipe as mp
@@ -350,15 +346,12 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
             img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
             gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
 
-            # Edge-preserving bilateral skin smoothing
             smoothed_bgr = cv2.bilateralFilter(img_bgr, d=9, sigmaColor=75, sigmaSpace=75)
 
-            # Canny Edge Detail Extraction
             canny_edges = cv2.Canny(gray, threshold1=50, threshold2=150)
             canny_edges = cv2.GaussianBlur(canny_edges, (3, 3), 0)
             edge_overlay = canny_edges.astype(np.float32) / 255.0
 
-            # Sharpen filter on ORIGINAL image
             sharpen_kernel = np.array([[0, -0.5, 0], [-0.5, 3.0, -0.5], [0, -0.5, 0]], dtype=np.float32)
             sharpened_eye_bgr = cv2.filter2D(img_bgr, -1, sharpen_kernel)
 
@@ -402,15 +395,12 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
             skin_mask_blurred[eye_exclusion_mask > 0] = 0.0
             skin_mask_3ch = np.stack([skin_mask_blurred] * 3, axis=-1)
 
-            # Step 1: Smooth skin where skin_mask > 0
             res = (img_bgr * (1.0 - skin_mask_3ch) + smoothed_bgr * skin_mask_3ch)
 
-            # Step 2: Canny Edge Detail Overlay
             edge_in_skin = edge_overlay * skin_mask_blurred
             edge_in_skin_3ch = np.stack([edge_in_skin] * 3, axis=-1)
             res = res * (1.0 - edge_in_skin_3ch * 0.4) + img_bgr * (edge_in_skin_3ch * 0.4)
 
-            # Step 3: Force 100% UNBLURRED + SHARPENED original eye pixels over eyes!
             eye_mask_float = (eye_exclusion_mask.astype(np.float32) / 255.0)
             eye_mask_blurred = cv2.GaussianBlur(eye_mask_float, (5, 5), 0)
             eye_mask_3ch = np.stack([eye_mask_blurred] * 3, axis=-1)
@@ -427,6 +417,118 @@ def _beauty_facemesh_aware(pil_img: Image.Image) -> Image.Image:
         return _beauty_opencv_fallback(pil_img)
     except Exception:
         return _beauty_opencv_fallback(pil_img)
+
+
+# ═════════════════════════════════════════════════════════════════════
+# Local AI GAN / Transformer Models (GFPGAN, CodeFormer, Real-ESRGAN)
+# ═════════════════════════════════════════════════════════════════════
+
+_GFPGAN_MODEL = None
+
+def _get_gfpgan_model():
+    global _GFPGAN_MODEL
+    if _GFPGAN_MODEL is None:
+        try:
+            import torch
+            from gfpgan import GFPGANer
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            _GFPGAN_MODEL = GFPGANer(
+                model_path='https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth',
+                upscale=1,
+                arch='clean',
+                channel_multiplier=2,
+                bg_upsampler=None,
+                device=device
+            )
+        except Exception as e:
+            print(f"[GFPGAN] Error initializing model: {e}")
+            _GFPGAN_MODEL = False
+    return _GFPGAN_MODEL if _GFPGAN_MODEL is not False else None
+
+
+def _ai_gfpgan(pil_img: Image.Image) -> Image.Image:
+    """🤖 GFPGAN v1.4 Local AI Face Restoration & Enhancement (CUDA accelerated)."""
+    try:
+        import cv2
+        gfp = _get_gfpgan_model()
+        if gfp is None:
+            return _beauty_facemesh_v2(pil_img)
+
+        img_bgr = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+        cropped_faces, restored_faces, restored_img = gfp.enhance(
+            img_bgr,
+            has_aligned=False,
+            only_center_face=False,
+            paste_back=True
+        )
+
+        if restored_img is not None:
+            res_rgb = cv2.cvtColor(restored_img, cv2.COLOR_BGR2RGB)
+            return Image.fromarray(res_rgb)
+        return _beauty_facemesh_v2(pil_img)
+    except Exception as e:
+        print(f"[GFPGAN Filter] Error: {e}")
+        return _beauty_facemesh_v2(pil_img)
+
+
+def _ai_codeformer(pil_img: Image.Image) -> Image.Image:
+    """🤖 CodeFormer Local AI Face Restoration with Tunable Fidelity (w=0.6)."""
+    import tempfile, os
+    try:
+        import cv2
+        import codeformer.app as ca
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+            tmp_path = tmp.name
+        pil_img.save(tmp_path, "JPEG", quality=95)
+
+        restored_result = ca.inference_app(
+            image=tmp_path,
+            background_enhance=False,
+            face_upsample=False,
+            upscale=1,
+            codeformer_fidelity=0.6
+        )
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except Exception:
+            pass
+
+        restored_img = restored_result[0] if isinstance(restored_result, tuple) else restored_result
+
+        if restored_img is not None and hasattr(restored_img, 'shape'):
+            res_rgb = cv2.cvtColor(restored_img, cv2.COLOR_BGR2RGB)
+            return Image.fromarray(res_rgb)
+        return _beauty_facemesh_v2(pil_img)
+    except Exception as e:
+        print(f"[CodeFormer Filter] Error: {e}")
+        return _beauty_facemesh_v2(pil_img)
+
+
+def _ai_realesrgan(pil_img: Image.Image) -> Image.Image:
+    """🤖 Real-ESRGAN Local AI Clarity & Super-Resolution Pass."""
+    try:
+        import cv2
+        from realesrgan import RealESRGANer
+        from basicsr.archs.rrdbnet_arch import RRDBNet
+
+        img_bgr = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+        model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=2)
+        upsampler = RealESRGANer(
+            scale=2,
+            model_path='https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth',
+            model=model,
+            tile=400,
+            tile_pad=10,
+            pre_pad=0,
+            half=True
+        )
+        output, _ = upsampler.enhance(img_bgr, outscale=1)
+        res_rgb = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
+        return Image.fromarray(res_rgb)
+    except Exception as e:
+        print(f"[RealESRGAN Filter] Error: {e}")
+        return _beauty_facemesh_v2(pil_img)
 
 
 def _beauty_opencv_fallback(pil_img: Image.Image) -> Image.Image:
