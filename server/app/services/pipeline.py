@@ -165,16 +165,19 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
         if quality_override:
             v2_quality = quality_override
 
-        # v2: upload local style ref image if URL not yet cached
-        if use_v2 and not rh_ref_url:
-            ref_path = Path(__file__).parent.parent.parent / "styles" / style_id / "ref.jpg"
+        # v2: upload local style ref image to guarantee fresh, unexpired CDN URL
+        if use_v2:
+            style_dir = Path(__file__).parent.parent.parent / "styles" / style_id
+            ref_path = style_dir / "ref.jpg"
+            if not ref_path.exists():
+                ref_path = style_dir / "thumb.jpg"
             if ref_path.exists():
                 try:
                     v2_url = provider_v2.upload_image(str(ref_path))
                     db.execute("UPDATE styles SET rh_ref_url=? WHERE id=?", (v2_url, style_id))
                     rh_ref_url = v2_url
-                except Exception:
-                    pass  # will fall back to v1 below
+                except Exception as e:
+                    print(f"[pipeline] Warning: Uploading local ref image failed: {e}")
 
         # Update status
         db.execute("UPDATE sessions SET status='processing' WHERE job_id=?", (job_id,))
@@ -182,17 +185,40 @@ def run_pipeline(job_id: str, style_id: str, image_path: str, style_ref_path: st
 
     try:
         if use_v2 and (rh_ref_url or user_image_urls):
-            result = provider_v2.generate(
-                guest_image_path=image_path,
-                rh_ref_file=rh_ref_url,  # v2 uses public URL
-                prompt=prompt,
-                seed=seed_val,
-                resolution=resolution,
-                aspect_ratio=aspect,
-                v2_model=v2_model,
-                v2_quality=v2_quality,
-                user_image_urls=user_image_urls,
-            )
+            try:
+                result = provider_v2.generate(
+                    guest_image_path=image_path,
+                    rh_ref_file=rh_ref_url,  # v2 uses public URL
+                    prompt=prompt,
+                    seed=seed_val,
+                    resolution=resolution,
+                    aspect_ratio=aspect,
+                    v2_model=v2_model,
+                    v2_quality=v2_quality,
+                    user_image_urls=user_image_urls,
+                )
+            except Exception as first_v2_err:
+                # If cached style ref URL expired, re-upload local ref image and retry
+                print(f"[pipeline] V2 render first attempt failed: {first_v2_err}. Re-uploading ref image and retrying...")
+                style_dir = Path(__file__).parent.parent.parent / "styles" / style_id
+                ref_path = style_dir / "ref.jpg"
+                if not ref_path.exists():
+                    ref_path = style_dir / "thumb.jpg"
+                if ref_path.exists():
+                    fresh_ref_url = provider_v2.upload_image(str(ref_path))
+                    result = provider_v2.generate(
+                        guest_image_path=image_path,
+                        rh_ref_file=fresh_ref_url,
+                        prompt=prompt,
+                        seed=seed_val,
+                        resolution=resolution,
+                        aspect_ratio=aspect,
+                        v2_model=v2_model,
+                        v2_quality=v2_quality,
+                        user_image_urls=user_image_urls,
+                    )
+                else:
+                    raise first_v2_err
         elif use_v2:
             import logging
             logging.getLogger(__name__).warning(

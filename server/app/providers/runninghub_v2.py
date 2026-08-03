@@ -63,21 +63,29 @@ class RunningHubV2Provider(AIProvider):
         return V2_MODEL_REGISTRY[model_id]
 
     def _upload(self, file_path: str) -> str:
-        with httpx.Client(timeout=180.0) as client:
-            with open(file_path, "rb") as f:
-                content = f.read()
-            r = client.post(
-                f"{BASE}/openapi/v2/media/upload/binary",
-                headers={"Authorization": f"Bearer {API_KEY}"},
-                files={"file": ("img.jpg", content, "image/jpeg")},
-            )
-            data = r.json()
-            if data.get("code") != 0:
-                raise RuntimeError(f"v2 upload failed: {data.get('msg')}")
-            url = data["data"].get("download_url")
-            if not url:
-                raise RuntimeError("v2 upload: no download_url in response")
-            return url
+        last_err = None
+        for attempt in range(3):
+            try:
+                with httpx.Client(timeout=60.0) as client:
+                    with open(file_path, "rb") as f:
+                        content = f.read()
+                    r = client.post(
+                        f"{BASE}/openapi/v2/media/upload/binary",
+                        headers={"Authorization": f"Bearer {API_KEY}"},
+                        files={"file": ("img.jpg", content, "image/jpeg")},
+                    )
+                    data = r.json()
+                    if data.get("code") != 0:
+                        raise RuntimeError(f"v2 upload failed: {data.get('msg')}")
+                    url = data["data"].get("download_url")
+                    if not url:
+                        raise RuntimeError("v2 upload: no download_url in response")
+                    return url
+            except Exception as e:
+                last_err = e
+                print(f"[v2._upload] Attempt {attempt+1}/3 failed: {e}. Retrying in 2s...")
+                time.sleep(2)
+        raise RuntimeError(f"v2 upload failed after 3 retries: {last_err}")
 
     def upload_image(self, image_path: str) -> str:
         return self._upload(image_path)
@@ -120,21 +128,28 @@ class RunningHubV2Provider(AIProvider):
             if quality:
                 body["quality"] = quality
         
-        with httpx.Client(timeout=180.0) as client:
-            r = client.post(
-                endpoint,
-                headers={
-                    "Authorization": f"Bearer {API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json=body,
-            )
-            data = r.json()
-            task_id = data.get("taskId")
-            if not task_id:
-                raise RuntimeError(f"v2 task creation failed: {data.get('errorMessage', data)}")
-
-            return self._poll_task(task_id)
+        last_err = None
+        for attempt in range(3):
+            try:
+                with httpx.Client(timeout=60.0) as client:
+                    r = client.post(
+                        endpoint,
+                        headers={
+                            "Authorization": f"Bearer {API_KEY}",
+                            "Content-Type": "application/json",
+                        },
+                        json=body,
+                    )
+                    data = r.json()
+                    task_id = data.get("taskId")
+                    if not task_id:
+                        raise RuntimeError(f"v2 task creation failed: {data.get('errorMessage', data)}")
+                    return self._poll_task(task_id)
+            except Exception as e:
+                last_err = e
+                print(f"[v2.generate] Attempt {attempt+1}/3 failed: {e}. Retrying in 2s...")
+                time.sleep(2)
+        raise RuntimeError(f"v2 generation failed after 3 retries: {last_err}")
 
     def generate_ref_image(
         self,
@@ -162,7 +177,7 @@ class RunningHubV2Provider(AIProvider):
             if quality:
                 body["quality"] = quality
 
-        with httpx.Client(timeout=180.0) as client:
+        with httpx.Client(timeout=60.0) as client:
             r = client.post(
                 endpoint,
                 headers={
@@ -179,31 +194,35 @@ class RunningHubV2Provider(AIProvider):
             return self._poll_task(task_id)
 
     def _poll_task(self, task_id: str) -> GenerateResult:
-        """Poll RunningHub task status and return result."""
+        """Poll RunningHub task status and return result with network glitch resilience."""
         start = time.time()
-        with httpx.Client(timeout=180.0) as client:
-            while time.time() - start < 200:
+        with httpx.Client(timeout=30.0) as client:
+            while time.time() - start < 240:
                 time.sleep(3)
-                r = client.post(
-                    f"{BASE}/openapi/v2/query",
-                    headers={"Authorization": f"Bearer {API_KEY}"},
-                    json={"taskId": task_id},
-                )
-                status_data = r.json()
-                s = status_data.get("status")
-                if s == "SUCCESS":
-                    results = status_data.get("results", [])
-                    if not results:
-                        raise RuntimeError("Task completed but no results")
-                    usage = status_data.get("usage", {})
-                    return GenerateResult(
-                        image_url=results[0]["url"],
-                        task_id=task_id,
-                        cost_time=int(usage.get("taskCostTime", 0)),
-                        cost_money=float(usage.get("thirdPartyConsumeMoney", 0) or 0)
-                                   + float(usage.get("consumeMoney", 0) or 0),
+                try:
+                    r = client.post(
+                        f"{BASE}/openapi/v2/query",
+                        headers={"Authorization": f"Bearer {API_KEY}"},
+                        json={"taskId": task_id},
                     )
-                elif s == "FAILED":
-                    raise RuntimeError(f"v2 task {task_id} failed: {status_data.get('errorMessage', 'unknown')}")
+                    status_data = r.json()
+                    s = status_data.get("status")
+                    if s == "SUCCESS":
+                        results = status_data.get("results", [])
+                        if not results:
+                            raise RuntimeError("Task completed but no results")
+                        usage = status_data.get("usage", {})
+                        return GenerateResult(
+                            image_url=results[0]["url"],
+                            task_id=task_id,
+                            cost_time=int(usage.get("taskCostTime", 0)),
+                            cost_money=float(usage.get("thirdPartyConsumeMoney", 0) or 0)
+                                       + float(usage.get("consumeMoney", 0) or 0),
+                        )
+                    elif s == "FAILED":
+                        raise RuntimeError(f"v2 task {task_id} failed: {status_data.get('errorMessage', 'unknown')}")
+                except (httpx.TransportError, httpx.TimeoutException) as net_err:
+                    print(f"[v2._poll_task] Network glitch during poll for task {task_id}: {net_err}. Retrying in 2s...")
+                    time.sleep(2)
 
-        raise TimeoutError(f"v2 task {task_id} did not complete in 200s")
+        raise TimeoutError(f"v2 task {task_id} did not complete in 240s")
