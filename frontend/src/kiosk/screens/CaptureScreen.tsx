@@ -42,7 +42,7 @@ export default function CaptureScreen() {
   const { setScreen, setCapturedImage, lang, session, selectedStyle } = useKiosk();
   const isZh = lang === 'zh-Hant';
 
-  const { videoRef, error, isMirrored, resolutionInfo, startCamera, stopCamera, toggleMirror } = useCamera();
+  const { videoRef, error, isMirrored, resolutionInfo, startCamera, stopCamera, toggleMirror, stream } = useCamera();
   const [countdown, setCountdown] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
@@ -201,15 +201,27 @@ export default function CaptureScreen() {
   const capturePhoto = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (video && canvas && video.videoWidth > 0 && video.videoHeight > 0) {
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
+    if (video && canvas) {
+      const videoTrack = stream?.getVideoTracks()[0];
+      const settings = videoTrack?.getSettings();
+
+      const trackW = settings?.width || 0;
+      const trackH = settings?.height || 0;
+      const videoW = video.videoWidth || 0;
+      const videoH = video.videoHeight || 0;
+
+      // Force minimum sensor resolution target of 1920x1080 (or higher if 4K)
+      const vw = Math.max(trackW, videoW, 1920);
+      const vh = Math.max(trackH, videoH, 1080);
+
       const { cropX, cropY, cropW, cropH } = computeVideoCrop(vw, vh, targetW, targetH);
 
       canvas.width = Math.round(cropW);
       canvas.height = Math.round(cropH);
       const ctx = canvas.getContext('2d');
       if (ctx) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         if (currentFilterCSS !== 'none') {
           ctx.filter = currentFilterCSS;
         }
@@ -217,13 +229,22 @@ export default function CaptureScreen() {
           ctx.translate(canvas.width, 0);
           ctx.scale(-1, 1);
         }
+
+        const scaleToVideoX = (videoW > 0 && vw > 0) ? (videoW / vw) : 1;
+        const scaleToVideoY = (videoH > 0 && vh > 0) ? (videoH / vh) : 1;
+
+        const srcX = cropX * scaleToVideoX;
+        const srcY = cropY * scaleToVideoY;
+        const srcW = cropW * scaleToVideoX;
+        const srcH = cropH * scaleToVideoY;
+
         ctx.drawImage(
           video,
-          cropX, cropY, cropW, cropH,
+          srcX, srcY, srcW, srcH,
           0, 0, canvas.width, canvas.height
         );
-        console.log(`[Capture API] Photo captured at HD resolution ${canvas.width}x${canvas.height} (Aspect ratio ${selectedStyle?.aspect_ratio || '2:3'})`);
-        setCapturedImage(canvas.toDataURL('image/jpeg', 0.96));
+        console.log(`[Capture API] High-Res 1080p+ Photo Captured: ${canvas.width}x${canvas.height} (Sensor Stream: ${vw}x${vh})`);
+        setCapturedImage(canvas.toDataURL('image/jpeg', 0.98));
         setScreen('preview');
       }
     }
