@@ -141,11 +141,46 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (conversation_id) REFERENCES agent_conversations(id) ON DELETE CASCADE
         );
+        CREATE TABLE IF NOT EXISTS schema_version (
+            version INTEGER PRIMARY KEY,
+            applied_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_sessions_job_id ON sessions(job_id);
         CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
         CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at);
+        CREATE INDEX IF NOT EXISTS idx_sessions_status_created ON sessions(status, created_at);
         CREATE INDEX IF NOT EXISTS idx_print_queue_status ON print_queue(status);
+        CREATE INDEX IF NOT EXISTS idx_events_active ON events(active);
         CREATE INDEX IF NOT EXISTS idx_agent_messages_conv ON agent_messages(conversation_id);
     """)
+    conn.execute("INSERT OR IGNORE INTO schema_version (version) VALUES (430)")
+
+def acquire_next_print_job():
+    with get_db() as db:
+        try:
+            row = db.execute("""
+                UPDATE print_queue
+                SET status = 'processing'
+                WHERE id = (
+                    SELECT id FROM print_queue
+                    WHERE status = 'queued'
+                    ORDER BY id ASC
+                    LIMIT 1
+                )
+                RETURNING id, session_id, image_path, copies, created_at
+            """).fetchone()
+            return dict(row) if row else None
+        except Exception:
+            # Fallback for SQLite versions that do not support RETURNING
+            conn = get_conn()
+            row = conn.execute("SELECT id, session_id, image_path, copies, created_at FROM print_queue WHERE status = 'queued' ORDER BY id ASC LIMIT 1").fetchone()
+            if row:
+                job = dict(row)
+                cursor = conn.execute("UPDATE print_queue SET status = 'processing' WHERE id = ? AND status = 'queued'", (job['id'],))
+                if cursor.rowcount > 0:
+                    conn.commit()
+                    return job
+            return None
     # Migration: add v2_model and v2_quality columns (v0.4.0)
     try:
         conn.execute("ALTER TABLE styles ADD COLUMN v2_model TEXT DEFAULT 'nb2-cheap'")

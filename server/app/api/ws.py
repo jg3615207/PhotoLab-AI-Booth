@@ -37,14 +37,18 @@ class ConnectionManager:
         for ws in stale:
             self.disconnect_admin(ws)
 
-    async def send_status(self, session_id: str, status: str, output_image: str = None, error_message: str = None):
+    async def send_status(self, session_id: str, status: str, output_image: str = None, error_message: str = None, progress: int = None, extra: dict = None):
         if session_id in self.active_connections:
             websocket = self.active_connections[session_id]
             data = {"status": status}
+            if progress is not None:
+                data["progress"] = progress
             if output_image:
                 data["output_image"] = output_image
             if error_message:
                 data["error_message"] = error_message
+            if extra:
+                data.update(extra)
             try:
                 await websocket.send_json(data)
             except Exception:
@@ -52,11 +56,11 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-def broadcast_job_update(job_id: str, status: str, output_image: str = None, error_message: str = None):
+def broadcast_job_update(job_id: str, status: str, output_image: str = None, error_message: str = None, progress: int = None, extra: dict = None):
     if main_loop:
         if job_id in manager.active_connections:
             main_loop.call_soon_threadsafe(
-                lambda: asyncio.create_task(manager.send_status(job_id, status, output_image, error_message))
+                lambda: asyncio.create_task(manager.send_status(job_id, status, output_image, error_message, progress, extra))
             )
         if manager.admin_connections:
             main_loop.call_soon_threadsafe(

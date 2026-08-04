@@ -51,28 +51,31 @@ async def capture(
         raise HTTPException(400, "Invalid file format. Only JPEG, PNG, or WEBP images are accepted.")
 
     MAX_SIZE = 15 * 1024 * 1024
-    chunks = []
     total_bytes = 0
-    while chunk := await image.read(1024 * 1024):
-        total_bytes += len(chunk)
-        if total_bytes > MAX_SIZE:
-            raise HTTPException(400, "File size exceeds 15MB limit.")
-        chunks.append(chunk)
-    content = b"".join(chunks)
+    with open(img_path, "wb") as out_f:
+        while chunk := await image.read(1024 * 1024):
+            total_bytes += len(chunk)
+            if total_bytes > MAX_SIZE:
+                out_f.close()
+                if Path(img_path).exists():
+                    Path(img_path).unlink()
+                raise HTTPException(400, "File size exceeds 15MB limit.")
+            out_f.write(chunk)
 
     from PIL import Image as PILImage
-    import io
     try:
-        pil_img = PILImage.open(io.BytesIO(content)).convert("RGB")
+        with PILImage.open(img_path) as pil_img:
+            pil_img = pil_img.convert("RGB")
+            max_dim = 2048
+            if max(pil_img.size) > max_dim:
+                ratio = max_dim / max(pil_img.size)
+                new_size = (int(pil_img.size[0] * ratio), int(pil_img.size[1] * ratio))
+                pil_img = pil_img.resize(new_size, PILImage.LANCZOS)
+                pil_img.save(img_path, "JPEG", quality=92)
     except Exception:
+        if Path(img_path).exists():
+            Path(img_path).unlink()
         raise HTTPException(400, "Corrupted or invalid image file.")
-
-    max_dim = 2048
-    if max(pil_img.size) > max_dim:
-        ratio = max_dim / max(pil_img.size)
-        new_size = (int(pil_img.size[0] * ratio), int(pil_img.size[1] * ratio))
-        pil_img = pil_img.resize(new_size, PILImage.LANCZOS)
-    pil_img.save(img_path, "JPEG", quality=92)
 
     ref_path = None
     if ref_image:

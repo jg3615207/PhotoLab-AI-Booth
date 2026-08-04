@@ -79,8 +79,19 @@ function onHandResults(results) {
        mappedX = 1 - mappedX;
     }
 
-    const screenX = mappedX * window.innerWidth;
-    const screenY = indexTip.y * window.innerHeight;
+    const rawX = mappedX * window.innerWidth;
+    const rawY = indexTip.y * window.innerHeight;
+
+    if (typeof prevScreenX === 'undefined' || prevScreenX === null) {
+      window.prevScreenX = rawX;
+      window.prevScreenY = rawY;
+    } else {
+      window.prevScreenX = window.prevScreenX + 0.25 * (rawX - window.prevScreenX);
+      window.prevScreenY = window.prevScreenY + 0.25 * (rawY - window.prevScreenY);
+    }
+
+    const screenX = window.prevScreenX;
+    const screenY = window.prevScreenY;
 
     gestureCursor.style.display = 'block';
     gestureCursor.style.left = `${screenX - 12}px`;

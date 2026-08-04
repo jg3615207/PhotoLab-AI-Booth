@@ -34,12 +34,21 @@ try:
 except ImportError:
     HAS_WIN32 = False
 
+# Enable High-DPI scaling on Windows
+if sys.platform == "win32":
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        pass
+
 # Determine project base directory & DB Path
 BASE_DIR = Path(__file__).resolve().parent
 SERVER_DIR = BASE_DIR / "server"
 
 def find_db_path():
     candidates = [
+        SERVER_DIR / "data" / "photolab_v2.db",
         SERVER_DIR / "data" / "booth.db",
         BASE_DIR / "data" / "booth.db",
         SERVER_DIR / "sqlite.db",
@@ -55,7 +64,7 @@ DB_PATH = find_db_path()
 class PrintManagerApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("🖨️ PhotoLab Print Manager & Queuer v1.0")
+        self.title("🖨️ PhotoLab Print Manager & Queuer v0.43.0")
         self.geometry("1100x720")
         self.minsize(900, 600)
         self.configure(bg="#0f0f1d")

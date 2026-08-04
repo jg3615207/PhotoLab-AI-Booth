@@ -3,6 +3,7 @@ import { useKiosk } from '../context/KioskContext';
 import { useCamera } from '../hooks/useCamera';
 import { useHandsTracker } from '../hooks/useHandsTracker';
 import { useFaceDetection } from '../hooks/useFaceDetection';
+import { soundEngine } from '../utils/SoundEngine';
 
 function parseAspectRatio(ratioStr?: string): { targetW: number; targetH: number; ratioVal: number; cssRatio: string } {
   if (!ratioStr || !ratioStr.includes(':')) {
@@ -231,6 +232,7 @@ export default function CaptureScreen() {
   const startCountdown = () => {
     let count = 3;
     setCountdown(count);
+    soundEngine.playCountdownBeep(false);
     speakText(count.toString());
     const iv = setInterval(() => {
       count--;
@@ -238,11 +240,13 @@ export default function CaptureScreen() {
         clearInterval(iv);
         setCountdown(null);
         setFlash(true);
+        soundEngine.playShutter();
         speakText(isZh ? "笑一個！" : "Smile!");
         setTimeout(() => setFlash(false), 500);
         capturePhoto();
       } else {
         setCountdown(count);
+        soundEngine.playCountdownBeep(count === 1);
         speakText(count.toString());
       }
     }, 1000);

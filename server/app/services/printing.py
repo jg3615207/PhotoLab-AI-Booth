@@ -114,7 +114,7 @@ def print_image(image_path: str, copies: int = 1):
         return False
 
 def print_worker():
-    from app.db import get_db, get_setting
+    from app.db import get_db, get_setting, acquire_next_print_job
     from datetime import datetime, timezone
     while True:
         try:
@@ -122,17 +122,17 @@ def print_worker():
                 time.sleep(2)
                 continue
 
-            with get_db() as db:
-                row = db.execute("SELECT id, session_id, image_path, copies FROM print_queue WHERE status='queued' ORDER BY id ASC LIMIT 1").fetchone()
-                if row:
-                    job_db_id, session_id, path, copies = row["id"], row["session_id"], row["image_path"], row["copies"]
-                    db.execute("UPDATE print_queue SET status='printing' WHERE id=?", (job_db_id,))
-                    if session_id:
+            job = acquire_next_print_job()
+            if job:
+                job_db_id, session_id, path, copies = job["id"], job["session_id"], job["image_path"], job["copies"]
+                if session_id:
+                    with get_db() as db:
                         db.execute("UPDATE sessions SET print_status='printing' WHERE job_id=?", (session_id,))
-                    
-                    success = print_image(path, copies)
-                    now_str = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
-                    
+                
+                success = print_image(path, copies)
+                now_str = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
+                
+                with get_db() as db:
                     if success:
                         db.execute("UPDATE print_queue SET status='completed', printed_at=? WHERE id=?", (now_str, job_db_id))
                         if session_id:

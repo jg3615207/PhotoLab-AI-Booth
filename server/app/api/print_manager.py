@@ -367,7 +367,7 @@ def cleanup_file(filepath: str):
         print(f"Failed to cleanup temp file {filepath}: {e}")
 
 @router.post("/bulk-download")
-def bulk_download(req: BulkActionRequest, background_tasks: BackgroundTasks):
+async def bulk_download(req: BulkActionRequest, background_tasks: BackgroundTasks):
     if not req.job_ids:
         raise HTTPException(400, "No job_ids provided")
         
@@ -375,21 +375,27 @@ def bulk_download(req: BulkActionRequest, background_tasks: BackgroundTasks):
     tmp_zip_path = tmp_zip.name
     tmp_zip.close()
 
-    added_count = 0
-    with zipfile.ZipFile(tmp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        with get_db() as db:
-            for job_id in req.job_ids:
-                sess = db.execute("SELECT output_image, print_image FROM sessions WHERE job_id=?", (job_id,)).fetchone()
-                if sess:
-                    target_path = sess["print_image"] if (sess["print_image"] and os.path.exists(sess["print_image"])) else sess["output_image"]
-                    if target_path and os.path.exists(target_path):
-                        arcname = f"PhotoLab_{job_id}.jpg"
-                        zipf.write(target_path, arcname=arcname)
-                        db.execute("UPDATE sessions SET download_count = COALESCE(download_count, 0) + 1 WHERE job_id=?", (job_id,))
-                        added_count += 1
+    def build_zip():
+        added_count = 0
+        with zipfile.ZipFile(tmp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            with get_db() as db:
+                for job_id in req.job_ids:
+                    sess = db.execute("SELECT output_image, print_image FROM sessions WHERE job_id=?", (job_id,)).fetchone()
+                    if sess:
+                        target_path = sess["print_image"] if (sess["print_image"] and os.path.exists(sess["print_image"])) else sess["output_image"]
+                        if target_path and os.path.exists(target_path):
+                            arcname = f"PhotoLab_{job_id}.jpg"
+                            zipf.write(target_path, arcname=arcname)
+                            db.execute("UPDATE sessions SET download_count = COALESCE(download_count, 0) + 1 WHERE job_id=?", (job_id,))
+                            added_count += 1
+        return added_count
+
+    import asyncio
+    added_count = await asyncio.to_thread(build_zip)
 
     if added_count == 0:
-        os.unlink(tmp_zip_path)
+        if os.path.exists(tmp_zip_path):
+            os.unlink(tmp_zip_path)
         raise HTTPException(404, "No valid image files found to package into zip")
 
     background_tasks.add_task(cleanup_file, tmp_zip_path)

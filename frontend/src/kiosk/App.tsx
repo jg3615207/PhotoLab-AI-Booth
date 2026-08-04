@@ -9,8 +9,17 @@ import ProcessingScreen from './screens/ProcessingScreen'
 import ResultScreen from './screens/ResultScreen'
 import './styles.css'
 
+import { useIdleTimeout } from './hooks/useIdleTimeout'
+
 function KioskApp() {
   const { currentScreen, setScreen, setSession } = useKiosk();
+
+  // Auto reset kiosk to attract screen on inactivity (60s)
+  const isTimeoutActive = currentScreen !== 'join' && currentScreen !== 'processing' && currentScreen !== 'attract';
+  useIdleTimeout(() => {
+    console.log('[Kiosk] Inactivity timeout triggered, resetting to attract screen.');
+    setScreen('attract');
+  }, 60000, isTimeoutActive);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -49,6 +58,10 @@ function KioskApp() {
       {currentScreen === 'preview' && <PreviewScreen />}
       {currentScreen === 'processing' && <ProcessingScreen />}
       {currentScreen === 'result' && <ResultScreen />}
+
+      <div style={{ position: 'fixed', bottom: 8, left: 0, right: 0, textAlign: 'center', fontSize: 11, color: '#555', pointerEvents: 'none', zIndex: 10 }}>
+        PhotoLab v0.43.0
+      </div>
     </div>
   );
 }

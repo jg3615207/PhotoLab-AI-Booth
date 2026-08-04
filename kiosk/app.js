@@ -4,8 +4,10 @@ let selectedStyleId = null;
 let currentJobId = null;
 let mediaStream = null;
 let pollInterval = null;
-
 let currentSession = null;
+let retakeCount = 0;
+let maxRetakes = 3;
+let currentMaxPeople = 1;
 
 window.onload = async () => {
   const urlParams = new URLSearchParams(window.location.search);

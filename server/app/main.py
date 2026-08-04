@@ -26,6 +26,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi import Request, HTTPException, status
+
+@app.middleware("http")
+async def admin_auth_middleware(request: Request, call_next):
+    if request.url.path.startswith("/api/admin"):
+        admin_key = request.headers.get("X-PhotoLab-Admin-Key") or request.query_params.get("admin_key")
+        if settings.admin_api_key and admin_key != settings.admin_api_key:
+            # Allow OPTIONS preflight or localhost dev bypass if configured
+            if request.method != "OPTIONS" and request.client and request.client.host not in ("127.0.0.1", "localhost", "::1"):
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized Admin Access")
+    response = await call_next(request)
+    return response
+
 app.include_router(styles.router)
 app.include_router(capture.router)
 app.include_router(gallery.router)
@@ -46,7 +59,7 @@ def download_alias(job_id: str):
 def health():
     return {
         "status": "ok", 
-        "version": "0.42.0",
+        "version": "0.43.0",
         "custom_css": get_setting("custom_css", "")
     }
 
@@ -75,17 +88,3 @@ def startup():
         
     start_print_worker()
 
-    import threading
-    def background_cleanup_loop():
-        import time
-        while True:
-            time.sleep(86400)
-            try:
-                with get_db() as db:
-                    db.execute("VACUUM")
-                    db.execute("ANALYZE")
-                print("[scheduler] Automated DB VACUUM & ANALYZE completed.")
-            except Exception as e:
-                print(f"[scheduler] DB cleanup error: {e}")
-
-    threading.Thread(target=background_cleanup_loop, daemon=True).start()
