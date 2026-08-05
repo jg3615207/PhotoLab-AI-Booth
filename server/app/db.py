@@ -25,6 +25,33 @@ def get_db():
         conn.rollback()
         raise
 
+def acquire_next_print_job():
+    with get_db() as db:
+        try:
+            row = db.execute("""
+                UPDATE print_queue
+                SET status = 'processing'
+                WHERE id = (
+                    SELECT id FROM print_queue
+                    WHERE status = 'queued'
+                    ORDER BY id ASC
+                    LIMIT 1
+                )
+                RETURNING id, session_id, image_path, copies, created_at
+            """).fetchone()
+            return dict(row) if row else None
+        except Exception:
+            # Fallback for SQLite versions that do not support RETURNING
+            conn = get_conn()
+            row = conn.execute("SELECT id, session_id, image_path, copies, created_at FROM print_queue WHERE status = 'queued' ORDER BY id ASC LIMIT 1").fetchone()
+            if row:
+                job = dict(row)
+                cursor = conn.execute("UPDATE print_queue SET status = 'processing' WHERE id = ? AND status = 'queued'", (job['id'],))
+                if cursor.rowcount > 0:
+                    conn.commit()
+                    return job
+            return None
+
 def init_db():
     Path(settings.db_path).parent.mkdir(parents=True, exist_ok=True)
     conn = get_conn()
@@ -47,6 +74,14 @@ def init_db():
             resolution TEXT DEFAULT '2k',
             workflows TEXT DEFAULT '{}',
             transition_type TEXT DEFAULT 'glitch',
+            mode TEXT DEFAULT 'ai',
+            filter_preset TEXT DEFAULT '',
+            filter_params TEXT DEFAULT '{}',
+            layout_type TEXT DEFAULT 'single',
+            sort_order INTEGER DEFAULT 0,
+            animated_thumbnail TEXT DEFAULT '',
+            dynamic_prompt_enabled INTEGER DEFAULT 0,
+            multi_face_crop_enabled INTEGER DEFAULT 0,
             active INTEGER DEFAULT 1,
             created_at TEXT DEFAULT (datetime('now'))
         );
@@ -65,6 +100,11 @@ def init_db():
             error_message TEXT,
             cost_time INTEGER DEFAULT 0,
             cost_money REAL DEFAULT 0,
+            event_id TEXT,
+            photos_captured TEXT DEFAULT '[]',
+            download_count INTEGER DEFAULT 0,
+            printed_at TEXT DEFAULT '',
+            v2_model TEXT DEFAULT '',
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
         );
@@ -74,6 +114,7 @@ def init_db():
             image_path TEXT,
             copies INTEGER DEFAULT 1,
             status TEXT DEFAULT 'queued',
+            printed_at TEXT DEFAULT '',
             created_at TEXT DEFAULT (datetime('now'))
         );
         CREATE TABLE IF NOT EXISTS app_settings (
@@ -91,6 +132,22 @@ def init_db():
             expire_date TEXT DEFAULT '',
             active INTEGER DEFAULT 1,
             frame_path TEXT DEFAULT '',
+            max_photos_per_session INTEGER DEFAULT 1,
+            watermark_text TEXT DEFAULT '',
+            watermark_opacity REAL DEFAULT 0.5,
+            watermark_position TEXT DEFAULT 'bottom-right',
+            max_prints_per_capture INTEGER DEFAULT 2,
+            total_print_quota INTEGER DEFAULT 0,
+            paper_size TEXT DEFAULT '4x6',
+            archived INTEGER DEFAULT 0,
+            enable_filters INTEGER DEFAULT 0,
+            retake_limit INTEGER DEFAULT 3,
+            qr_bg_color TEXT DEFAULT '#ffffff',
+            qr_fg_color TEXT DEFAULT '#000000',
+            enable_gesture_capture INTEGER DEFAULT 1,
+            gen_failsafe_enabled INTEGER DEFAULT 0,
+            gen_failsafe_timeout INTEGER DEFAULT 35,
+            booth_mode TEXT DEFAULT 'ai',
             created_at TEXT DEFAULT (datetime('now'))
         );
         CREATE TABLE IF NOT EXISTS style_tests (
@@ -154,33 +211,6 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_agent_messages_conv ON agent_messages(conversation_id);
     """)
     conn.execute("INSERT OR IGNORE INTO schema_version (version) VALUES (430)")
-
-def acquire_next_print_job():
-    with get_db() as db:
-        try:
-            row = db.execute("""
-                UPDATE print_queue
-                SET status = 'processing'
-                WHERE id = (
-                    SELECT id FROM print_queue
-                    WHERE status = 'queued'
-                    ORDER BY id ASC
-                    LIMIT 1
-                )
-                RETURNING id, session_id, image_path, copies, created_at
-            """).fetchone()
-            return dict(row) if row else None
-        except Exception:
-            # Fallback for SQLite versions that do not support RETURNING
-            conn = get_conn()
-            row = conn.execute("SELECT id, session_id, image_path, copies, created_at FROM print_queue WHERE status = 'queued' ORDER BY id ASC LIMIT 1").fetchone()
-            if row:
-                job = dict(row)
-                cursor = conn.execute("UPDATE print_queue SET status = 'processing' WHERE id = ? AND status = 'queued'", (job['id'],))
-                if cursor.rowcount > 0:
-                    conn.commit()
-                    return job
-            return None
     # Migration: add v2_model and v2_quality columns (v0.4.0)
     try:
         conn.execute("ALTER TABLE styles ADD COLUMN v2_model TEXT DEFAULT 'nb2-cheap'")

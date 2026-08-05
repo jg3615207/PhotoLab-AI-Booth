@@ -82,7 +82,7 @@ def startup():
     from app.db import get_db
     try:
         with get_db() as db:
-            db.execute("UPDATE sessions SET status='failed', error='Server restarted' WHERE status IN ('processing', 'pending')")
+            db.execute("UPDATE sessions SET status='failed', error_message='Server restarted' WHERE status IN ('processing', 'pending')")
     except Exception as e:
         print(f"Failed to run graceful recovery: {e}")
         
