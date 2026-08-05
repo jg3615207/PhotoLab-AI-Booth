@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     upload_dir: str = str(Path(__file__).parent.parent / "data" / "inputs")
     output_dir: str = str(Path(__file__).parent.parent / "data" / "outputs")
     print_dir: str = str(Path(__file__).parent.parent / "data" / "prints")
-    db_path: str = str(Path(__file__).parent.parent / "data" / "photolab_v2.db")
+    db_path: str = str(Path(__file__).parent.parent / "data" / "booth.db")
 
     server_host: str = "0.0.0.0"
     server_port: int = 8000

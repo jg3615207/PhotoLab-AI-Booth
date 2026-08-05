@@ -48,9 +48,9 @@ SERVER_DIR = BASE_DIR / "server"
 
 def find_db_path():
     candidates = [
-        SERVER_DIR / "data" / "photolab_v2.db",
         SERVER_DIR / "data" / "booth.db",
         BASE_DIR / "data" / "booth.db",
+        SERVER_DIR / "data" / "photolab_v2.db",
         SERVER_DIR / "sqlite.db",
         BASE_DIR / "sqlite.db",
     ]
