@@ -41,8 +41,11 @@ def get_job_history(
         conditions = []
         
         if event_id and event_id != "all":
-            conditions.append("s.event_id = ?")
-            params.append(event_id)
+            if event_id in ("unassigned", "none"):
+                conditions.append("(s.event_id IS NULL OR s.event_id = '' OR s.event_id = 'none')")
+            else:
+                conditions.append("s.event_id = ?")
+                params.append(event_id)
         if status and status != "all":
             conditions.append("s.status = ?")
             params.append(status)

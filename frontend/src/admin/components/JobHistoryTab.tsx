@@ -56,8 +56,8 @@ export default function JobHistoryTab() {
   const { lang } = useAdminLang();
   const isZh = lang === 'zh-Hant';
 
-  // Sub-Tab state: 'live_jobs' is DEFAULT!
-  const [activeSubTab, setActiveSubTab] = useState<'live_jobs' | 'photo_jobs' | 'ref_gens'>('live_jobs');
+  // Sub-Tab state: 'photo_jobs' is DEFAULT so all completed sessions show immediately
+  const [activeSubTab, setActiveSubTab] = useState<'live_jobs' | 'photo_jobs' | 'ref_gens'>('photo_jobs');
   
   // Live Jobs states
   const [liveJobs, setLiveJobs] = useState<LiveJob[]>([]);
