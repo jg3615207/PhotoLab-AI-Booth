@@ -88,7 +88,30 @@ def spool_print_simple(image_path: str, copies: int = 1, printer_name: str = "")
         pass
     return False
 
+def spool_print_mac(image_path: str, copies: int = 1, printer_name: str = ""):
+    import subprocess
+    name = printer_name or settings.printer_name
+    try:
+        cmd = ["lp"]
+        if name:
+            cmd.extend(["-d", name])
+        cmd.extend(["-n", str(copies), "-o", "fit-to-page", image_path])
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode == 0:
+            print(f"[print] macOS CUPS print successful: {res.stdout.strip()}")
+            return True
+        else:
+            print(f"[print] macOS lp failed: {res.stderr.strip()}")
+            return False
+    except Exception as e:
+        print(f"[print] macOS print exception: {e}")
+        return False
+
 def print_image(image_path: str, copies: int = 1):
+    import sys
+    if sys.platform == "darwin":
+        return spool_print_mac(image_path, copies)
+
     name = settings.printer_name
     try:
         # Try direct GDI printing first
@@ -98,20 +121,22 @@ def print_image(image_path: str, copies: int = 1):
     except Exception as e:
         print(f"[print] GDI print attempt exception: {e}")
 
-    try:
-        import win32api
-        import win32print
-        pname = name or win32print.GetDefaultPrinter()
-        if not pname:
-            print("[print] No default printer configured or found.")
+    if sys.platform == "win32":
+        try:
+            import win32api
+            import win32print
+            pname = name or win32print.GetDefaultPrinter()
+            if not pname:
+                print("[print] No default printer configured or found.")
+                return False
+            
+            for _ in range(copies):
+                win32api.ShellExecute(0, "printto", image_path, f'"{pname}"', ".", 0)
+            return True
+        except Exception as e:
+            print(f"[print] ShellExecute ERROR: {e}")
             return False
-        
-        for _ in range(copies):
-            win32api.ShellExecute(0, "printto", image_path, f'"{pname}"', ".", 0)
-        return True
-    except Exception as e:
-        print(f"[print] ShellExecute ERROR: {e}")
-        return False
+    return False
 
 def print_worker():
     from app.db import get_db, get_setting, acquire_next_print_job

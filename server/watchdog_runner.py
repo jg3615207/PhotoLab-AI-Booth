@@ -11,7 +11,7 @@ from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
-DB_PATH = os.path.join(BASE_DIR, "data", "photolab_v2.db")
+DB_PATH = os.path.join(BASE_DIR, "data", "booth.db")
 LOG_PATH = os.path.join(BASE_DIR, "watchdog.log")
 MEMORY_LIMIT_BYTES = 2 * 1024 * 1024 * 1024  # 2GB
 
@@ -69,7 +69,11 @@ def get_process_memory(pid):
         return 0
 
 def start_backend():
-    python_exe = os.path.join(BASE_DIR, "venv", "Scripts", "python.exe")
+    if sys.platform == "darwin":
+        python_exe = os.path.join(BASE_DIR, "venv", "bin", "python")
+    else:
+        python_exe = os.path.join(BASE_DIR, "venv", "Scripts", "python.exe")
+
     if not os.path.exists(python_exe):
         python_exe = sys.executable  # Fallback to current interpreter
         

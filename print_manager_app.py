@@ -356,8 +356,27 @@ class PrintManagerApp(tk.Tk):
                 default_printer = win32print.GetDefaultPrinter()
             except Exception as e:
                 self._log(f"Error enumerating Windows printers: {e}")
+        elif sys.platform == "darwin":
+            try:
+                import subprocess
+                res = subprocess.run(["lpstat", "-p", "-d"], capture_output=True, text=True)
+                if res.returncode == 0:
+                    for line in res.stdout.splitlines():
+                        if line.startswith("printer "):
+                            pname = line.split()[1]
+                            printers.append(pname)
+                        elif "default destination:" in line:
+                            default_printer = line.split(":")[-1].strip()
+                if not printers:
+                    printers = ["Default macOS Printer"]
+                    default_printer = "Default macOS Printer"
+                self._log(f"macOS CUPS printers detected: {printers}")
+            except Exception as e:
+                self._log(f"Error enumerating macOS printers: {e}")
+                printers = ["Default macOS Printer"]
+                default_printer = "Default macOS Printer"
         else:
-            printers = ["Virtual / Software Printer (No win32print)"]
+            printers = ["Virtual / Software Printer"]
             default_printer = printers[0]
 
         if printers:
@@ -591,7 +610,7 @@ class PrintManagerApp(tk.Tk):
         if HAS_WIN32:
             # 1. Try Direct GDI Printing via win32ui & win32print (High Quality, Fast, Direct Spool)
             try:
-                if not pname or pname == "No Printers Installed":
+                if not pname or pname in ("No Printers Installed", "Virtual / Software Printer"):
                     pname = win32print.GetDefaultPrinter()
 
                 im = Image.open(image_path).convert("RGB")
@@ -646,6 +665,23 @@ class PrintManagerApp(tk.Tk):
                 return True
             except Exception as shell_err:
                 self._log(f"ShellExecute error: {shell_err}")
+                return False
+        elif sys.platform == "darwin":
+            try:
+                import subprocess
+                cmd = ["lp"]
+                if pname and pname not in ("No Printers Installed", "Virtual / Software Printer", "Default macOS Printer"):
+                    cmd.extend(["-d", pname])
+                cmd.extend(["-n", str(copies), "-o", "fit-to-page", image_path])
+                res = subprocess.run(cmd, capture_output=True, text=True)
+                if res.returncode == 0:
+                    self._log(f"✅ macOS CUPS Spooling successful to '{pname}'")
+                    return True
+                else:
+                    self._log(f"macOS lp spool error: {res.stderr.strip()}")
+                    return False
+            except Exception as mac_err:
+                self._log(f"macOS print exception: {mac_err}")
                 return False
         else:
             self._log(f"[SIMULATION MODE] Simulated print for {image_path}")
