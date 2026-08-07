@@ -30,6 +30,15 @@ export default function SystemTab() {
     }
   };
 
+  // Cloudflare D1 & DB Mode state
+  const [dbMode, setDbMode] = useState<'local' | 'remote'>('local');
+  const [cfAccountId, setCfAccountId] = useState('');
+  const [cfD1DatabaseId, setCfD1DatabaseId] = useState('');
+  const [cfApiToken, setCfApiToken] = useState('');
+  const [cfTokenConfigured, setCfTokenConfigured] = useState(false);
+  const [testingD1, setTestingD1] = useState(false);
+  const [syncingD1, setSyncingD1] = useState(false);
+
   useEffect(() => {
     fetch('/api/styles/settings')
       .then(res => res.json())
@@ -42,6 +51,16 @@ export default function SystemTab() {
       })
       .catch(err => console.error("Failed to load settings:", err));
 
+    fetch('/api/admin/db/config')
+      .then(res => res.json())
+      .then(data => {
+        setDbMode(data.db_mode || 'local');
+        setCfAccountId(data.cf_account_id || '');
+        setCfD1DatabaseId(data.cf_d1_database_id || '');
+        setCfTokenConfigured(data.cf_api_token_configured || false);
+      })
+      .catch(err => console.error("Failed to load DB config:", err));
+
     const fetchWatchdog = () => {
       fetch('/api/admin/maintenance/watchdog/status')
         .then(res => res.json())
@@ -53,6 +72,64 @@ export default function SystemTab() {
     const interval = setInterval(fetchWatchdog, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleSaveDbConfig = async () => {
+    try {
+      const res = await fetch('/api/admin/db/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          db_mode: dbMode,
+          cf_account_id: cfAccountId,
+          cf_d1_database_id: cfD1DatabaseId,
+          cf_api_token: cfApiToken || (cfTokenConfigured ? 'KEEP_EXISTING' : '')
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to save DB config');
+      alert(isZh ? `資料庫模式已切換為 [${dbMode.toUpperCase()}] 並成功儲存！` : `Database mode updated to [${dbMode.toUpperCase()}]!`);
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleTestD1 = async () => {
+    setTestingD1(true);
+    try {
+      const res = await fetch('/api/admin/db/test-d1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          db_mode: dbMode,
+          cf_account_id: cfAccountId,
+          cf_d1_database_id: cfD1DatabaseId,
+          cf_api_token: cfApiToken || (cfTokenConfigured ? 'KEEP_EXISTING' : '')
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'D1 connection test failed');
+      alert(isZh ? "✅ Cloudflare D1 資料庫連線測試成功！" : "✅ Cloudflare D1 database connection test successful!");
+    } catch (err: any) {
+      alert(isZh ? "❌ Cloudflare D1 連線失敗: " + err.message : "❌ Cloudflare D1 Connection Error: " + err.message);
+    } finally {
+      setTestingD1(false);
+    }
+  };
+
+  const handleSyncD1 = async () => {
+    if (!confirm(isZh ? "確定要將本地 SQLite 資料同步至 Cloudflare D1 雲端資料庫嗎？" : "Sync local SQLite database tables to Cloudflare D1?")) return;
+    setSyncingD1(true);
+    try {
+      const res = await fetch('/api/admin/db/sync-d1', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Sync failed');
+      alert(isZh ? `✅ 雲端同步完成！同步表筆數: ${JSON.stringify(data.synced_tables)}` : `✅ Cloud sync complete! Synced tables: ${JSON.stringify(data.synced_tables)}`);
+    } catch (err: any) {
+      alert("Sync Error: " + err.message);
+    } finally {
+      setSyncingD1(false);
+    }
+  };
 
   const handleTest = async () => {
     if (!apiBase || !apiKey || !model) {
@@ -227,7 +304,7 @@ export default function SystemTab() {
           className="btn-secondary" 
           style={{ padding: '10px 24px', borderRadius: '8px', cursor: 'pointer' }}
         >
-          {testing ? (isZh ? '測試中...' : 'Testing...') : (isZh ? '🧪 測試連線' : '🧪 Test Connection')}
+          {testing ? (isZh ? '測試中...' : 'Testing...') : (isZh ? '🧪 測試 AI 連線' : '🧪 Test AI Connection')}
         </button>
         <button 
           onClick={handleSave} 
@@ -235,8 +312,92 @@ export default function SystemTab() {
           className="btn-primary" 
           style={{ padding: '10px 24px', borderRadius: '8px', cursor: 'pointer' }}
         >
-          {saving ? (isZh ? '儲存中...' : 'Saving...') : (isZh ? '💾 儲存設定' : '💾 Save Settings')}
+          {saving ? (isZh ? '儲存中...' : 'Saving...') : (isZh ? '💾 儲存 AI 設定' : '💾 Save AI Settings')}
         </button>
+      </div>
+
+      {/* Cloudflare D1 & Database Mode Panel */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '24px', marginBottom: '36px' }}>
+        <h2 style={{ fontSize: '20px', color: '#fff', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          ☁️ {isZh ? '資料庫模式與 Cloudflare D1 設定' : 'Database Mode & Cloudflare D1 Settings'}
+          <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '10px', background: dbMode === 'remote' ? 'rgba(0,210,255,0.2)' : 'rgba(255,255,255,0.1)', color: dbMode === 'remote' ? '#00d2ff' : '#aaa' }}>
+            {dbMode === 'remote' ? 'REMOTE (Cloudflare D1)' : 'LOCAL (booth.db)'}
+          </span>
+        </h2>
+
+        <div style={{ display: 'grid', gap: '16px', marginBottom: '20px' }}>
+          <div>
+            <label style={{ display: 'block', color: '#aaa', fontSize: '14px', marginBottom: '6px' }}>{isZh ? '資料庫存取模式 (Database Mode)' : 'Database Storage Mode'}</label>
+            <select 
+              value={dbMode} 
+              onChange={e => setDbMode(e.target.value as 'local' | 'remote')}
+              style={{ width: '100%', padding: '10px 14px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
+            >
+              <option value="local">🏠 本地單機 SQLite (booth.db)</option>
+              <option value="remote">☁️ 雲端 Cloudflare D1 (Remote Server)</option>
+            </select>
+          </div>
+
+          <div style={{ opacity: dbMode === 'remote' ? 1 : 0.6, pointerEvents: dbMode === 'remote' ? 'auto' : 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <div>
+                <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Cloudflare Account ID</label>
+                <input 
+                  type="text" 
+                  value={cfAccountId} 
+                  onChange={e => setCfAccountId(e.target.value)} 
+                  placeholder="e.g. 5a1b..." 
+                  style={{ width: '100%', padding: '10px 14px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Cloudflare D1 Database ID</label>
+                <input 
+                  type="text" 
+                  value={cfD1DatabaseId} 
+                  onChange={e => setCfD1DatabaseId(e.target.value)} 
+                  placeholder="e.g. 8f2c..." 
+                  style={{ width: '100%', padding: '10px 14px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
+                />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', color: '#aaa', fontSize: '13px', marginBottom: '4px' }}>Cloudflare API Token {cfTokenConfigured ? '(Already Configured ✅)' : ''}</label>
+              <input 
+                type="password" 
+                value={cfApiToken} 
+                onChange={e => setCfApiToken(e.target.value)} 
+                placeholder={cfTokenConfigured ? "保留現有 Token 或輸入新 Token" : "輸入 Cloudflare API Token"} 
+                style={{ width: '100%', padding: '10px 14px', background: '#0d0d1a', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            onClick={handleSaveDbConfig} 
+            className="btn-primary" 
+            style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}
+          >
+            💾 {isZh ? '套用與儲存模式設定' : 'Apply & Save DB Mode'}
+          </button>
+          <button 
+            onClick={handleTestD1} 
+            disabled={testingD1} 
+            className="btn-secondary" 
+            style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}
+          >
+            {testingD1 ? (isZh ? '連線中...' : 'Testing...') : (isZh ? '🧪 測試 D1 雲端連線' : '🧪 Test D1 Connection')}
+          </button>
+          <button 
+            onClick={handleSyncD1} 
+            disabled={syncingD1} 
+            style={{ padding: '10px 20px', borderRadius: '8px', background: 'linear-gradient(135deg, #00d2ff, #3a7bd5)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}
+          >
+            {syncingD1 ? (isZh ? '同步中...' : 'Syncing...') : (isZh ? '☁️ 同步本地資料至 D1' : '☁️ Sync Local DB to D1')}
+          </button>
+        </div>
       </div>
 
       <h2 style={{ fontSize: '20px', color: '#fff', marginBottom: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '24px' }}>

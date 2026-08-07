@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     server_port: int = 8000
     printer_name: str = ""
 
+    db_mode: str = "local"  # "local" | "remote"
+    cf_account_id: str = ""
+    cf_d1_database_id: str = ""
+    cf_api_token: str = ""
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

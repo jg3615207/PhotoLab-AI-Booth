@@ -217,3 +217,72 @@ def run_diagnostics():
         results["database"] = {"status": "error", "message": str(e)}
 
     return results
+
+class DBConfigPayload(BaseModel):
+    db_mode: str = "local"  # "local" | "remote"
+    cf_account_id: str = ""
+    cf_d1_database_id: str = ""
+    cf_api_token: str = ""
+
+@router.get("/db/config")
+def get_db_config():
+    with get_db() as db:
+        mode = settings.db_mode
+        acc = settings.cf_account_id
+        db_id = settings.cf_d1_database_id
+        token = settings.cf_api_token
+        
+        # Load from DB settings if stored
+        rows = db.execute("SELECT key, value FROM app_settings WHERE key IN ('db_mode', 'cf_account_id', 'cf_d1_database_id', 'cf_api_token')").fetchall()
+        kv = {r[0]: r[1] for r in rows}
+        if "db_mode" in kv: mode = kv["db_mode"]
+        if "cf_account_id" in kv: acc = kv["cf_account_id"]
+        if "cf_d1_database_id" in kv: db_id = kv["cf_d1_database_id"]
+        if "cf_api_token" in kv: token = kv["cf_api_token"]
+
+        return {
+            "db_mode": mode,
+            "cf_account_id": acc,
+            "cf_d1_database_id": db_id,
+            "cf_api_token_configured": bool(token),
+            "cf_api_token_preview": token[:6] + "..." if token else ""
+        }
+
+@router.post("/db/config")
+def update_db_config(payload: DBConfigPayload):
+    with get_db() as db:
+        db.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('db_mode', ?)", (payload.db_mode,))
+        db.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('cf_account_id', ?)", (payload.cf_account_id,))
+        db.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('cf_d1_database_id', ?)", (payload.cf_d1_database_id,))
+        if payload.cf_api_token and payload.cf_api_token != "KEEP_EXISTING":
+            db.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('cf_api_token', ?)", (payload.cf_api_token,))
+            settings.cf_api_token = payload.cf_api_token
+
+    settings.db_mode = payload.db_mode
+    settings.cf_account_id = payload.cf_account_id
+    settings.cf_d1_database_id = payload.cf_d1_database_id
+
+    return {"status": "ok", "db_mode": settings.db_mode}
+
+@router.post("/db/test-d1")
+def test_cloudflare_d1(payload: DBConfigPayload = None):
+    from app.db import CloudflareD1Client
+    acc = payload.cf_account_id if payload else settings.cf_account_id
+    db_id = payload.cf_d1_database_id if payload else settings.cf_d1_database_id
+    token = payload.cf_api_token if (payload and payload.cf_api_token and payload.cf_api_token != "KEEP_EXISTING") else settings.cf_api_token
+
+    client = CloudflareD1Client(acc, db_id, token)
+    try:
+        res = client.test_connection()
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/db/sync-d1")
+def sync_to_cloudflare_d1():
+    from app.db import CloudflareD1Client, sync_local_db_to_d1
+    try:
+        res = sync_local_db_to_d1()
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

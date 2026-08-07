@@ -4,7 +4,79 @@ from datetime import datetime, timezone
 from contextlib import contextmanager
 from app.config import settings
 
+import httpx
+
 _local = threading.local()
+
+class CloudflareD1Client:
+    def __init__(self, account_id: str = "", database_id: str = "", api_token: str = ""):
+        self.account_id = account_id or settings.cf_account_id
+        self.database_id = database_id or settings.cf_d1_database_id
+        self.api_token = api_token or settings.cf_api_token
+        self.base_url = f"https://api.cloudflare.com/client/v4/accounts/{self.account_id}/d1/database/{self.database_id}/query"
+
+    def is_configured(self) -> bool:
+        return bool(self.account_id and self.database_id and self.api_token)
+
+    def execute_query(self, sql: str, params: list = None):
+        if not self.is_configured():
+            raise ValueError("Cloudflare D1 credentials not fully configured.")
+
+        headers = {
+            "Authorization": f"Bearer {self.api_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "sql": sql,
+            "params": params or []
+        }
+        with httpx.Client(timeout=20.0) as client:
+            res = client.post(self.base_url, headers=headers, json=payload)
+            if res.status_code != 200:
+                raise RuntimeError(f"HTTP {res.status_code}: {res.text}")
+            data = res.json()
+            if not data.get("success"):
+                errors = data.get("errors", [])
+                err_msg = ", ".join([e.get("message", "") for e in errors]) or "D1 query failed"
+                raise RuntimeError(f"Cloudflare D1 API Error: {err_msg}")
+            
+            result_list = data.get("result", [])
+            result_obj = result_list[0] if result_list else {}
+            return result_obj.get("results", [])
+
+    def test_connection(self) -> dict:
+        results = self.execute_query("SELECT 1 as test")
+        return {"status": "ok", "connected": True, "result": results}
+
+def sync_local_db_to_d1(d1_client: CloudflareD1Client = None) -> dict:
+    client = d1_client or CloudflareD1Client()
+    if not client.is_configured():
+        raise ValueError("Cloudflare D1 credentials not configured.")
+
+    tables = ["styles", "events", "app_settings", "transitions", "frame_templates"]
+    synced_tables = {}
+
+    with get_db() as db:
+        for t in tables:
+            rows = db.execute(f"SELECT * FROM {t}").fetchall()
+            row_dicts = [dict(r) for r in rows]
+            if not row_dicts:
+                synced_tables[t] = 0
+                continue
+
+            cols = list(row_dicts[0].keys())
+            placeholders = ", ".join(["?"] * len(cols))
+            col_names = ", ".join(cols)
+            sql = f"INSERT OR REPLACE INTO {t} ({col_names}) VALUES ({placeholders})"
+
+            count = 0
+            for r in row_dicts:
+                vals = [r[k] for k in cols]
+                client.execute_query(sql, vals)
+                count += 1
+            synced_tables[t] = count
+
+    return {"status": "ok", "synced_tables": synced_tables}
 
 def get_conn() -> sqlite3.Connection:
     if not hasattr(_local, "conn") or _local.conn is None:
