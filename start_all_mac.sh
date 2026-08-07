@@ -21,10 +21,13 @@ $PYTHON_EXEC "$SCRIPT_DIR/server/watchdog_runner.py" &
 SERVER_PID=$!
 sleep 2
 
+TUNNEL_NAME="${CLOUDFLARE_TUNNEL_NAME:-photolab-mac}"
+TUNNEL_URL="${CLOUDFLARE_TUNNEL_URL:-https://photolab-mac.techno-film.com/}"
+
 # 2. Check for Cloudflare Tunnel
 if command -v cloudflared &>/dev/null; then
-    echo "2️⃣ Launching Cloudflare Tunnel..."
-    cloudflared tunnel run --url http://127.0.0.1:8765 photolab &
+    echo "2️⃣ Launching Cloudflare Tunnel ($TUNNEL_NAME)..."
+    cloudflared tunnel run --url http://127.0.0.1:8765 "$TUNNEL_NAME" &
     TUNNEL_PID=$!
 else
     echo "ℹ️ Cloudflare Tunnel (cloudflared) not installed. Running in local mode."
@@ -43,7 +46,7 @@ echo "       PhotoLab AI Booth is RUNNING! 🚀            "
 echo "===================================================="
 echo "🌐 Local Kiosk URL:   http://127.0.0.1:8765/kiosk/"
 echo "⚙️ Local Admin URL:   http://127.0.0.1:8765/admin/"
-echo "🌐 Cloudflare Tunnel: https://photolab.techno-film.com/"
+echo "🌐 macOS Cloudflare:  $TUNNEL_URL"
 echo "===================================================="
 echo ""
 
@@ -51,13 +54,13 @@ while true; do
     echo "Options:"
     echo " [1] Open Local Kiosk (Browser)"
     echo " [2] Open Local Admin (Browser)"
-    echo " [3] Open Cloudflare Tunnel (Browser)"
+    echo " [3] Open macOS Cloudflare Tunnel (Browser)"
     echo " [q] Quit All Services"
     read -p "Select option: " opt
     case $opt in
         1) open "http://127.0.0.1:8765/kiosk/" ;;
         2) open "http://127.0.0.1:8765/admin/" ;;
-        3) open "https://photolab.techno-film.com/" ;;
+        3) open "$TUNNEL_URL" ;;
         q|Q)
             echo "Stopping all services..."
             kill $SERVER_PID 2>/dev/null || true
